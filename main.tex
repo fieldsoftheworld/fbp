@@ -1,14 +1,127 @@
-\documentclass{article}
-\usepackage{graphicx} % Required for inserting images
+\documentclass[runningheads]{llncs}
 
-\title{ICVR}
-\author{Aviskar Giri}
-\date{June 2026}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
 
 \begin{document}
 
+\title{Postprocessing Matters: Inference-Time Polygon Refinement for Agricultural Field-Boundary Delineation}
+
+\author{Aviskar Giri \and Isaac Corley}
+\institute{Taylor Geospatial Institute, St.\ Louis, MO, USA\\
+\email{aviskar.giri@taylorgeospatial.org}}
+
 \maketitle
 
+\begin{abstract}
+Semantic segmentation models for agricultural field-boundary mapping produce accurate pixel masks, yet the polygons derived from those masks are the deliverable that downstream users consume, and the conversion from mask to polygon is rarely evaluated or optimized.
+We study this conversion as a first-class problem: given a frozen segmentation model, we improve the extraction of field polygons from its predictions and measure the effect with polygon-level metrics.
+A threshold-consensus polygonizer, which runs watershed at multiple seed thresholds and combines the outputs by per-pixel majority vote, recovers polygon-level accuracy comparable to the model headline without retraining, and the gain concentrates on regions whose single-threshold output over-fragments.
+We further quantify when geometric refinement of the resulting polygons helps or harms accuracy as a function of field morphology, and we derive a label-free confidence signal from threshold agreement.
+We evaluate across Sentinel-2 and PlanetScope imagery with a focus on smallholder regions.
+\keywords{Field boundary delineation \and Postprocessing \and Instance segmentation \and Watershed \and Remote sensing.}
+\end{abstract}
+
 \section{Introduction}
+\label{sec:intro}
+
+Mapping the boundaries of agricultural fields supports crop monitoring, yield estimation, and food-security planning, and it is the prerequisite for parcel-level analysis in regions that lack cadastral records~\cite{kerner2024ftw,persello2023ai4smallfarms}.
+Recent benchmarks frame the task as segmentation of satellite imagery followed by extraction of per-field polygons~\cite{kerner2024ftw,waldner2020decode}.
+Reported progress is dominated by improvements to the model: architectures, losses, and training data.
+The step that turns a predicted mask into polygons, by contrast, receives little attention and is seldom evaluated with the metrics that matter for the polygons themselves.
+
+This gap has practical consequences.
+A high pixel-IoU mask can yield polygons that over-fragment a single field into many parts, merge adjacent fields, or carry jagged boundaries that no downstream system can use~\cite{cheng2021boundaryiou,girard2021framefield}.
+Improving the model is expensive and, once a model is deployed at scale, often infeasible.
+Postprocessing is cheap, runs once, and applies to any existing prediction product.
+
+\paragraph{Problem statement.}
+Given a frozen segmentation model that outputs per-pixel field and boundary probabilities, inference-time postprocessing recovers polygon-level accuracy comparable to retraining, the recovery generalizes across Sentinel-2 and PlanetScope imagery, and it applies at global scale.
+This claim is falsifiable: we measure polygon-level accuracy before and after postprocessing and compare against the model headline and against the strongest baseline polygonizer.
+
+\paragraph{Why it is hard.}
+The optimal watershed seed threshold varies by more than an order of magnitude across regions, so a single fixed setting is not adequate~\cite{waldner2020decode}.
+Geometric refinement that improves building footprints, which are predominantly rectilinear, may distort organic field boundaries~\cite{zorzi2022polyworld}.
+Naive simplification can preserve area-based agreement while degrading boundary quality~\cite{girard2021framefield}.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+\item A threshold-consensus polygonizer that combines multi-threshold watershed outputs by per-pixel majority vote, applied to a frozen model, with an ablation isolating the consensus rule from the effect of trying many thresholds (Section~\ref{sec:method}).
+\item A systematic measurement of when geometric refinement of field polygons helps or harms polygon-level accuracy, stratified by field morphology (Section~\ref{sec:results}).
+\item A label-free confidence signal derived from threshold agreement, evaluated for calibration and selective prediction (Section~\ref{sec:results}).
+\item A cross-sensor and continental-scale evaluation of the above (Section~\ref{sec:setup}).
+\end{enumerate}
+
+\paragraph{Limitations.}
+We do not modify or retrain the underlying model, so postprocessing cannot recover fields the model fails to detect at all.
+The threshold-agreement confidence reflects boundary ambiguity and does not capture errors on which all thresholds agree.
+
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Field-boundary delineation.}
+The dominant pipeline predicts field extent, boundary, and within-field distance, then separates instances with seeded or hierarchical watershed~\cite{waldner2020decode}.
+Public benchmarks polygonize a multiclass mask by thresholding, morphology, and simplification, and report pixel and object-level metrics~\cite{kerner2024ftw}.
+Resolution-agnostic instance models report mean average precision across scales~\cite{lavreniuk2025delineateanything}.
+None of these works evaluates a postprocessing technique as the object of study, and none reports panoptic quality.
+
+\paragraph{Polygon extraction and regularization.}
+Learned vectorization predicts polygon vertices directly~\cite{girard2021framefield,zorzi2022polyworld} and is evaluated almost exclusively on buildings, where right-angle priors hold.
+Geometric regularization of footprints assumes rectilinear shapes.
+Whether such priors help organic agricultural boundaries is, to our knowledge, untested.
+
+\paragraph{Evaluation.}
+Mask IoU is insensitive to boundary error on large objects~\cite{cheng2021boundaryiou}.
+We adopt panoptic quality~\cite{kirillov2019panoptic}, average precision~\cite{lavreniuk2025delineateanything}, boundary IoU~\cite{cheng2021boundaryiou}, and a vertex-to-boundary distance~\cite{avbelj2015polis}.
+
+\paragraph{Uncertainty.}
+Disagreement across an ensemble or across test-time perturbations estimates uncertainty~\cite{lakshminarayanan2017deepensembles,gal2016dropout,wang2019tta}.
+We treat agreement across a postprocessing-parameter sweep as the ensemble axis, which differs from perturbing inputs or model weights.
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Threshold-consensus polygonization}
+
+\subsection{Geometric refinement and raster cleanup}
+
+\subsection{Threshold-agreement confidence}
+
+\section{Experimental Setup}
+\label{sec:setup}
+
+\paragraph{Data.}
+We evaluate on the Fields of The World benchmark~\cite{kerner2024ftw} and on PlanetScope imagery over the same regions, with a smallholder-focused subset~\cite{persello2023ai4smallfarms}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{qualitative_example.png}
+\caption{Example image patch (left), field polygons extracted from the frozen segmentation model (center), and ground-truth field boundaries (right). The number of instances is shown above each panel.}
+\label{fig:qualitative}
+\end{figure}
+
+\paragraph{Baselines.}
+We compare against the benchmark polygonizer~\cite{kerner2024ftw}, a single best-threshold watershed, and a resolution-agnostic instance model~\cite{lavreniuk2025delineateanything}.
+
+\paragraph{Metrics and protocol.}
+We report panoptic quality and its segmentation and recognition components~\cite{kirillov2019panoptic}, average precision, boundary IoU~\cite{cheng2021boundaryiou}, and vertex count, with the matching protocol fixed across all methods.
+
+\section{Results}
+\label{sec:results}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+\bibliographystyle{splncs04}
+\bibliography{references}
 
 \end{document}
