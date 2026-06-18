@@ -120,35 +120,44 @@ We report panoptic quality and its segmentation and recognition components~\cite
 \label{sec:results}
 
 \subsection{Threshold consensus recovers headline accuracy without retraining}
-Table~\ref{tab:heldout} reports panoptic quality on the eleven held-out countries that the benchmark uses for its headline macro. The threshold-consensus polygonizer reaches a macro PQ of $0.325$, against $0.264$ for the single best per-country threshold and $0.324$ for the benchmark model trained and evaluated end to end. The consensus thus matches the trained headline using the same frozen model, with no change to the weights. The gain over the single threshold ($+0.061$ macro) is concentrated on countries whose single-threshold output over-fragments: belgium improves from $0.306$ to $0.529$ and croatia from $0.205$ to $0.358$. The rule does not help everywhere: it reduces PQ on the two smallholder cases with the smallest fields (cambodia, portugal) and on germany, where the single threshold already separates fields well.
+Table~\ref{tab:heldout} reports panoptic quality on the eleven held-out countries that the benchmark uses for its headline macro. The threshold-consensus polygonizer reaches a macro PQ of $0.325$, against $0.264$ for the single best per-country threshold and $0.324$ for the benchmark model trained and evaluated end to end. The consensus thus matches the trained headline using the same frozen model, with no change to the weights. The gain over the single threshold ($+0.061$ macro) is concentrated on countries whose single-threshold output over-fragments: belgium improves from $0.306$ to $0.529$ and croatia from $0.205$ to $0.358$. The rule does not help everywhere: it reduces PQ on the two smallholder cases with the smallest fields (cambodia, portugal) and on germany, where the single threshold already separates fields well. The off-the-shelf DelineateAnything baseline reaches only $0.046$ macro on this set (and $0.133$ in its strongest reported configuration), so the meaningful comparison is between postprocessing strategies applied to the purpose-built model.
 
 \begin{table}[t]
 \centering
-\caption{Panoptic quality on the eleven held-out countries. Single best is the per-country best fixed threshold; consensus is the per-pixel majority vote across thresholds. The benchmark model headline on the same set is $0.324$~\cite{kerner2024ftw}.}
+\caption{Panoptic quality on the eleven held-out countries. DelAny is the off-the-shelf DelineateAnything baseline~\cite{lavreniuk2025delineateanything}; single best is the per-country best fixed threshold; consensus is the per-pixel majority vote across thresholds. The benchmark model headline on the same set is $0.324$~\cite{kerner2024ftw}.}
 \label{tab:heldout}
-\begin{tabular}{lcc}
+\begin{tabular}{lccc}
 \toprule
-Country & Single best & Consensus \\
+Country & DelAny & Single best & Consensus \\
 \midrule
-belgium & 0.306 & \textbf{0.529} \\
-sweden & 0.417 & \textbf{0.505} \\
-latvia & 0.416 & \textbf{0.502} \\
-south\_africa & 0.458 & \textbf{0.476} \\
-lithuania & 0.334 & \textbf{0.466} \\
-croatia & 0.205 & \textbf{0.358} \\
-germany & \textbf{0.325} & 0.312 \\
-slovenia & 0.140 & \textbf{0.240} \\
-cambodia & \textbf{0.171} & 0.095 \\
-portugal & \textbf{0.129} & 0.097 \\
-kenya & 0.000 & 0.000 \\
+belgium & 0.092 & 0.306 & \textbf{0.529} \\
+sweden & 0.160 & 0.417 & \textbf{0.505} \\
+latvia & 0.091 & 0.416 & \textbf{0.502} \\
+south\_africa & 0.012 & 0.458 & \textbf{0.476} \\
+lithuania & 0.047 & 0.334 & \textbf{0.466} \\
+croatia & 0.054 & 0.205 & \textbf{0.358} \\
+germany & 0.007 & \textbf{0.325} & 0.312 \\
+slovenia & 0.018 & 0.140 & \textbf{0.240} \\
+cambodia & 0.000 & \textbf{0.171} & 0.095 \\
+portugal & 0.020 & \textbf{0.129} & 0.097 \\
+kenya & 0.000 & 0.000 & 0.000 \\
 \midrule
-Macro & 0.264 & \textbf{0.325} \\
+Macro & 0.046 & 0.264 & \textbf{0.325} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Geometric refinement does not improve field polygons}
 Operations developed for building footprints do not transfer to organic field boundaries. Across $23$ countries the mean PQ is $0.265$ for the raw polygons, $0.264$ after simplification, $0.263$ after edge regularization, and $0.263$ after smoothing; edge regularization improves PQ on only $1$ of $23$ countries and reduces it on the rest by $0.001$ to $0.005$. Cleaning the raster before vectorization behaves the same way, improving PQ on $3$ of $25$ countries. The regularization change is weakly and positively associated with median field rectangularity (Pearson $r=0.135$ over $22$ countries), so the loss is smaller on more rectilinear fields, which is consistent with the operation encoding a right-angle prior suited to buildings rather than fields.
+
+Simplification is the exception that proves the rule. Unlike regularization and smoothing, it changes vertex count rather than shape, and it is close to free: Figure~\ref{fig:simplify} shows mean vertices per polygon falling from $188$ to $12$ (a sixteen-fold reduction) as the tolerance grows to $6$ m, while PQ falls only from $0.366$ to $0.361$. Practitioners can therefore compress field polygons aggressively, but should not expect building-style edge regularization to improve them.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.62\textwidth]{simplify_tolerance.pdf}
+\caption{Douglas-Peucker simplification compresses field polygons at negligible accuracy cost: mean vertices per polygon drop sixteen-fold as the tolerance grows, while panoptic quality is nearly flat. Mean over the countries present at every tolerance.}
+\label{fig:simplify}
+\end{figure}
 
 \subsection{Threshold agreement is an informative confidence signal}
 The per-field agreement fraction separates regions by difficulty without using labels: the mean agreement per country ranges from $0.70$ on denmark to $0.99$ on brazil, tracking the regions where the model is least and most consistent across thresholds.
