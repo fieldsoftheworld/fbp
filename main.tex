@@ -24,7 +24,7 @@ aviskar.giri@taylorgeospatial.org}
 \maketitle
 
 \begin{abstract}
-Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark~\cite{kerner2024ftw}, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction: a threshold-consensus rule, which runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 0.325 over eleven held-out countries. This is within 0.001 of the trained-model benchmark headline of 0.324, obtained with a frozen model and no retraining, and it improves over the single best per-country threshold (0.264) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.002 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.005. Threshold consensus is the only postprocessing lever we found that moves the metric.
+Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark~\cite{kerner2024ftw}, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction: a threshold-consensus rule, which runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 0.325 over eleven held-out countries. This is within 0.001 of the trained-model benchmark headline of 0.324, obtained with a frozen model and no retraining, and it improves over the single best per-country threshold (0.264) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. Applied to the global Fields of The World Sentinel-2 prediction store, the consensus runs unchanged across sensors and continents, which to our knowledge is the first global-scale evaluation of a field-boundary postprocessing technique, with the agreement signal indicating where it helps. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.002 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.005. Threshold consensus is the only postprocessing lever we found that moves the metric.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -45,6 +45,7 @@ We also report negative results, because they redirect effort away from dead end
 \item \textbf{Threshold consensus}, a per-pixel majority vote over watershed segmentations run at many h-minima thresholds, which reaches macro PQ 0.325 on eleven held-out countries, within 0.001 of the trained-model headline with a frozen model and a statistically significant gain over the single best threshold.
 \item \textbf{A label-free per-field confidence} from threshold-vote agreement that, within a region, predicts per-field IoU against ground truth (Spearman 0.20 to 0.42, $p < 0.0001$, in 5 of 6 countries), requiring no labels.
 \item \textbf{A systematic negative-result study of geometric postprocessing}, showing that building-derived regularization, smoothing, and raster cleanup do not transfer to organic fields, that simplification is near-free sixteen-fold vertex compression, and that soft-boundary watershed is neutral.
+\item \textbf{A global, cross-sensor evaluation.} We run the consensus unchanged on the global Fields of The World Sentinel-2 prediction store across eight regions on five continents, to our knowledge the first global-scale evaluation of a field-boundary postprocessing technique, and show the agreement signal indicates where it helps.
 \end{itemize}
 
 \section{Related Work}
@@ -191,6 +192,37 @@ Although simplification does not raise PQ, it compresses geometry at almost no c
 \subsection{Soft-boundary watershed is neutral; agreement calibrates per-field quality}
 Thresholding the boundary-class softmax with a swept cut, instead of taking the argmax, changes mean PQ by less than 0.001 across 9 countries and helps 4 of 9, so it is not a useful lever. The threshold-agreement confidence of Section~\ref{sec:confidence} is more informative. Within a country, higher-agreement fields are more accurate: the per-field Spearman correlation between agreement and IoU against ground truth is positive and significant in 5 of the 6 countries tested, from 0.20 (Cambodia) to 0.42 (Slovenia), all $p < 0.0001$, with only the smallest test set not significant (Rwanda, 174 fields). Across countries the signal does not rank regions by accuracy: mean agreement and macro PQ are uncorrelated ($r = 0.07$). Threshold agreement is therefore a within-region quality estimate rather than a cross-region one, and because it needs no labels it flags unreliable fields at inference time wherever the model runs.
 
+\subsection{Global, cross-sensor demonstration}
+\label{sec:global}
+We apply the consensus to the global Fields of The World Sentinel-2 prediction store, a 10\,m global mosaic of the same three-class softmax. The model that produced those predictions is Sentinel-2 based, so this also tests whether the consensus, which we developed on a Planet model, transfers across sensors. To our knowledge this is the first evaluation of a field-boundary postprocessing technique at global scale. We process windows spanning eight agricultural regions on five continents (Table~\ref{tab:global}); the consensus runs unchanged on the Sentinel-2 store. Its effect is governed by the same label-free agreement signal. In high-agreement regions (Argentina, France, Australia, Brazil; agreement 0.95 to 0.99) it de-fragments, for example Argentina from 426 to 172 polygons (Fig.~\ref{fig:global}). In low-agreement regions (Punjab, Heilongjiang, Ethiopia; agreement 0.16 to 0.42) the predictions are themselves unstable across thresholds, and the consensus produces more and smaller polygons. Agreement therefore serves as a deployment indicator for when to apply the consensus. We do not report polygon-level accuracy here, because global ground-truth parcels are not available; quantifying global accuracy against reference data is future work.
+
+\begin{table}[t]
+\centering
+\caption{Threshold consensus on the global Sentinel-2 prediction store, over a 1536$\times$1536 window per region. The consensus de-fragments where agreement is high and fragments more where it is low.}
+\label{tab:global}
+\begin{tabular}{lccc}
+\toprule
+Region & Single & Consensus & Agreement \\
+\midrule
+Argentina (Pampas) & 426 & 172 & 0.98 \\
+France & 416 & 290 & 0.95 \\
+Australia (NSW) & 359 & 319 & 0.97 \\
+Brazil (Mato Grosso) & 240 & 208 & 0.99 \\
+USA (Iowa) & 434 & 498 & 0.87 \\
+China (Heilongjiang) & 164 & 355 & 0.42 \\
+India (Punjab) & 20 & 152 & 0.29 \\
+Ethiopia & 31 & 81 & 0.16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{global_pampas.png}
+\caption{Threshold consensus on the global Sentinel-2 prediction store, Argentina (Pampas). The field-probability map (green) overlaid with single-threshold polygons (left, $n=426$) and consensus polygons (right, $n=172$). In this high-agreement region the consensus removes spurious splits.}
+\label{fig:global}
+\end{figure}
+
 \section{Discussion}
 \paragraph{Why consensus works.}
 The optimal h-minima depth is not a global constant; it shifts with field size, parcel geometry, and boundary contrast. Choosing a single threshold commits to one point on a sharp trade-off, and the wrong point costs PQ. The consensus does not select the threshold, it keeps the field boundaries that recur across the sweep, so splits that appear only at shallow depths and merges that appear only at deep depths are filtered out. The gain is largest where a single threshold over-fragments, Belgium (0.306 to 0.529) and Croatia (0.205 to 0.358), the regions whose optimum lies farthest from the global choice. For this model and benchmark, a frozen model with better polygonization recovers the trained-model headline; we do not claim this holds for every architecture.
@@ -202,7 +234,7 @@ Building regularizers and frame-field polygonizers encode a rectilinear prior~\c
 Consensus is not uniformly better. It loses on the smallest-field smallholder cases, Cambodia (0.171 to 0.095) and Portugal (0.129 to 0.097), and on Germany (0.325 to 0.312); when fields approach the resolution limit, averaging over thresholds blurs already-fragile boundaries~\cite{persello2023ai4smallfarms, dandrimont2023ai4boundaries}. The headline gain is a property of medium-to-large parcel landscapes. We postprocess one frozen model, so we do not separate errors that postprocessing can fix from errors baked into the probability map, and PQ can mask systematic boundary displacement that contour metrics would expose~\cite{avbelj2015polis}.
 
 \section{Conclusion}
-We treat field-boundary delineation as a polygonization problem on a frozen segmentation model and show that the conversion from probabilities to polygons, not the model, is where accuracy is won or lost. Threshold consensus, a per-pixel majority vote over watershed segmentations run at many h-minima depths, raises held-out macro PQ from 0.264 to 0.325, within 0.001 of the trained-model benchmark headline, with no retraining and a statistically significant gain over the single best threshold. The same experiments rule out the obvious alternatives: building-derived geometric refinement does not transfer to organic fields, and soft-boundary watershed is neutral. Simplification earns its place as sixteen-fold near-free vertex compression. The vote agreement additionally provides label-free per-field confidence. The method fails on the smallest smallholder fields, which marks the direction for future work: a size-adaptive consensus that protects small parcels while retaining the variance reduction that large fields enjoy.
+We treat field-boundary delineation as a polygonization problem on a frozen segmentation model and show that the conversion from probabilities to polygons, not the model, is where accuracy is won or lost. Threshold consensus, a per-pixel majority vote over watershed segmentations run at many h-minima depths, raises held-out macro PQ from 0.264 to 0.325, within 0.001 of the trained-model benchmark headline, with no retraining and a statistically significant gain over the single best threshold. The same experiments rule out the obvious alternatives: building-derived geometric refinement does not transfer to organic fields, and soft-boundary watershed is neutral. Simplification earns its place as sixteen-fold near-free vertex compression. The vote agreement additionally provides label-free per-field confidence and, applied to the global Sentinel-2 prediction store, indicates where the consensus transfers, the first global-scale evaluation of such a technique. The method fails on the smallest smallholder fields, which marks the direction for future work: a size-adaptive consensus that protects small parcels while retaining the variance reduction that large fields enjoy.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
