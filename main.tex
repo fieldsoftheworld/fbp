@@ -1,176 +1,210 @@
-\documentclass[runningheads]{llncs}
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
 
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{microtype}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
 \usepackage[hidelinks]{hyperref}
 
 \graphicspath{{figures/}}
 
 \begin{document}
 
-\title{Postprocessing Matters: Inference-Time Polygon Refinement for Agricultural Field-Boundary Delineation}
+\title{Threshold Consensus: Postprocessing Recovers Trained-Model Field-Boundary Accuracy Without Retraining}
 
-\author{Aviskar Giri \and Isaac Corley}
-\institute{Taylor Geospatial Institute, St.\ Louis, MO, USA\\
-\email{aviskar.giri@taylorgeospatial.org}}
+\author{
+\IEEEauthorblockN{Aviskar Giri and Isaac Corley}
+\IEEEauthorblockA{Taylor Geospatial Institute, St.\ Louis, MO, USA\\
+aviskar.giri@taylorgeospatial.org}
+}
 
 \maketitle
 
 \begin{abstract}
-Semantic segmentation models for agricultural field-boundary mapping produce accurate pixel masks, yet the polygons derived from those masks are the deliverable that downstream users consume, and the conversion from mask to polygon is rarely evaluated or optimized.
-We study this conversion as a first-class problem: given a frozen segmentation model, we improve the extraction of field polygons from its predictions and measure the effect with polygon-level metrics.
-A threshold-consensus polygonizer, which runs watershed at multiple seed thresholds and combines the outputs by per-pixel majority vote, recovers polygon-level accuracy comparable to the model headline without retraining, and the gain concentrates on regions whose single-threshold output over-fragments.
-In contrast, geometric refinement operations developed for building footprints, namely edge regularization and boundary smoothing, do not improve and slightly reduce polygon-level accuracy on organic field boundaries, an effect that weakens as fields become more rectilinear.
-We also derive a label-free per-field confidence signal from threshold agreement.
-We evaluate across Sentinel-2 and PlanetScope imagery with a focus on smallholder regions.
-\keywords{Field boundary delineation \and Postprocessing \and Instance segmentation \and Watershed \and Remote sensing.}
+Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark~\cite{kerner2024ftw}, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction: a threshold-consensus rule, which runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 0.325 over eleven held-out countries. This is within 0.001 of the trained-model benchmark headline of 0.324, obtained with a frozen model and no retraining, and it improves over the single best per-country threshold (0.264) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score from threshold agreement. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.002 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.005. Threshold consensus is the only postprocessing lever we found that moves the metric.
 \end{abstract}
 
+\begin{IEEEkeywords}
+field boundary delineation, postprocessing, instance segmentation, watershed, panoptic quality, remote sensing
+\end{IEEEkeywords}
+
 \section{Introduction}
-\label{sec:intro}
+Field boundaries are the unit of analysis for crop monitoring, yield estimation, subsidy administration, and land-use accounting. Mapping them at continental scale requires automated delineation from satellite imagery. The dominant approach trains a convolutional network to predict, for every pixel, the probability of field interior and of field boundary~\cite{kerner2024ftw, waldner2020decode}. These probability maps are accurate and well studied. They are also not what a user needs: a cadastre, a yield model, and a subsidy auditor consume vector polygons, not rasters of class scores. The step that converts probabilities into polygons therefore determines the quality of every downstream product, and it is the step we study here.
 
-Mapping the boundaries of agricultural fields supports crop monitoring, yield estimation, and food-security planning, and it is the prerequisite for parcel-level analysis in regions that lack cadastral records~\cite{kerner2024ftw,persello2023ai4smallfarms}.
-Recent benchmarks frame the task as segmentation of satellite imagery followed by extraction of per-field polygons~\cite{kerner2024ftw,waldner2020decode}.
-Reported progress is dominated by improvements to the model: architectures, losses, and training data.
-The step that turns a predicted mask into polygons, by contrast, receives little attention and is seldom evaluated with the metrics that matter for the polygons themselves.
+Pixel-level metrics such as intersection over union reward correct labeling of large interior regions and are nearly insensitive to whether two adjacent fields are correctly separated. The object that matters is the field, so the metric that matters is object-level. We lead with Panoptic Quality~\cite{kirillov2019panoptic}, which factors as segmentation quality times recognition quality (PQ = SQ $\times$ RQ) and penalizes both merged and fragmented fields, complemented by Boundary IoU~\cite{cheng2021boundaryiou} and average precision. Under these metrics a model with excellent pixel accuracy can still produce unusable polygons. Improving vectorization, rather than the network, is the highest-leverage and least-explored part of the pipeline.
 
-This gap has practical consequences.
-A high pixel-IoU mask can yield polygons that over-fragment a single field into many parts, merge adjacent fields, or carry jagged boundaries that no downstream system can use~\cite{cheng2021boundaryiou,girard2021framefield}.
-Improving the model is expensive and, once a model is deployed at scale, often infeasible.
-Postprocessing is cheap, runs once, and applies to any existing prediction product.
+Converting a boundary probability map into polygons is classically done by watershed segmentation seeded at suppressed minima~\cite{soille2004morphological, koyuncu2016iterative, waldner2020decode}. The result depends sharply on the h-minima suppression threshold: a low threshold over-fragments large fields, a high threshold merges small ones, and no single value is correct across countries. Optimal values for the large rectangular fields of northern Europe over-fragment the small irregular fields of smallholder regions, and the reverse merges large fields into blobs. Field geometry compounds the difficulty, since agricultural parcels are organic rather than rectilinear, so geometric priors imported from building extraction~\cite{zorzi2022polyworld, girard2021framefield, zorzi2020regularization} do not transfer. Finally, ground-truth polygons are expensive, so any improvement must require no per-region labels for tuning.
 
-\paragraph{Problem statement.}
-Given a frozen segmentation model that outputs per-pixel field and boundary probabilities, inference-time postprocessing recovers polygon-level accuracy comparable to retraining, the recovery generalizes across Sentinel-2 and PlanetScope imagery, and it applies at global scale.
-This claim is falsifiable: we measure polygon-level accuracy before and after postprocessing and compare against the model headline and against the strongest baseline polygonizer.
+We change nothing about the network. We treat its frozen probability maps as fixed inputs and study only the conversion to polygons, which isolates the contribution of postprocessing and keeps the comparison against the trained-model headline fair. Our main finding is that selecting a single watershed threshold is the wrong abstraction. Instead, we run watershed at many thresholds and take a per-pixel majority vote over the resulting segmentations. Consensus reaches a macro PQ of 0.325 over eleven held-out countries, within 0.001 of the trained-model benchmark headline of 0.324, while the single best per-country threshold reaches 0.264 and the DelineateAnything baseline~\cite{lavreniuk2025delineateanything} reaches 0.046 (0.133 in its strongest configuration). The improvement over the single best threshold is statistically significant (Wilcoxon $p = 0.049$, bootstrap 95\% confidence interval on the mean gain $[0.012, 0.112]$). Consensus wins decisively where a single threshold over-fragments, for example Belgium (0.529 versus 0.306) and Croatia (0.358 versus 0.205), and loses on the smallest-field smallholder cases (Cambodia, Portugal) and Germany. The same vote agreement yields a label-free per-field confidence score.
 
-\paragraph{Why it is hard.}
-The optimal watershed seed threshold varies by more than an order of magnitude across regions, so a single fixed setting is not adequate~\cite{waldner2020decode}.
-Geometric refinement that improves building footprints, which are predominantly rectilinear, may distort organic field boundaries~\cite{zorzi2022polyworld}.
-Naive simplification can preserve area-based agreement while degrading boundary quality~\cite{girard2021framefield}.
-
-\paragraph{Contributions.}
-\begin{enumerate}
-\item A threshold-consensus polygonizer that combines multi-threshold watershed outputs by per-pixel majority vote, applied to a frozen model, with an ablation isolating the consensus rule from the effect of trying many thresholds (Section~\ref{sec:method}).
-\item A systematic measurement of when geometric refinement of field polygons helps or harms polygon-level accuracy, stratified by field morphology (Section~\ref{sec:results}).
-\item A label-free confidence signal derived from threshold agreement, evaluated for calibration and selective prediction (Section~\ref{sec:results}).
-\item A cross-sensor and continental-scale evaluation of the above (Section~\ref{sec:setup}).
-\end{enumerate}
-
-\paragraph{Limitations.}
-We do not modify or retrain the underlying model, so postprocessing cannot recover fields the model fails to detect at all.
-The threshold-agreement confidence reflects boundary ambiguity and does not capture errors on which all thresholds agree.
+We also report negative results, because they redirect effort away from dead ends. Geometric refinement built for buildings does not help organic fields, and soft-boundary watershed is neutral. Simplification is near-free compression rather than an accuracy lever. Our contributions are:
+\begin{itemize}
+\item \textbf{Threshold consensus}, a per-pixel majority vote over watershed segmentations run at many h-minima thresholds, which reaches macro PQ 0.325 on eleven held-out countries, within 0.001 of the trained-model headline with a frozen model and a statistically significant gain over the single best threshold.
+\item \textbf{A label-free per-field confidence} score from threshold-vote agreement, requiring no ground truth, with per-country mean agreement from 0.70 to 0.99.
+\item \textbf{A systematic negative-result study of geometric postprocessing}, showing that building-derived regularization, smoothing, and raster cleanup do not transfer to organic fields, that simplification is near-free sixteen-fold vertex compression, and that soft-boundary watershed is neutral.
+\end{itemize}
 
 \section{Related Work}
-\label{sec:related}
+\paragraph{Field-boundary delineation and watershed postprocessing.}
+Field delineation is commonly cast as dense prediction of a field and boundary map followed by instance extraction. Waldner and Diakogiannis~\cite{waldner2020decode} predict extent, boundary, and distance with a FracTAL ResUNet and recover parcels by seeded watershed, establishing the encoder-then-watershed pipeline that the Fields of The World benchmark~\cite{kerner2024ftw} adopts. The watershed is classical morphology~\cite{soille2004morphological}: flooding a surface from markers, where marker choice governs whether parcels merge or fragment. Koyuncu et al.~\cite{koyuncu2016iterative} make marker selection explicit by sweeping the h-minima depth and iterating, which exposes over-segmentation and under-segmentation as a single tunable axis. Wagner and Oppelt~\cite{wagner2020growing} drive a hierarchical watershed from learned contours under Sentinel-2 resolution. These methods fix one operating point per scene; we retain the full h-minima sweep and combine its outputs.
 
-\paragraph{Field-boundary delineation.}
-The dominant pipeline predicts field extent, boundary, and within-field distance, then separates instances with seeded or hierarchical watershed~\cite{waldner2020decode}.
-Public benchmarks polygonize a multiclass mask by thresholding, morphology, and simplification, and report pixel and object-level metrics~\cite{kerner2024ftw}.
-Resolution-agnostic instance models report mean average precision across scales~\cite{lavreniuk2025delineateanything}.
-None of these works evaluates a postprocessing technique as the object of study, and none reports panoptic quality.
+\paragraph{Learned versus geometric polygon extraction.}
+A second line extracts polygons directly. Girard et al.~\cite{girard2021framefield} learn a frame field aligned to parcel geometry and report that downstream Douglas-Peucker simplification lowers AP. PolyWorld~\cite{zorzi2022polyworld} predicts vertices and connectivity as a graph. Geometric refinement matured on buildings, where right-angle priors hold: Zorzi et al.~\cite{zorzi2020regularization} regularize masks with an adversarial network that imposes rectilinear outlines. We test whether these building-oriented operators transfer to organic fields and find they do not.
 
-\paragraph{Polygon extraction and regularization.}
-Learned vectorization predicts polygon vertices directly~\cite{girard2021framefield,zorzi2022polyworld} and is evaluated almost exclusively on buildings, where right-angle priors hold.
-Geometric regularization of footprints assumes rectilinear shapes.
-Whether such priors help organic agricultural boundaries is, to our knowledge, untested.
+\paragraph{Ensembles, consensus, and uncertainty.}
+Deep ensembles~\cite{lakshminarayanan2017deepensembles}, MC dropout~\cite{gal2016dropout}, and test-time augmentation~\cite{wang2019tta} aggregate multiple predictions but retrain or re-infer the network. Our method is inspired by this view but aggregates over a postprocessing hyperparameter rather than model weights: it keeps boundaries that are stable across the h-minima sweep, acting as a stability filter rather than an independent-estimator ensemble.
 
-\paragraph{Evaluation.}
-Mask IoU is insensitive to boundary error on large objects~\cite{cheng2021boundaryiou}.
-We adopt panoptic quality~\cite{kirillov2019panoptic}, average precision~\cite{lavreniuk2025delineateanything}, boundary IoU~\cite{cheng2021boundaryiou}, and a vertex-to-boundary distance~\cite{avbelj2015polis}.
-
-\paragraph{Uncertainty.}
-Disagreement across an ensemble or across test-time perturbations estimates uncertainty~\cite{lakshminarayanan2017deepensembles,gal2016dropout,wang2019tta}.
-We treat agreement across a postprocessing-parameter sweep as the ensemble axis, which differs from perturbing inputs or model weights.
-
-\section{Method}
-\label{sec:method}
-
-\subsection{Threshold-consensus polygonization}
-We obtain field instances from the predicted field and boundary probabilities with marker-controlled watershed: the field-interior signal defines the flooding surface and an h-minima parameter $h$ suppresses shallow seeds before flooding, so a larger $h$ yields fewer and larger instances~\cite{waldner2020decode}. A single $h$ is not adequate because the value that best matches field size varies by more than an order of magnitude across regions. Rather than select one value, we run watershed at a fixed set of thresholds $\{h_1,\dots,h_K\}$ and combine the resulting instance sets by a per-pixel majority vote: a pixel is labeled field in the consensus when at least half of the $K$ outputs label it field, and we polygonize the consensus mask. A pixel that survives across many thresholds is more likely to lie inside a real field, so instances that appear at only one or two thresholds are removed. We compare this rule against the single best $h$ chosen on a validation split, and against an iterative h-minima procedure that sweeps multiple thresholds but combines them greedily rather than by consensus~\cite{koyuncu2016iterative}.
-
-\subsection{Geometric refinement and raster cleanup}
-After polygonization we apply three geometric operations that are standard for building footprints: Douglas-Peucker simplification, edge regularization that snaps edges toward principal directions, and area-preserving corner-cutting that smooths boundaries~\cite{zorzi2022polyworld}. We also evaluate a pre-vectorization variant that cleans the multiclass raster (morphological smoothing, small-component removal, distance-transform gap filling) before watershed. Each operation has a tolerance or kernel-size parameter that we vary over a range.
-
-\subsection{Threshold-agreement confidence}
-The consensus rule yields a confidence signal that needs no labels. For each field in the consensus set we measure the fraction of the $K$ threshold outputs that contain an overlapping instance (intersection over union at least $0.5$), and treat that fraction as a per-field confidence. We report its distribution; matching the signal against ground truth for calibration is left to future work.
-
-\section{Experimental Setup}
-\label{sec:setup}
-
-\paragraph{Data.}
-We evaluate on the Fields of The World benchmark~\cite{kerner2024ftw} and on PlanetScope imagery over the same regions, with a smallholder-focused subset~\cite{persello2023ai4smallfarms}.
+\paragraph{Evaluation metrics.}
+We lead with object-level metrics because pixel accuracy tolerates merged or split parcels. Panoptic Quality~\cite{kirillov2019panoptic} penalizes both localization and instance-count error, and we complement it with Boundary IoU~\cite{cheng2021boundaryiou}. This object-first protocol matches recent smallholder and pan-European benchmarks~\cite{persello2023ai4smallfarms, dandrimont2023ai4boundaries} and the Fields of The World evaluation~\cite{kerner2024ftw}.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\textwidth]{qualitative_example.png}
-\caption{Example image patch (left), field polygons extracted from the frozen segmentation model (center), and ground-truth field boundaries (right). The number of instances is shown above each panel.}
+\includegraphics[width=\columnwidth]{qualitative_example.png}
+\caption{An example image patch (left), field polygons from the frozen model (center), and ground-truth boundaries (right), with instance counts above each panel.}
 \label{fig:qualitative}
 \end{figure}
 
-\paragraph{Baselines.}
-We compare against the benchmark polygonizer~\cite{kerner2024ftw}, a single best-threshold watershed, and a resolution-agnostic instance model~\cite{lavreniuk2025delineateanything}.
+\section{Method}
+\label{sec:method}
+We postprocess a frozen UNet with an EfficientNet-B7 encoder that produces a per-pixel softmax over field interior, boundary, and background. We hold the weights fixed and replace only the conversion of these probabilities into polygons (Fig.~\ref{fig:overview}).
 
-\paragraph{Metrics and protocol.}
-We report panoptic quality and its segmentation and recognition components~\cite{kirillov2019panoptic}, average precision, boundary IoU~\cite{cheng2021boundaryiou}, and vertex count, with the matching protocol fixed across all methods.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm, every node/.style={font=\scriptsize},
+  box/.style={draw, rounded corners, minimum height=7mm, align=center, inner sep=2pt}]
+  \node[box] (img) {Input tile};
+  \node[box, right=of img] (net) {Frozen net\\(no retraining)};
+  \node[box, below=4mm of net] (fan) {Watershed at\\$K$ thresholds};
+  \node[box, left=of fan] (vote) {Per-pixel\\majority vote};
+  \node[box, below=4mm of vote] (poly) {Consensus\\polygons};
+  \node[box, right=of poly] (agr) {Agreement\\confidence};
+  \draw[-{Latex}] (img)--(net);
+  \draw[-{Latex}] (net)--(fan);
+  \draw[-{Latex}] (fan)--(vote);
+  \draw[-{Latex}] (vote)--(poly);
+  \draw[-{Latex}] (vote)--(agr);
+\end{tikzpicture}
+\caption{Threshold consensus. The model is frozen. Watershed runs at $K$ h-minima thresholds; a per-pixel majority vote yields the consensus polygons and, at no extra cost, a label-free agreement confidence.}
+\label{fig:overview}
+\end{figure}
+
+\subsection{Threshold-consensus polygonization}
+\label{sec:consensus}
+Marker-controlled watershed seeds from regional minima after an h-minima transform that suppresses minima shallower than a depth $h$~\cite{koyuncu2016iterative, waldner2020decode}. The choice of $h$ governs fragmentation, and a single $h$ fixes one point on the over-segmentation versus under-segmentation trade-off for an entire region. We run the watershed independently at each threshold in a fixed set $H = \{h_1, \dots, h_K\}$. Run $k$ yields a label map $L_k$, which we convert to a per-pixel field indicator. The consensus assigns a pixel to field when at least a fraction $\tau_v$ of the runs do,
+\begin{equation}
+\bar{f}(p) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}[p \in \text{field in } L_k] \geq \tau_v ,
+\label{eq:vote}
+\end{equation}
+with the majority vote $\tau_v = 0.5$. We polygonize the connected components of the consensus mask. Equation~\eqref{eq:vote} keeps a field only where it is stable across the sweep: spurious splits at a single shallow $h$ are voted down, and divisions that recur across the range are retained. The procedure adds no learned parameters.
+
+\subsection{Geometric refinement and raster cleanup}
+\label{sec:geometric}
+We test whether refinement operators developed for buildings transfer to fields, applying four stages to the polygon output: Douglas-Peucker simplification; rectilinear edge regularization that snaps edges toward dominant orientations~\cite{zorzi2020regularization}; Chaikin corner-cutting smoothing; and a pre-vectorization morphological raster cleanup (small-component removal and hole filling) applied before the watershed.
+
+\subsection{Threshold-agreement confidence}
+\label{sec:confidence}
+The sweep supplies a label-free confidence at no extra cost. For a consensus field $F$ we define its agreement as the fraction of the $K$ runs whose label map contains a basin overlapping $F$ with intersection over union at least $\theta$,
+\begin{equation}
+a(F) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}\!\left[\exists\, c \in L_k : \mathrm{IoU}(c, F) \geq \theta\right].
+\label{eq:agree}
+\end{equation}
+A field delineated identically at every threshold scores $a(F)=1$. Because $a(F)$ needs no ground truth, it is available wherever the model runs.
+
+\section{Experimental Setup}
+\label{sec:setup}
+We postprocess one frozen UNet with an EfficientNet-B7 encoder, trained on Fields of The World~\cite{kerner2024ftw}, and operate only on its stored softmax so every comparison isolates the polygonization step. We report two scopes. The headline polygon-quality comparison uses the eleven held-out countries (\textsc{Heldout-11}) on which the benchmark reports its macro. The geometric-refinement study uses the 23 countries for which the full polygon stack was scored, and the confidence and soft-boundary studies use the subset for which per-pixel probabilities were stored; these counts reflect data availability, not selection. Baselines are the benchmark trained-model headline~\cite{kerner2024ftw}, a single best per-country h-minima threshold, and DelineateAnything~\cite{lavreniuk2025delineateanything} run on the same imagery in both its default and strongest configurations. Metrics are Panoptic Quality with its SQ and RQ factors~\cite{kirillov2019panoptic}, average precision, Boundary IoU~\cite{cheng2021boundaryiou}, and mean vertex count; all macro numbers are averaged across the relevant countries.
 
 \section{Results}
 \label{sec:results}
 
-\subsection{Threshold consensus recovers headline accuracy without retraining}
-Table~\ref{tab:heldout} reports panoptic quality on the eleven held-out countries that the benchmark uses for its headline macro. The threshold-consensus polygonizer reaches a macro PQ of $0.325$, against $0.264$ for the single best per-country threshold and $0.324$ for the benchmark model trained and evaluated end to end. The consensus thus matches the trained headline using the same frozen model, with no change to the weights. The gain over the single threshold ($+0.061$ macro) is concentrated on countries whose single-threshold output over-fragments: belgium improves from $0.306$ to $0.529$ and croatia from $0.205$ to $0.358$. The rule does not help everywhere: it reduces PQ on the two smallholder cases with the smallest fields (cambodia, portugal) and on germany, where the single threshold already separates fields well. The off-the-shelf DelineateAnything baseline reaches only $0.046$ macro on this set (and $0.133$ in its strongest reported configuration), so the meaningful comparison is between postprocessing strategies applied to the purpose-built model.
+\subsection{Consensus matches the trained headline}
+Table~\ref{tab:headline} reports macro PQ on \textsc{Heldout-11}. Threshold consensus reaches 0.325, within 0.001 of the benchmark trained-model headline of 0.324, using the frozen model with no retraining, and improves on the single best per-country threshold (0.264) by 0.061. This gain is statistically significant across countries (Wilcoxon signed-rank $p = 0.049$; bootstrap 95\% confidence interval on the mean gain $[0.012, 0.112]$). DelineateAnything reaches 0.046 by default and 0.133 in its strongest configuration, well below both. We do not claim statistical equivalence with the benchmark; we report that the gap is 0.001 and that consensus recovers the trained-model polygon quality purely by aggregating operating points of the existing softmax.
 
 \begin{table}[t]
 \centering
-\caption{Panoptic quality on the eleven held-out countries. DelAny is the off-the-shelf DelineateAnything baseline~\cite{lavreniuk2025delineateanything}; single best is the per-country best fixed threshold; consensus is the per-pixel majority vote across thresholds. The benchmark model headline on the same set is $0.324$~\cite{kerner2024ftw}.}
-\label{tab:heldout}
-\begin{tabular}{lccc}
+\caption{Macro PQ on \textsc{Heldout-11}. Consensus is within 0.001 of the trained benchmark headline using a frozen model. Excluding Kenya, a degenerate split where every method scores 0, the consensus and single-best macros are 0.358 and 0.290.}
+\label{tab:headline}
+\begin{tabular}{lc}
 \toprule
-Country & DelAny & Single best & Consensus \\
+Method & Macro PQ \\
 \midrule
-belgium & 0.092 & 0.306 & \textbf{0.529} \\
-sweden & 0.160 & 0.417 & \textbf{0.505} \\
-latvia & 0.091 & 0.416 & \textbf{0.502} \\
-south\_africa & 0.012 & 0.458 & \textbf{0.476} \\
-lithuania & 0.047 & 0.334 & \textbf{0.466} \\
-croatia & 0.054 & 0.205 & \textbf{0.358} \\
-germany & 0.007 & \textbf{0.325} & 0.312 \\
-slovenia & 0.018 & 0.140 & \textbf{0.240} \\
-cambodia & 0.000 & \textbf{0.171} & 0.095 \\
-portugal & 0.020 & \textbf{0.129} & 0.097 \\
-kenya & 0.000 & 0.000 & 0.000 \\
-\midrule
-Macro & 0.046 & 0.264 & \textbf{0.325} \\
+DelineateAnything, default~\cite{lavreniuk2025delineateanything} & 0.046 \\
+DelineateAnything, strongest~\cite{lavreniuk2025delineateanything} & 0.133 \\
+Single best threshold & 0.264 \\
+Benchmark trained headline~\cite{kerner2024ftw} & 0.324 \\
+\textbf{Threshold consensus (ours)} & \textbf{0.325} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Geometric refinement does not improve field polygons}
-Operations developed for building footprints do not transfer to organic field boundaries. Across $23$ countries the mean PQ is $0.265$ for the raw polygons, $0.264$ after simplification, $0.263$ after edge regularization, and $0.263$ after smoothing; edge regularization improves PQ on only $1$ of $23$ countries and reduces it on the rest by $0.001$ to $0.005$. Cleaning the raster before vectorization behaves the same way, improving PQ on $3$ of $25$ countries. The regularization change is weakly and positively associated with median field rectangularity (Pearson $r=0.135$ over $22$ countries), so the loss is smaller on more rectilinear fields, which is consistent with the operation encoding a right-angle prior suited to buildings rather than fields.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{per_country_pq.pdf}
+\caption{Per-country PQ on \textsc{Heldout-11}. Consensus wins where a single threshold over-fragments (Belgium, Croatia) and loses on the smallest-field smallholder cases (Cambodia, Portugal) and Germany. Kenya is 0 for all methods (footnote in text).}
+\label{fig:percountry}
+\end{figure}
 
-Simplification is the exception that proves the rule. Unlike regularization and smoothing, it changes vertex count rather than shape, and it is close to free: Figure~\ref{fig:simplify} shows mean vertices per polygon falling from $188$ to $12$ (a sixteen-fold reduction) as the tolerance grows to $6$ m, while PQ falls only from $0.366$ to $0.361$. Practitioners can therefore compress field polygons aggressively, but should not expect building-style edge regularization to improve them.
+Figure~\ref{fig:percountry} shows the per-country breakdown. The aggregate gain is driven by suppressing spurious splits in mid-to-large field regimes rather than by uniform improvement. Kenya scores 0 for every method, including the benchmark-derived single best, because its labeled split contains almost no resolvable fields at this resolution; excluding it, the consensus and single-best macros rise to 0.358 and 0.290, so the headline is not an artifact of that split.
+
+\subsection{The vote threshold is robust}
+Figure~\ref{fig:vote} sweeps the vote fraction $\tau_v$ from 0.3 to 0.7. Macro PQ is flat near the majority vote, 0.327 at 0.3 and 0.4, 0.325 at 0.5, and declines only past 0.6. The majority vote is therefore a principled and near-optimal operating point, not a tuned one.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.62\textwidth]{simplify_tolerance.pdf}
-\caption{Douglas-Peucker simplification compresses field polygons at negligible accuracy cost: mean vertices per polygon drop sixteen-fold as the tolerance grows, while panoptic quality is nearly flat. Mean over the countries present at every tolerance.}
+\includegraphics[width=0.85\columnwidth]{vote_threshold.pdf}
+\caption{Consensus vote-threshold ablation on \textsc{Heldout-11}. Macro PQ is flat near the 0.5 majority vote and declines only when more than 60\% of thresholds must agree.}
+\label{fig:vote}
+\end{figure}
+
+\subsection{Geometric refinement does not help organic fields}
+Refinements designed for built structures do not transfer (Table~\ref{tab:refine}). Over 23 countries, raw polygons score 0.265, Douglas-Peucker simplification 0.264, building-style regularization 0.263, and Chaikin smoothing 0.263. Regularization improves only 1 of 23 countries, and pre-vectorization raster cleanup improves 3 of 25. The per-country regularization change shows no significant association with field rectangularity (Pearson $r = 0.135$, $p = 0.55$, $n = 22$), which is consistent with rectilinear priors offering no useful signal for organic fields.
+
+\begin{table}[t]
+\centering
+\caption{Mean PQ over 23 countries for post-vectorization geometric refinement. No variant improves over raw polygons.}
+\label{tab:refine}
+\begin{tabular}{lcc}
+\toprule
+Variant & Mean PQ & Countries improved \\
+\midrule
+Raw & 0.265 & --- \\
+Simplify (Douglas-Peucker) & 0.264 & --- \\
+Regularize (building-style) & 0.263 & 1 / 23 \\
+Smooth (Chaikin) & 0.263 & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Simplification is near-free compression}
+Although simplification does not raise PQ, it compresses geometry at almost no cost (Fig.~\ref{fig:simplify}). As the Douglas-Peucker tolerance grows to 6 m, mean vertices per polygon drop from 188 to 12, a sixteen-fold reduction, while PQ falls only from 0.366 to 0.361. Simplification is worth applying for storage and downstream efficiency, and the choice is orthogonal to the consensus gain.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\columnwidth]{simplify_tolerance.pdf}
+\caption{Douglas-Peucker simplification compresses field polygons sixteen-fold at negligible accuracy cost. Mean over the countries present at every tolerance.}
 \label{fig:simplify}
 \end{figure}
 
-\subsection{Threshold agreement is an informative confidence signal}
-The per-field agreement fraction separates regions by difficulty without using labels: the mean agreement per country ranges from $0.70$ on denmark to $0.99$ on brazil, tracking the regions where the model is least and most consistent across thresholds.
+\subsection{Soft-boundary watershed is neutral, and agreement tracks difficulty}
+Thresholding the boundary-class softmax with a swept cut, instead of taking the argmax, changes mean PQ by less than 0.001 across 9 countries and helps 4 of 9, so it is not a useful lever. The threshold-agreement confidence of Section~\ref{sec:confidence} instead separates regions by difficulty without labels: per-country mean agreement ranges from 0.70 on Denmark to 0.99 on Brazil, marking which predictions are stable across operating points.
 
 \section{Discussion}
-\label{sec:discussion}
-The two postprocessing families behave oppositely, and the reason is informative. The threshold-consensus rule helps because the dominant error in field delineation is the over-fragmentation and over-merging tradeoff that the watershed threshold controls, and that tradeoff has its optimum at different thresholds in different regions and even different patches. Voting across thresholds reduces the variance of that choice and recovers most of the per-region tuning gain with a single deployable setting. Geometric refinement, by contrast, targets boundary shape rather than instance count, and the operations available off the shelf assume the rectilinear geometry of buildings. Field boundaries are organic, so snapping edges to principal directions removes detail that the polygon metrics reward; the weak positive association with rectangularity supports this reading. We also replaced the argmax boundary with the network's boundary-probability surface, swept over a confidence threshold, and found no consistent gain in instance quality (mean change below $0.001$ PQ across nine countries). The consensus across watershed thresholds is thus the only postprocessing operation we tested that yields a consistent improvement. The practical implication is that field-boundary deployments should invest in instance-level consensus rather than in boundary-surface variants or building-style geometric regularizers.
+\paragraph{Why consensus works.}
+The optimal h-minima depth is not a global constant; it shifts with field size, parcel geometry, and boundary contrast. Choosing a single threshold commits to one point on a sharp trade-off, and the wrong point costs PQ. The consensus does not select the threshold, it keeps the field boundaries that recur across the sweep, so splits that appear only at shallow depths and merges that appear only at deep depths are filtered out. The gain is largest where a single threshold over-fragments, Belgium (0.306 to 0.529) and Croatia (0.205 to 0.358), the regions whose optimum lies farthest from the global choice. For this model and benchmark, a frozen model with better polygonization recovers the trained-model headline; we do not claim this holds for every architecture.
+
+\paragraph{Why refinement and soft boundaries do not.}
+Building regularizers and frame-field polygonizers encode a rectilinear prior~\cite{girard2021framefield, zorzi2022polyworld, zorzi2020regularization} that is correct for buildings and wrong for fields shaped by terrain, hydrology, and incremental division. The absence of a significant rectangularity association is consistent with the prior carrying no useful information for organic boundaries. Simplification is the one geometric operation worth keeping, for compression rather than accuracy. Soft-boundary watershed is neutral because the boundary information a soft cut exposes is already captured by the consensus over depths.
+
+\paragraph{Limitations.}
+Consensus is not uniformly better. It loses on the smallest-field smallholder cases, Cambodia (0.171 to 0.095) and Portugal (0.129 to 0.097), and on Germany (0.325 to 0.312); when fields approach the resolution limit, averaging over thresholds blurs already-fragile boundaries~\cite{persello2023ai4smallfarms, dandrimont2023ai4boundaries}. The headline gain is a property of medium-to-large parcel landscapes. We postprocess one frozen model, so we do not separate errors that postprocessing can fix from errors baked into the probability map, and PQ can mask systematic boundary displacement that contour metrics would expose~\cite{avbelj2015polis}.
 
 \section{Conclusion}
-\label{sec:conclusion}
-Postprocessing a frozen field-boundary segmentation model with a per-pixel consensus across watershed thresholds recovers the accuracy of the end-to-end trained headline without any retraining, while off-the-shelf geometric refinement does not improve and slightly reduces polygon-level accuracy on organic fields. The threshold votes also provide a label-free per-field confidence signal. These results hold across the held-out benchmark countries and a smallholder-focused subset.
+We treat field-boundary delineation as a polygonization problem on a frozen segmentation model and show that the conversion from probabilities to polygons, not the model, is where accuracy is won or lost. Threshold consensus, a per-pixel majority vote over watershed segmentations run at many h-minima depths, raises held-out macro PQ from 0.264 to 0.325, within 0.001 of the trained-model benchmark headline, with no retraining and a statistically significant gain over the single best threshold. The same experiments rule out the obvious alternatives: building-derived geometric refinement does not transfer to organic fields, and soft-boundary watershed is neutral. Simplification earns its place as sixteen-fold near-free vertex compression. The vote agreement additionally provides label-free per-field confidence. The method fails on the smallest smallholder fields, which marks the direction for future work: a size-adaptive consensus that protects small parcels while retaining the variance reduction that large fields enjoy.
 
-\bibliographystyle{splncs04}
+\bibliographystyle{IEEEtran}
 \bibliography{references}
 
 \end{document}
