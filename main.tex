@@ -13,18 +13,18 @@
 
 \begin{document}
 
-\title{Threshold Consensus: Postprocessing Recovers Trained-Model Field-Boundary Accuracy Without Retraining}
+\title{FieldVote: Consensus Polygonization for Field Boundaries}
 
 \author{
-\IEEEauthorblockN{Aviskar Giri and Isaac Corley}
-\IEEEauthorblockA{Taylor Geospatial Institute, St.\ Louis, MO, USA\\
+\IEEEauthorblockN{Aviskar Giri, Isaac Corley, and Jennifer Marcus}
+\IEEEauthorblockA{Taylor Geospatial, St.\ Louis, MO, USA\\
 aviskar.giri@taylorgeospatial.org}
 }
 
 \maketitle
 
 \begin{abstract}
-Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark~\cite{kerner2024ftw}, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction: a threshold-consensus rule, which runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 0.325 over eleven held-out countries. This is within 0.001 of the trained-model benchmark headline of 0.324, obtained with a frozen model and no retraining, and it improves over the single best per-country threshold (0.264) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. Applied to the global Fields of The World Sentinel-2 prediction store, the consensus runs unchanged across sensors and continents, which to our knowledge is the first global-scale evaluation of a field-boundary postprocessing technique, with the agreement signal indicating where it helps. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.002 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.005. Threshold consensus is the only postprocessing lever we found that moves the metric.
+Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark~\cite{kerner2024ftw}, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction: FieldVote, a threshold-consensus rule that runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 0.325 over eleven held-out countries. This is within 0.001 of the trained-model benchmark headline of 0.324, obtained with a frozen model and no retraining, and it improves over the single best per-country threshold (0.264) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. Applied to the global Fields of The World Sentinel-2 prediction store, the consensus runs unchanged across sensors and continents, which to our knowledge is the first global-scale evaluation of a field-boundary postprocessing technique, with the agreement signal indicating where it helps. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.002 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.005. Threshold consensus is the only postprocessing lever we found that moves the metric.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -42,7 +42,7 @@ We change nothing about the network. We treat its frozen probability maps as fix
 
 We also report negative results, because they redirect effort away from dead ends. Geometric refinement built for buildings does not help organic fields, and soft-boundary watershed is neutral. Simplification is near-free compression rather than an accuracy lever. Our contributions are:
 \begin{itemize}
-\item \textbf{Threshold consensus}, a per-pixel majority vote over watershed segmentations run at many h-minima thresholds, which reaches macro PQ 0.325 on eleven held-out countries, within 0.001 of the trained-model headline with a frozen model and a statistically significant gain over the single best threshold.
+\item \textbf{Threshold consensus (FieldVote)}, a per-pixel majority vote over watershed segmentations run at many h-minima thresholds, which reaches macro PQ 0.325 on eleven held-out countries, within 0.001 of the trained-model headline with a frozen model and a statistically significant gain over the single best threshold, plus a size-adaptive variant that further improves the macro by protecting small fields.
 \item \textbf{A label-free per-field confidence} from threshold-vote agreement that, within a region, predicts per-field IoU against ground truth (Spearman 0.20 to 0.42, $p < 0.0001$, in 5 of 6 countries), requiring no labels.
 \item \textbf{A systematic negative-result study of geometric postprocessing}, showing that building-derived regularization, smoothing, and raster cleanup do not transfer to organic fields, that simplification is near-free sixteen-fold vertex compression, and that soft-boundary watershed is neutral.
 \item \textbf{A global, cross-sensor evaluation.} We run the consensus unchanged on the global Fields of The World Sentinel-2 prediction store across eight regions on five continents, to our knowledge the first global-scale evaluation of a field-boundary postprocessing technique, and show the agreement signal indicates where it helps.
@@ -114,6 +114,10 @@ a(F) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}\!\left[\exists\, c \in L_k : \mathrm{
 \end{equation}
 A field delineated identically at every threshold scores $a(F)=1$. Because $a(F)$ needs no ground truth, it is available wherever the model runs.
 
+\subsection{Size-adaptive consensus}
+\label{sec:adaptive}
+The uniform majority vote helps where fields are large and clean but can over-merge where they are small and dense. We therefore choose the rule per patch using a label-free signal, the mean area of the vote-consensus instances: below a size threshold $T$ we blend the vote with the field probability ($0.4\,\bar{f} + 0.6\,p_{\text{field}} \geq 0.5$), otherwise we keep the pure vote. The switch needs no labels and adds one parameter $T$.
+
 \section{Experimental Setup}
 \label{sec:setup}
 We postprocess one frozen UNet with an EfficientNet-B7 encoder, trained on Fields of The World~\cite{kerner2024ftw}, and operate only on its stored softmax so every comparison isolates the polygonization step. We report two scopes. The headline polygon-quality comparison uses the eleven held-out countries (\textsc{Heldout-11}) on which the benchmark reports its macro. The geometric-refinement study uses the 23 countries for which the full polygon stack was scored, and the confidence and soft-boundary studies use the subset for which per-pixel probabilities were stored; these counts reflect data availability, not selection. Baselines are the benchmark trained-model headline~\cite{kerner2024ftw}, a single best per-country h-minima threshold, and DelineateAnything~\cite{lavreniuk2025delineateanything} run on the same imagery in both its default and strongest configurations. Metrics are Panoptic Quality with its SQ and RQ factors~\cite{kirillov2019panoptic}, average precision, Boundary IoU~\cite{cheng2021boundaryiou}, and mean vertex count; all macro numbers are averaged across the relevant countries.
@@ -143,7 +147,7 @@ Benchmark trained headline~\cite{kerner2024ftw} & 0.324 \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{per_country_pq.pdf}
+\includegraphics[width=\columnwidth]{fig_percountry.pdf}
 \caption{Per-country PQ on \textsc{Heldout-11}. Consensus wins where a single threshold over-fragments (Belgium, Croatia) and loses on the smallest-field smallholder cases (Cambodia, Portugal) and Germany. Kenya is 0 for all methods (footnote in text).}
 \label{fig:percountry}
 \end{figure}
@@ -155,9 +159,19 @@ Figure~\ref{fig:vote} sweeps the vote fraction $\tau_v$ from 0.3 to 0.7. Macro P
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\columnwidth]{vote_threshold.pdf}
+\includegraphics[width=0.85\columnwidth]{fig_votethreshold.pdf}
 \caption{Consensus vote-threshold ablation on \textsc{Heldout-11}. Macro PQ is flat near the 0.5 majority vote and declines only when more than 60\% of thresholds must agree.}
 \label{fig:vote}
+\end{figure}
+
+\subsection{A size-adaptive rule recovers smallholder accuracy}
+The blend of vote and field probability helps small or fragmented fields but slightly hurts large clean ones, so on its own it ties the uniform vote. Choosing between them per patch by field size (Section~\ref{sec:adaptive}) captures both. On a controlled softmax-derived pipeline the size-adaptive rule raises macro PQ from 0.304 for the uniform vote to 0.320 (with $T$ between 50{,}000 and 100{,}000 m\textsuperscript{2}), recovering the gains on the smallholder and over-fragmenting countries (Belgium, Croatia, Slovenia, Lithuania) without losing the large-field countries (Germany, South Africa, Sweden), as Figure~\ref{fig:adaptive} shows.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\columnwidth]{fig_adaptive.pdf}
+\caption{Size-adaptive consensus versus the uniform vote per country. The adaptive rule matches the uniform vote on large-field countries and improves the small-field and over-fragmenting ones, raising the macro from 0.304 to 0.320 on the same pipeline.}
+\label{fig:adaptive}
 \end{figure}
 
 \subsection{Geometric refinement does not help organic fields}
@@ -184,7 +198,7 @@ Although simplification does not raise PQ, it compresses geometry at almost no c
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\columnwidth]{simplify_tolerance.pdf}
+\includegraphics[width=0.85\columnwidth]{fig_simplify.pdf}
 \caption{Douglas-Peucker simplification compresses field polygons sixteen-fold at negligible accuracy cost. Mean over the countries present at every tolerance.}
 \label{fig:simplify}
 \end{figure}
