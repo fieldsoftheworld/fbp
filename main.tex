@@ -6,7 +6,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{tikz}
-\usetikzlibrary{positioning, arrows.meta}
+\usetikzlibrary{positioning, arrows.meta, calc}
 \usepackage[hidelinks]{hyperref}
 
 \graphicspath{{figures/}}
@@ -92,6 +92,41 @@ We postprocess a frozen UNet with an EfficientNet-B7 encoder that produces a per
 \label{fig:overview}
 \end{figure}
 
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[>={Latex[length=2mm]}, font=\footnotesize,
+  img/.style={inner sep=0pt, outer sep=0pt},
+  cap/.style={font=\scriptsize, align=center},
+  step/.style={draw, rounded corners, fill=black!4, align=center, font=\footnotesize, inner sep=3pt},
+  flow/.style={->, semithick, black!55}]
+  \node[img] (in) {\includegraphics[width=0.135\textwidth]{fig_pipe_input.png}};
+  \node[cap, below=0.5mm of in] {Input tile};
+  \node[step, right=7mm of in] (net) {Frozen\\net};
+  \node[img, right=7mm of net] (prob) {\includegraphics[width=0.135\textwidth]{fig_pipe_prob.png}};
+  \node[cap, below=0.5mm of prob] {Field and boundary\\probability};
+  \node[img, above right=3mm and 12mm of prob] (wlow) {\includegraphics[width=0.115\textwidth]{fig_pipe_wslow.png}};
+  \node[cap, above=0.5mm of wlow] {low $h$, over-split};
+  \node[img, below right=3mm and 12mm of prob] (whigh) {\includegraphics[width=0.115\textwidth]{fig_pipe_wshigh.png}};
+  \node[cap, below=0.5mm of whigh] {high $h$, merged};
+  \coordinate (wmid) at ($(wlow.east)!0.5!(whigh.east)$);
+  \node[step, right=10mm of wmid] (vote) {Per-pixel\\majority vote};
+  \node[img, above right=3mm and 12mm of vote] (cons) {\includegraphics[width=0.115\textwidth]{fig_pipe_consensus.png}};
+  \node[cap, above=0.5mm of cons] {Consensus};
+  \node[img, below right=3mm and 12mm of vote] (agr) {\includegraphics[width=0.115\textwidth]{fig_pipe_agreement.png}};
+  \node[cap, below=0.5mm of agr] {Agreement};
+  \draw[flow] (in) -- (net);
+  \draw[flow] (net) -- (prob);
+  \draw[flow] (prob.east) -- (wlow.west);
+  \draw[flow] (prob.east) -- (whigh.west);
+  \draw[flow] (wlow.east) -- (vote.west);
+  \draw[flow] (whigh.east) -- (vote.west);
+  \draw[flow] (vote.east) -- (cons.west);
+  \draw[flow] (vote.east) -- (agr.west);
+\end{tikzpicture}
+\caption{The FieldVote pipeline on a held-out Belgium tile. A frozen network maps the input to a field and boundary probability map. Watershed runs at four h-minima thresholds: a low threshold over-segments the fields into 44 fragments, visible as thin internal splits, while a high threshold merges neighbors. A per-pixel majority vote across the thresholds yields 11 consensus polygons and removes the unstable splits. The same vote provides a label-free per-field agreement score (green high, red low) that flags the uncertain fields at no extra cost.}
+\label{fig:pipeline}
+\end{figure*}
+
 \subsection{Threshold-consensus polygonization}
 \label{sec:consensus}
 Marker-controlled watershed seeds from regional minima after an h-minima transform that suppresses minima shallower than a depth $h$~\cite{koyuncu2016iterative, waldner2020decode}. The choice of $h$ governs fragmentation, and a single $h$ fixes one point on the over-segmentation versus under-segmentation trade-off for an entire region. We run the watershed independently at each threshold in a fixed set $H = \{h_1, \dots, h_K\}$. Run $k$ yields a label map $L_k$, which we convert to a per-pixel field indicator. The consensus assigns a pixel to field when at least a fraction $\tau_v$ of the runs do,
@@ -99,7 +134,7 @@ Marker-controlled watershed seeds from regional minima after an h-minima transfo
 \bar{f}(p) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}[p \in \text{field in } L_k] \geq \tau_v ,
 \label{eq:vote}
 \end{equation}
-with the majority vote $\tau_v = 0.5$. We polygonize the connected components of the consensus mask. Equation~\eqref{eq:vote} keeps a field only where it is stable across the sweep: spurious splits at a single shallow $h$ are voted down, and divisions that recur across the range are retained. The procedure adds no learned parameters.
+with the majority vote $\tau_v = 0.5$. We polygonize the connected components of the consensus mask. Equation~\eqref{eq:vote} keeps a field only where it is stable across the sweep: spurious splits at a single shallow $h$ are voted down, and divisions that recur across the range are retained. The procedure adds no learned parameters. Figure~\ref{fig:pipeline} shows the full procedure on a held-out tile, from the probability map through the per-threshold watershed segmentations to the consensus polygons and the agreement score.
 
 \subsection{Geometric refinement and raster cleanup}
 \label{sec:geometric}
