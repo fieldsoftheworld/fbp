@@ -76,24 +76,24 @@ We postprocess a frozen UNet with an EfficientNet-B7 encoder that produces a per
 \centering
 \begin{tikzpicture}[>={Latex[length=2mm]}, font=\footnotesize,
   img/.style={inner sep=0pt, outer sep=0pt},
-  cap/.style={font=\scriptsize, align=center},
-  step/.style={draw, rounded corners, fill=black!4, align=center, font=\footnotesize, inner sep=3pt},
+  plbl/.style={font=\scriptsize, align=center},
+  pbox/.style={draw, rounded corners, fill=black!4, align=center, font=\footnotesize, inner sep=3pt},
   flow/.style={->, semithick, black!55}]
   \node[img] (in) {\includegraphics[width=0.135\textwidth]{fig_pipe_input.png}};
-  \node[cap, below=0.5mm of in] {Input tile};
-  \node[step, right=7mm of in] (net) {Frozen\\net};
+  \node[plbl,below=0.5mm of in] {Input tile};
+  \node[pbox,right=7mm of in] (net) {Frozen\\net};
   \node[img, right=7mm of net] (prob) {\includegraphics[width=0.135\textwidth]{fig_pipe_prob.png}};
-  \node[cap, below=0.5mm of prob] {Field and boundary\\probability};
+  \node[plbl,below=0.5mm of prob] {Field and boundary\\probability};
   \node[img, above right=3mm and 12mm of prob] (wlow) {\includegraphics[width=0.115\textwidth]{fig_pipe_wslow.png}};
-  \node[cap, above=0.5mm of wlow] {low $h$, over-split};
+  \node[plbl,above=0.5mm of wlow] {low $h$, over-split};
   \node[img, below right=3mm and 12mm of prob] (whigh) {\includegraphics[width=0.115\textwidth]{fig_pipe_wshigh.png}};
-  \node[cap, below=0.5mm of whigh] {high $h$, merged};
+  \node[plbl,below=0.5mm of whigh] {high $h$, merged};
   \coordinate (wmid) at ($(wlow.east)!0.5!(whigh.east)$);
-  \node[step, right=10mm of wmid] (vote) {Per-pixel\\majority vote};
+  \node[pbox,right=10mm of wmid] (vote) {Per-pixel\\majority vote};
   \node[img, above right=3mm and 12mm of vote] (cons) {\includegraphics[width=0.115\textwidth]{fig_pipe_consensus.png}};
-  \node[cap, above=0.5mm of cons] {Consensus};
+  \node[plbl,above=0.5mm of cons] {Consensus};
   \node[img, below right=3mm and 12mm of vote] (agr) {\includegraphics[width=0.115\textwidth]{fig_pipe_agreement.png}};
-  \node[cap, below=0.5mm of agr] {Agreement};
+  \node[plbl,below=0.5mm of agr] {Agreement};
   \draw[flow] (in) -- (net);
   \draw[flow] (net) -- (prob);
   \draw[flow] (prob.east) -- (wlow.west);
