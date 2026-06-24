@@ -70,27 +70,7 @@ We lead with object-level metrics because pixel accuracy tolerates merged or spl
 
 \section{Method}
 \label{sec:method}
-We postprocess a frozen UNet with an EfficientNet-B7 encoder that produces a per-pixel softmax over field interior, boundary, and background. We hold the weights fixed and replace only the conversion of these probabilities into polygons (Fig.~\ref{fig:overview}).
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[node distance=5mm and 6mm, every node/.style={font=\scriptsize},
-  box/.style={draw, rounded corners, minimum height=7mm, align=center, inner sep=2pt}]
-  \node[box] (img) {Input tile};
-  \node[box, right=of img] (net) {Frozen net\\(no retraining)};
-  \node[box, below=4mm of net] (fan) {Watershed at\\$K$ thresholds};
-  \node[box, left=of fan] (vote) {Per-pixel\\majority vote};
-  \node[box, below=4mm of vote] (poly) {Consensus\\polygons};
-  \node[box, right=of poly] (agr) {Agreement\\confidence};
-  \draw[-{Latex}] (img)--(net);
-  \draw[-{Latex}] (net)--(fan);
-  \draw[-{Latex}] (fan)--(vote);
-  \draw[-{Latex}] (vote)--(poly);
-  \draw[-{Latex}] (vote)--(agr);
-\end{tikzpicture}
-\caption{Threshold consensus. The model is frozen. Watershed runs at $K$ h-minima thresholds; a per-pixel majority vote yields the consensus polygons and, at no extra cost, a label-free agreement confidence.}
-\label{fig:overview}
-\end{figure}
+We postprocess a frozen UNet with an EfficientNet-B7 encoder that produces a per-pixel softmax over field interior, boundary, and background. We hold the weights fixed and replace only the conversion of these probabilities into polygons (Fig.~\ref{fig:pipeline}).
 
 \begin{figure*}[t]
 \centering
