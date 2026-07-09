@@ -57,6 +57,8 @@ field boundary delineation, postprocessing, instance segmentation, watershed, pa
   \node[plbl,above=0.5mm of cons] {Consensus};
   \node[img, below right=3mm and 12mm of vote] (agr) {\includegraphics[width=0.115\textwidth]{fig_pipe_agreement.png}};
   \node[plbl,below=0.5mm of agr] {Agreement};
+  \node[img, right=9mm of cons] (gt) {\includegraphics[width=0.115\textwidth]{fig_pipe_gt.png}};
+  \node[plbl,above=0.5mm of gt] {Ground truth};
   \draw[flow] (in) -- (net);
   \draw[flow] (net) -- (prob);
   \draw[flow] (prob.east) -- (wlow.west);
@@ -65,8 +67,9 @@ field boundary delineation, postprocessing, instance segmentation, watershed, pa
   \draw[flow] (whigh.east) -- (vote.west);
   \draw[flow] (vote.east) -- (cons.west);
   \draw[flow] (vote.east) -- (agr.west);
+  \draw[dashed, semithick, tgbrown!55] (cons.east) -- node[above=-1pt, font=\scriptsize, text=tgbrown]{$\approx$} (gt.west);
 \end{tikzpicture}
-\caption{\textbf{FieldVote} on a held-out Belgium tile. A frozen network maps the input tile to a field and boundary probability map; we retrain nothing and change only what happens next. Watershed runs at many h-minima thresholds, where a low threshold over-segments the fields into 44 fragments (thin internal splits) and a high threshold merges neighbors. A per-pixel majority vote keeps only the boundaries that recur across the sweep, yielding 11 clean consensus polygons. The same vote produces a label-free per-field agreement score (green high, red low) that flags uncertain fields at no extra cost. This single postprocessing step recovers trained-model polygon quality without touching the network.}
+\caption{\textbf{FieldVote} on a held-out Belgium tile. A frozen network maps the input tile to a field and boundary probability map; we retrain nothing and change only what happens next. Watershed runs at many h-minima thresholds, where a low threshold over-segments the fields into 44 fragments (thin internal splits) and a high threshold merges neighbors. A per-pixel majority vote keeps only the boundaries that recur across the sweep, yielding 11 clean consensus polygons. The same vote produces a label-free per-field agreement score (green high, red low) that flags uncertain fields at no extra cost, and the consensus closely matches the ground-truth field and boundary annotation (right). This single postprocessing step recovers trained-model polygon quality without touching the network.}
 \label{fig:pipeline}
 \end{figure*}
 
