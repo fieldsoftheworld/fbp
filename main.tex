@@ -7,6 +7,8 @@
 \usepackage{amssymb}
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, calc}
+\usepackage{cuted}
+\usepackage{capt-of}
 \definecolor{tgperi}{HTML}{5A7AB8}
 \definecolor{tgbrown}{HTML}{3B1E1C}
 \usepackage[colorlinks=true,citecolor=tgperi,linkcolor=tgperi,urlcolor=tgperi]{hyperref}
@@ -25,29 +27,29 @@ aviskar.giri@taylorgeospatial.org}
 
 \maketitle
 
-\begin{figure*}[!t]
+\begin{strip}
 \centering
 \begin{tikzpicture}[>={Latex[length=2mm]}, font=\footnotesize,
   img/.style={inner sep=0pt, outer sep=0pt},
   plbl/.style={font=\scriptsize, align=center},
   pbox/.style={draw=tgbrown, rounded corners, fill=tgperi!15, align=center, font=\footnotesize, inner sep=3pt},
   flow/.style={->, semithick, tgbrown!75}]
-  \node[img] (in) {\includegraphics[width=0.135\textwidth]{fig_pipe_input.png}};
+  \node[img] (in) {\includegraphics[width=0.12\textwidth]{fig_pipe_input.png}};
   \node[plbl,below=0.5mm of in] {Input tile};
   \node[pbox,right=7mm of in] (net) {Frozen\\net};
-  \node[img, right=7mm of net] (prob) {\includegraphics[width=0.135\textwidth]{fig_pipe_prob.png}};
+  \node[img, right=7mm of net] (prob) {\includegraphics[width=0.12\textwidth]{fig_pipe_prob.png}};
   \node[plbl,below=0.5mm of prob] {Field and boundary\\probability};
-  \node[img, above right=3mm and 12mm of prob] (wlow) {\includegraphics[width=0.115\textwidth]{fig_pipe_wslow.png}};
+  \node[img, above right=3mm and 12mm of prob] (wlow) {\includegraphics[width=0.10\textwidth]{fig_pipe_wslow.png}};
   \node[plbl,above=0.5mm of wlow] {low $h$, over-split};
-  \node[img, below right=3mm and 12mm of prob] (whigh) {\includegraphics[width=0.115\textwidth]{fig_pipe_wshigh.png}};
+  \node[img, below right=3mm and 12mm of prob] (whigh) {\includegraphics[width=0.10\textwidth]{fig_pipe_wshigh.png}};
   \node[plbl,below=0.5mm of whigh] {high $h$, merged};
   \coordinate (wmid) at ($(wlow.east)!0.5!(whigh.east)$);
   \node[pbox,right=10mm of wmid] (vote) {Per-pixel\\majority vote};
-  \node[img, above right=3mm and 12mm of vote] (cons) {\includegraphics[width=0.115\textwidth]{fig_pipe_consensus.png}};
+  \node[img, above right=3mm and 12mm of vote] (cons) {\includegraphics[width=0.10\textwidth]{fig_pipe_consensus.png}};
   \node[plbl,above=0.5mm of cons] {Consensus};
-  \node[img, below right=3mm and 12mm of vote] (agr) {\includegraphics[width=0.115\textwidth]{fig_pipe_agreement.png}};
+  \node[img, below right=3mm and 12mm of vote] (agr) {\includegraphics[width=0.10\textwidth]{fig_pipe_agreement.png}};
   \node[plbl,below=0.5mm of agr] {Agreement};
-  \node[img, right=9mm of cons] (gt) {\includegraphics[width=0.115\textwidth]{fig_pipe_gt.png}};
+  \node[img, right=9mm of cons] (gt) {\includegraphics[width=0.10\textwidth]{fig_pipe_gt.png}};
   \node[plbl,above=0.5mm of gt] {Ground truth};
   \draw[flow] (in) -- (net);
   \draw[flow] (net) -- (prob);
@@ -59,9 +61,9 @@ aviskar.giri@taylorgeospatial.org}
   \draw[flow] (vote.east) -- (agr.west);
   \draw[dashed, semithick, tgbrown!55] (cons.east) -- node[above=-1pt, font=\scriptsize, text=tgbrown]{$\approx$} (gt.west);
 \end{tikzpicture}
-\caption{\textbf{FieldVote} on a held-out Belgium tile. A frozen network maps the input tile to a field and boundary probability map; we retrain nothing and change only what happens next. Watershed runs at many h-minima thresholds, where a low threshold over-segments the fields into 44 fragments (thin internal splits) and a high threshold merges neighbors. A per-pixel majority vote keeps only the boundaries that recur across the sweep, yielding 11 clean consensus polygons. The same vote produces a label-free per-field agreement score (green high, red low) that flags uncertain fields at no extra cost, and the consensus closely matches the ground-truth field and boundary annotation (right). This single postprocessing step recovers trained-model polygon quality without touching the network.}
+\captionof{figure}{\textbf{FieldVote} on a held-out Belgium tile. A frozen network maps the input tile to a field and boundary probability map; we retrain nothing and change only what happens next. Watershed runs at many h-minima thresholds, where a low threshold over-segments the fields into 44 fragments (thin internal splits) and a high threshold merges neighbors. A per-pixel majority vote keeps only the boundaries that recur across the sweep, yielding 11 clean consensus polygons. The same vote produces a label-free per-field agreement score (green high, red low) that flags uncertain fields at no extra cost, and the consensus closely matches the ground-truth field and boundary annotation (right). This single postprocessing step recovers trained-model polygon quality without touching the network.}
 \label{fig:pipeline}
-\end{figure*}
+\end{strip}
 
 \begin{abstract}
 Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction. FieldVote, a threshold-consensus rule that runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 35.8 over the held-out test splits of the ten dense-label countries. This matches the trained-model PlanetScope headline, obtained with a frozen model and no retraining, and it improves over a per-country tuned watershed (29.0) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. Applied to the global Fields of The World Sentinel-2 prediction store, FieldVote runs unchanged across sensors and continents, with the agreement signal indicating where it helps. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.2 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.5. FieldVote is the only postprocessing lever we found that moves the metric.
