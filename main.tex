@@ -110,12 +110,12 @@ We postprocess a frozen UNet with an EfficientNet-B7 encoder that produces a per
 
 \subsection{Threshold-consensus polygonization}
 \label{sec:consensus}
-Marker-controlled watershed seeds from regional minima after an h-minima transform that suppresses minima shallower than a depth $h$~\cite{koyuncu2016iterative, waldner2020decode}. The choice of $h$ governs fragmentation, and a single $h$ fixes one point on the over-segmentation versus under-segmentation trade-off for an entire region. We run the watershed independently at each threshold in a fixed set $H = \{h_1, \dots, h_K\}$. Run $k$ yields a label map $L_k$, which we convert to a per-pixel field indicator. The consensus assigns a pixel to field when at least a fraction $\tau_v$ of the runs do,
+Marker-controlled watershed seeds from regional minima after an h-minima transform that suppresses minima shallower than a depth $h$~\cite{koyuncu2016iterative, waldner2020decode}. The choice of $h$ governs fragmentation, and a single $h$ fixes one point on the over-segmentation versus under-segmentation trade-off for an entire region. We run the watershed independently at each threshold in a fixed set $H = \{h_1, \dots, h_K\}$. Run $k$ yields a label map $L_k$, which we convert to a per-pixel field indicator. Writing the per-pixel vote fraction as
 \begin{equation}
-\bar{f}(p) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}[p \in \text{field in } L_k] \geq \tau_v ,
+\bar{f}(p) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}[p \in \text{field in } L_k],
 \label{eq:vote}
 \end{equation}
-with the majority vote $\tau_v = 0.5$. We polygonize the connected components of the consensus mask. Equation~\eqref{eq:vote} keeps a field only where it is stable across the sweep: spurious splits at a single shallow $h$ are voted down, and divisions that recur across the range are retained. The procedure adds no learned parameters. Figure~\ref{fig:pipeline} shows the full procedure on a held-out tile, from the probability map through the per-threshold watershed segmentations to the consensus polygons and the agreement score.
+the consensus assigns a pixel to field when $\bar{f}(p) \geq \tau_v$, with the majority vote $\tau_v = 0.5$. We polygonize the connected components of the consensus mask. This rule keeps a field only where it is stable across the sweep: spurious splits at a single shallow $h$ are voted down, and divisions that recur across the range are retained. The procedure adds no learned parameters. Figure~\ref{fig:pipeline} shows the full procedure on a held-out tile, from the probability map through the per-threshold watershed segmentations to the consensus polygons and the agreement score.
 
 \subsection{Geometric refinement and raster cleanup}
 \label{sec:geometric}
@@ -128,7 +128,7 @@ The sweep supplies a label-free confidence at no extra cost. For a consensus fie
 a(F) = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}\!\left[\exists\, c \in L_k : \mathrm{IoU}(c, F) \geq \theta\right].
 \label{eq:agree}
 \end{equation}
-A field delineated identically at every threshold scores $a(F)=1$. Because $a(F)$ needs no ground truth, it is available wherever the model runs.
+We set the matching threshold $\theta = 0.5$. A field delineated identically at every threshold scores $a(F)=1$, and because $a(F)$ needs no ground truth, it is available wherever the model runs.
 
 \subsection{Size-adaptive consensus}
 \label{sec:adaptive}
