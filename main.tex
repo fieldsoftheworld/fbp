@@ -25,17 +25,7 @@ aviskar.giri@taylorgeospatial.org}
 
 \maketitle
 
-\begin{abstract}
-Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction. FieldVote, a threshold-consensus rule that runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 35.8 over the held-out test splits of the ten dense-label countries. This matches the trained-model PlanetScope headline, obtained with a frozen model and no retraining, and it improves over a per-country tuned watershed (29.0) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. Applied to the global Fields of The World Sentinel-2 prediction store, FieldVote runs unchanged across sensors and continents, with the agreement signal indicating where it helps. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.2 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.5. FieldVote is the only postprocessing lever we found that moves the metric.
-\end{abstract}
-
-\begin{IEEEkeywords}
-field boundary delineation, postprocessing, instance segmentation, watershed, panoptic quality, remote sensing
-\end{IEEEkeywords}
-
-\section{Introduction}
-
-\begin{figure*}[t]
+\begin{figure*}[!t]
 \centering
 \begin{tikzpicture}[>={Latex[length=2mm]}, font=\footnotesize,
   img/.style={inner sep=0pt, outer sep=0pt},
@@ -73,6 +63,15 @@ field boundary delineation, postprocessing, instance segmentation, watershed, pa
 \label{fig:pipeline}
 \end{figure*}
 
+\begin{abstract}
+Per-pixel field-boundary segmentation models produce probability maps, but downstream users need polygons, and the conversion step is where accuracy is won or lost. We study that conversion for a frozen UNet with an EfficientNet-B7 encoder, retraining nothing, and improve only how its per-pixel field and boundary probabilities become field polygons. We evaluate with polygon-level metrics, led by Panoptic Quality (PQ = SQ $\times$ RQ), on the Fields of The World benchmark, a smallholder subset, and across Sentinel-2 and PlanetScope imagery. Our central result is that a single watershed threshold is the wrong abstraction. FieldVote, a threshold-consensus rule that runs watershed at many h-minima thresholds and takes a per-pixel majority vote, reaches a macro PQ of 35.8 over the held-out test splits of the ten dense-label countries. This matches the trained-model PlanetScope headline, obtained with a frozen model and no retraining, and it improves over a per-country tuned watershed (29.0) by a statistically significant margin (Wilcoxon $p = 0.049$). The vote also yields a label-free per-field confidence score that predicts per-field accuracy within a region. Applied to the global Fields of The World Sentinel-2 prediction store, FieldVote runs unchanged across sensors and continents, with the agreement signal indicating where it helps. We report negative results as well. Geometric refinement designed for buildings does not help organic field boundaries: regularization and corner smoothing each move mean PQ by at most 0.2 over 23 countries, and the regularization gain shows no significant tie to field rectangularity ($r = 0.135$, $p = 0.55$). Douglas-Peucker simplification is near-free compression, cutting vertices per polygon sixteen-fold while PQ falls only 0.5. FieldVote is the only postprocessing lever we found that moves the metric.
+\end{abstract}
+
+\begin{IEEEkeywords}
+field boundary delineation, postprocessing, instance segmentation, watershed, panoptic quality, remote sensing
+\end{IEEEkeywords}
+
+\section{Introduction}
 Field boundaries are the unit of analysis for crop monitoring, yield estimation, subsidy administration, and land-use accounting. Mapping them at continental scale requires automated delineation from satellite imagery. The dominant approach trains a convolutional network to predict, for every pixel, the probability of field interior and of field boundary~\cite{kerner2024ftw, waldner2020decode}. These probability maps are accurate and well studied. They are also not what a user needs: a cadastre, a yield model, and a subsidy auditor consume vector polygons, not rasters of class scores. The step that converts probabilities into polygons therefore determines the quality of every downstream product, and it is the step we study here.
 
 Pixel-level metrics such as intersection over union reward correct labeling of large interior regions and are nearly insensitive to whether two adjacent fields are correctly separated. The object that matters is the field, so the metric that matters is object-level. We lead with Panoptic Quality~\cite{kirillov2019panoptic}, which factors as segmentation quality times recognition quality (PQ = SQ $\times$ RQ) and penalizes both merged and fragmented fields, complemented by Boundary IoU~\cite{cheng2021boundaryiou} and average precision. Under these metrics a model with excellent pixel accuracy can still produce unusable polygons (Fig.~\ref{fig:qualitative}). Improving vectorization, rather than the network, is the highest-leverage and least-explored part of the pipeline.
