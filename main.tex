@@ -185,7 +185,34 @@ Tuned watershed & 29.0 & 77.0 & 36.6 & 23.2 & 15.6 \\
 \label{fig:percountry}
 \end{figure}
 
-Figure~\ref{fig:percountry} shows the per-country breakdown. The aggregate gain is driven by suppressing spurious splits in mid-to-large field regimes rather than by uniform improvement; Kenya is excluded from every macro for the presence-only reason given in Section~\ref{sec:setup}.
+Figure~\ref{fig:percountry} shows the per-country breakdown. The aggregate gain is driven by suppressing spurious splits in mid-to-large field regimes rather than by uniform improvement; Kenya is excluded from every macro for the presence-only reason given in Section~\ref{sec:setup}. Figure~\ref{fig:results} shows the effect qualitatively on held-out tiles: a single watershed threshold shatters each scene into dozens of fragments, while FieldVote recovers clean parcels that track the ground-truth annotation.
+
+\begin{figure*}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{1.5pt}
+\renewcommand{\arraystretch}{0.4}
+\begin{tabular}{@{}c@{\ }cccc@{}}
+ & Input & Single $h$ & FieldVote (ours) & Ground truth \\
+\rotatebox{90}{\enspace Belgium} &
+\includegraphics[width=0.225\textwidth]{fig_res_be_in.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_be_single.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_be_fv.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_be_gt.png} \\
+\rotatebox{90}{\enspace Sweden} &
+\includegraphics[width=0.225\textwidth]{fig_res_se_in.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_se_single.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_se_fv.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_se_gt.png} \\
+\rotatebox{90}{\enspace Lithuania} &
+\includegraphics[width=0.225\textwidth]{fig_res_lt_in.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_lt_single.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_lt_fv.png} &
+\includegraphics[width=0.225\textwidth]{fig_res_lt_gt.png} \\
+\end{tabular}
+\caption{FieldVote on three held-out tiles (Belgium, Sweden, Lithuania). Left to right: input tile, watershed at a single low threshold, the FieldVote consensus, and the ground-truth field and boundary annotation. A single operating point over-fragments each scene into dozens of pieces (for example the Lithuania tile splits into 91), whereas the per-pixel vote keeps only the boundaries that recur across the sweep and recovers clean parcels (17 for that tile) that track the ground truth, with no retraining and no labels.}
+\label{fig:results}
+\end{figure*}
 
 \paragraph{The vote threshold is robust.}
 Figure~\ref{fig:vote} sweeps the vote fraction $\tau_v$ from 0.3 to 0.7. Macro PQ is flat across the majority-vote region and declines only when more than 60\% of the thresholds must agree. The majority vote is therefore a principled and near-optimal operating point, not a tuned one.
