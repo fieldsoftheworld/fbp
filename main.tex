@@ -144,7 +144,7 @@ We postprocess one frozen UNet with an EfficientNet-B7 encoder, the PlanetScope 
 \label{sec:results}
 
 \paragraph{FieldVote matches the trained-model headline.}
-Table~\ref{tab:headline} reports macro PQ on \textsc{Dense-10}. FieldVote reaches 35.8 with a frozen model and no retraining, matching the trained-model PlanetScope headline. On the same EfficientNet-B7 backbone the trained model scores 35.4, and its EfficientNet-B3 headline scores 35.5, the two being effectively tied~\cite{corley_ftp}. FieldVote also improves on the per-country tuned watershed by 6.8. This gain is statistically significant across countries (Wilcoxon signed-rank $p = 0.049$; bootstrap 95\% confidence interval on the mean gain $[1.2, 12.1]$). DelineateAnything trails both by a wide margin (Table~\ref{tab:headline}). FieldVote recovers the trained-model polygon quality purely by aggregating operating points of the existing softmax, and does not trade this off against edge fidelity: macro Boundary IoU~\cite{cheng2021boundaryiou} is 15.9 for FieldVote versus 15.6 for the tuned watershed.
+Table~\ref{tab:headline} reports macro PQ on \textsc{Dense-10}. FieldVote reaches 35.8 with a frozen model and no retraining, matching the trained-model PlanetScope headline. On the same EfficientNet-B7 backbone the trained model scores 35.4, and its EfficientNet-B3 headline scores 35.5, the two being effectively tied~\cite{corley_ftp}. FieldVote also improves on the per-country tuned watershed by 6.8. This gain is statistically significant across countries (Wilcoxon signed-rank $p = 0.049$; bootstrap 95\% confidence interval on the mean gain $[1.2, 12.1]$). DelineateAnything trails both by a wide margin (Table~\ref{tab:headline}). FieldVote recovers the trained-model polygon quality purely by aggregating operating points of the existing softmax. The gain is not confined to PQ: FieldVote leads the tuned watershed on segmentation quality, recognition quality, average precision, and Boundary IoU~\cite{cheng2021boundaryiou} alike (Table~\ref{tab:metrics}).
 % FTP comparator cited (corley_ftp, arXiv 2607.04449). Backbone RESOLVED from FTP Table 1: trained B7 = 35.4, B3 headline = 35.5 (effectively tied). We postprocess B7, so the same-backbone reference is 35.4. Both checkpoints live in /projects/bgtj/ftw-planet/checkpoints/ (planet_efnet7_best.ckpt, planet_efnet3_augmax_full_best.ckpt). STILL PENDING: re-score our 35.8 against the per-patch GT polygon parquet (not rasterized masks) before locking the comparison; the parquet tars are not yet in the shared folder.
 
 \begin{table}[t]
@@ -160,6 +160,20 @@ DelineateAnything, strongest~\cite{lavreniuk2025delineateanything} & 14.6 \\
 Tuned watershed & 29.0 \\
 Trained PlanetScope model, B7~\cite{corley_ftp} & 35.4 \\
 \textbf{FieldVote (ours), B7} & \textbf{35.8} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Polygon-level metrics on \textsc{Dense-10} (0--100), FieldVote versus the per-country tuned watershed. FieldVote leads on every matching-based metric: Panoptic Quality, its SQ and RQ factors, average precision, and Boundary IoU. Macro PQ is the mean of per-country PQ, so it is not exactly SQ$\times$RQ of these row averages. Best in \textbf{bold}.}
+\label{tab:metrics}
+\begin{tabular}{lccccc}
+\toprule
+Method & PQ & SQ & RQ & AP & B-IoU \\
+\midrule
+Tuned watershed & 29.0 & 77.0 & 36.6 & 23.2 & 15.6 \\
+\textbf{FieldVote (ours)} & \textbf{35.8} & \textbf{77.7} & \textbf{44.6} & \textbf{29.2} & \textbf{15.9} \\
 \bottomrule
 \end{tabular}
 \end{table}
