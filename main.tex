@@ -15,6 +15,9 @@
 
 \graphicspath{{figures/}}
 
+% Bold run-in heading (IEEEtran's \paragraph renders as lettered 'a)')
+\newcommand{\parhead}[1]{\smallskip\noindent\textbf{#1}\hspace{0.6em}}
+
 \begin{document}
 
 \title{FieldVote: Consensus Polygonization for Field Boundaries}
@@ -87,16 +90,16 @@ We change nothing about the network. We treat its frozen probability maps as fix
 We also report negative results, because they redirect effort away from dead ends. Geometric refinement built for buildings does not help organic fields, and soft-boundary watershed is neutral. Simplification is near-free compression rather than an accuracy lever. This paper contributes four results. First, FieldVote, a per-pixel majority vote over watershed segmentations run at many h-minima thresholds, reaches macro PQ 35.8 on the held-out test splits of the ten dense-label countries, matching the trained-model headline with a frozen model and a statistically significant gain over the tuned watershed, with a size-adaptive variant that further protects small fields. Second, the same threshold-vote agreement gives a label-free per-field confidence that predicts per-field IoU against ground truth within a region (Spearman 0.20 to 0.42, $p < 0.0001$, in 5 of 6 countries). Third, a systematic negative-result study shows that building-derived regularization, smoothing, and raster cleanup do not transfer to organic fields, that simplification is near-free sixteen-fold vertex compression, and that soft-boundary watershed is neutral. Fourth, we run FieldVote unchanged on the global Fields of The World Sentinel-2 prediction store across eight regions on five continents, to our knowledge the first global-scale evaluation of a field-boundary postprocessing technique, and show the agreement signal indicates where it helps.
 
 \section{Related Work}
-\paragraph{Field-boundary delineation and watershed postprocessing.}
+\parhead{Field-boundary delineation and watershed postprocessing.}
 Field delineation is commonly cast as dense prediction of a field and boundary map followed by instance extraction. Waldner and Diakogiannis~\cite{waldner2020decode} predict extent, boundary, and distance with a FracTAL ResUNet and recover parcels by seeded watershed, establishing the encoder-then-watershed pipeline that the Fields of The World benchmark~\cite{kerner2024ftw} adopts. The watershed is classical morphology~\cite{soille2004morphological}: flooding a surface from markers, where marker choice governs whether parcels merge or fragment. Koyuncu et al.~\cite{koyuncu2016iterative} make marker selection explicit by sweeping the h-minima depth and iterating, which exposes over-segmentation and under-segmentation as a single tunable axis. Wagner and Oppelt~\cite{wagner2020growing} drive a hierarchical watershed from learned contours under Sentinel-2 resolution. These methods fix one operating point per scene; we retain the full h-minima sweep and combine its outputs.
 
-\paragraph{Learned versus geometric polygon extraction.}
+\parhead{Learned versus geometric polygon extraction.}
 A second line extracts polygons directly. Girard et al.~\cite{girard2021framefield} learn a frame field aligned to parcel geometry and report that downstream Douglas-Peucker simplification lowers AP. PolyWorld~\cite{zorzi2022polyworld} predicts vertices and connectivity as a graph. Geometric refinement matured on buildings, where right-angle priors hold: Zorzi et al.~\cite{zorzi2020regularization} regularize masks with an adversarial network that imposes rectilinear outlines. We test whether these building-oriented operators transfer to organic fields and find they do not.
 
-\paragraph{Non-maximum suppression, ensembling, and consensus.}
+\parhead{Non-maximum suppression, ensembling, and consensus.}
 Our per-pixel vote is most directly inspired by non-maximum suppression (NMS), the standard object-detection postprocessing that keeps confident detections and suppresses overlapping spurious ones~\cite{neubeck2006nms}. Modern variants soften or learn this rule: Soft-NMS decays overlapping scores rather than removing them~\cite{bodla2017softnms}, Learning-NMS replaces the hand-set rule with a network~\cite{hosang2017learningnms}, and Weighted Boxes Fusion combines detections from several models by agreement~\cite{solovyev2021wbf}. FieldVote applies the same principle at the pixel level and across an operating-parameter sweep rather than across models: a boundary that recurs across watershed thresholds is confident and kept, while one that appears at a single threshold is suppressed. Deep ensembles~\cite{lakshminarayanan2017deepensembles}, MC dropout~\cite{gal2016dropout}, and test-time augmentation~\cite{wang2019tta} aggregate multiple predictions but retrain or re-infer the network; we instead aggregate over a postprocessing hyperparameter of a single frozen model, acting as a stability filter. This view also frames our baseline: DelineateAnything~\cite{lavreniuk2025delineateanything} is an instance-segmentation model that already applies NMS to its own predictions, so comparing against it pits one postprocessing pipeline against another rather than a postprocessed model against a raw one.
 
-\paragraph{Evaluation metrics.}
+\parhead{Evaluation metrics.}
 We lead with object-level metrics because pixel accuracy tolerates merged or split parcels. Panoptic Quality~\cite{kirillov2019panoptic} penalizes both localization and instance-count error, and we complement it with Boundary IoU~\cite{cheng2021boundaryiou}. This object-first protocol matches recent smallholder and pan-European benchmarks~\cite{persello2023ai4smallfarms, dandrimont2023ai4boundaries} and the Fields of The World~\cite{kerner2024ftw} and Fields of the Planet~\cite{corley_ftp} evaluations.
 
 \begin{figure}[t]
@@ -143,7 +146,7 @@ We postprocess one frozen UNet with an EfficientNet-B7 encoder, the PlanetScope 
 \section{Results}
 \label{sec:results}
 
-\paragraph{FieldVote matches the trained-model headline.}
+\parhead{FieldVote matches the trained-model headline.}
 Table~\ref{tab:headline} reports macro PQ on \textsc{Dense-10}. FieldVote reaches 35.8 with a frozen model and no retraining, matching the trained-model PlanetScope headline. On the same EfficientNet-B7 backbone the trained model scores 35.4, and its EfficientNet-B3 headline scores 35.5, the two being effectively tied~\cite{corley_ftp}. FieldVote also improves on the per-country tuned watershed by 6.8. This gain is statistically significant across countries (Wilcoxon signed-rank $p = 0.049$; bootstrap 95\% confidence interval on the mean gain $[1.2, 12.1]$). DelineateAnything trails both by a wide margin (Table~\ref{tab:headline}). FieldVote recovers the trained-model polygon quality purely by aggregating operating points of the existing softmax. The gain is not confined to PQ: FieldVote leads the tuned watershed on segmentation quality, recognition quality, average precision, and Boundary IoU~\cite{cheng2021boundaryiou} alike (Table~\ref{tab:metrics}).
 % FTP comparator cited (corley_ftp, arXiv 2607.04449). Backbone RESOLVED from FTP Table 1: trained B7 = 35.4, B3 headline = 35.5 (effectively tied). We postprocess B7, so the same-backbone reference is 35.4. Both checkpoints live in /projects/bgtj/ftw-planet/checkpoints/ (planet_efnet7_best.ckpt, planet_efnet3_augmax_full_best.ckpt). STILL PENDING: re-score our 35.8 against the per-patch GT polygon parquet (not rasterized masks) before locking the comparison; the parquet tars are not yet in the shared folder.
 
@@ -217,7 +220,7 @@ Figure~\ref{fig:percountry} shows the per-country breakdown. The aggregate gain 
 \label{fig:results}
 \end{figure*}
 
-\paragraph{A size-adaptive rule recovers smallholder accuracy.}
+\parhead{A size-adaptive rule recovers smallholder accuracy.}
 The blend of vote and field probability helps small or fragmented fields but slightly hurts large clean ones, so on its own it ties the uniform vote. Choosing between them per patch by field size (Section~\ref{sec:adaptive}) captures both. On a controlled softmax-derived pipeline the size-adaptive rule raises macro PQ from 33.4 for the uniform vote to 35.2 (with $T$ between 50{,}000 and 100{,}000~m\textsuperscript{2}), recovering the gains on the smallholder and over-fragmenting countries (Belgium, Croatia, Slovenia, Lithuania) without losing the large-field countries (Germany, South Africa, Sweden), as Figure~\ref{fig:adaptive} shows. This pipeline rebuilds instances from the stored softmax rather than the original polygons, so its uniform-vote baseline sits a few points below the polygon headline of Section~\ref{sec:consensus}; we therefore report the size-adaptive result as a relative gain over the uniform vote on identical footing, not as a new absolute headline.
 
 \begin{figure}[t]
@@ -227,7 +230,7 @@ The blend of vote and field probability helps small or fragmented fields but sli
 \label{fig:adaptive}
 \end{figure}
 
-\paragraph{Geometric refinement does not help organic fields.}
+\parhead{Geometric refinement does not help organic fields.}
 Refinements designed for built structures do not transfer (Table~\ref{tab:refine}). Over 23 countries, no variant improves on raw polygons: simplification, building-style regularization, and Chaikin smoothing each move mean PQ by at most 0.2. Regularization helps only 1 of the 23 countries, and pre-vectorization raster cleanup, evaluated on the 25 countries where it applies, helps only 3 of them. The per-country regularization change shows no significant association with field rectangularity (Pearson $r = 0.135$, $p = 0.55$, $n = 22$), consistent with rectilinear priors offering no useful signal for organic fields. Three further ablations appear in the appendix: the vote threshold is robust around the majority point, Douglas-Peucker simplification is sixteen-fold near-free compression, and soft-boundary watershed is neutral.
 
 \begin{table}[t]
@@ -246,10 +249,10 @@ Smooth (Chaikin) & 26.3 & -- \\
 \end{tabular}
 \end{table}
 
-\paragraph{Agreement calibrates per-field quality.}
+\parhead{Agreement calibrates per-field quality.}
 The threshold-agreement confidence of Section~\ref{sec:confidence} carries real signal. Within a country, higher-agreement fields are more accurate: the per-field Spearman correlation between agreement and IoU against ground truth is positive and significant in 5 of the 6 countries tested, from 0.20 (Cambodia) to 0.42 (Slovenia), all $p < 0.0001$, with only the smallest test set not significant (Rwanda, 174 fields). Across countries the signal does not rank regions by accuracy: mean agreement and macro PQ are uncorrelated ($r = 0.07$). Threshold agreement is therefore a within-region quality estimate rather than a cross-region one, and because it needs no labels it flags unreliable fields at inference time wherever the model runs.
 
-\paragraph{Global, cross-sensor demonstration.}
+\parhead{Global, cross-sensor demonstration.}
 \label{sec:global}
 We apply FieldVote to the global Fields of The World Sentinel-2 prediction store, a 10\,m global mosaic of the same three-class softmax. The model that produced those predictions is Sentinel-2 based, so this also tests whether FieldVote, which we developed on a Planet model, transfers across sensors. To our knowledge this is the first evaluation of a field-boundary postprocessing technique at global scale. We process windows spanning eight agricultural regions on five continents (Table~\ref{tab:global}); FieldVote runs unchanged on the Sentinel-2 store. Its effect is governed by the same label-free agreement signal. In high-agreement regions (Argentina, France, Australia, Brazil; agreement 95 to 99) it de-fragments, for example Argentina from 426 to 172 polygons (Fig.~\ref{fig:global}). In low-agreement regions (Punjab, Heilongjiang, Ethiopia; agreement 16 to 42) the predictions are themselves unstable across thresholds, and FieldVote produces more and smaller polygons. Agreement therefore serves as a deployment indicator for when to apply FieldVote. We do not report polygon-level accuracy here, because global ground-truth parcels are not available; quantifying global accuracy against reference data is future work.
 
@@ -281,13 +284,13 @@ Ethiopia & 31 & 81 & 16.0 \\
 \end{figure}
 
 \section{Discussion}
-\paragraph{Why FieldVote works.}
+\parhead{Why FieldVote works.}
 The optimal h-minima depth is not a global constant; it shifts with field size, parcel geometry, and boundary contrast. Choosing a single threshold commits to one point on a sharp trade-off, and the wrong point costs PQ. FieldVote does not select the threshold, it keeps the field boundaries that recur across the sweep, so splits that appear only at shallow depths and merges that appear only at deep depths are filtered out. The gain is largest where a single threshold over-fragments, Belgium (30.6 to 52.9) and Croatia (20.5 to 35.8), the regions whose optimum lies farthest from the global choice. For this model and benchmark, a frozen model with better polygonization recovers the trained-model headline; we do not claim this holds for every architecture.
 
-\paragraph{Why refinement and soft boundaries do not.}
+\parhead{Why refinement and soft boundaries do not.}
 Building regularizers and frame-field polygonizers encode a rectilinear prior~\cite{girard2021framefield, zorzi2022polyworld, zorzi2020regularization} that is correct for buildings and wrong for fields shaped by terrain, hydrology, and incremental division. The absence of a significant rectangularity association is consistent with the prior carrying no useful information for organic boundaries. Simplification is the one geometric operation worth keeping, for compression rather than accuracy. Soft-boundary watershed is neutral because the boundary information a soft cut exposes is already captured by the consensus over depths.
 
-\paragraph{Limitations.}
+\parhead{Limitations.}
 FieldVote is not uniformly better. It loses on the smallest-field smallholder cases, Cambodia (17.1 to 9.5) and Portugal (12.9 to 9.7), and on Germany (32.5 to 31.2); when fields approach the resolution limit, averaging over thresholds blurs already-fragile boundaries~\cite{persello2023ai4smallfarms, dandrimont2023ai4boundaries}. The headline gain is a property of medium-to-large parcel landscapes. We postprocess one frozen model, so we do not separate errors that postprocessing can fix from errors baked into the probability map, and PQ can mask systematic boundary displacement that contour metrics would expose~\cite{avbelj2015polis}.
 
 \section{Conclusion}
