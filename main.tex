@@ -147,7 +147,7 @@ We postprocess one frozen UNet with an EfficientNet-B7 encoder, the PlanetScope 
 \label{sec:results}
 
 \parhead{FieldVote matches the trained-model headline.}
-Table~\ref{tab:headline} reports macro PQ on \textsc{Dense-10}. FieldVote reaches 35.8 with a frozen model and no retraining, matching the trained-model PlanetScope headline. On the same EfficientNet-B7 backbone the trained model scores 35.4, and its EfficientNet-B3 headline scores 35.5, the two being effectively tied~\cite{corley_ftp}. FieldVote also improves on the per-country tuned watershed by 6.8. This gain is statistically significant across countries (Wilcoxon signed-rank $p = 0.049$; bootstrap 95\% confidence interval on the mean gain $[1.2, 12.1]$). DelineateAnything trails both by a wide margin (Table~\ref{tab:headline}). FieldVote recovers the trained-model polygon quality purely by aggregating operating points of the existing softmax. The gain is not confined to PQ: FieldVote leads the tuned watershed on segmentation quality, recognition quality, average precision, and Boundary IoU~\cite{cheng2021boundaryiou} alike (Table~\ref{tab:metrics}).
+Table~\ref{tab:headline} reports macro PQ on \textsc{Dense-10}. FieldVote reaches 35.8 with a frozen model and no retraining, matching the trained-model PlanetScope headline. On the same EfficientNet-B7 backbone the trained model scores 35.4, and its EfficientNet-B3 headline scores 35.5, the two being effectively tied~\cite{corley_ftp}. FieldVote also improves on the per-country tuned watershed by 6.8. This gain is statistically significant across countries (Wilcoxon signed-rank $p = 0.049$; bootstrap 95\% confidence interval on the mean gain $[1.2, 12.1]$). DelineateAnything trails both by a wide margin (Table~\ref{tab:headline}). FieldVote recovers the trained-model polygon quality purely by aggregating operating points of the existing softmax. The gain is not confined to PQ: FieldVote leads the tuned watershed on segmentation quality, recognition quality, average precision, and Boundary IoU~\cite{cheng2021boundaryiou} alike (Table~\ref{tab:metrics}). The headline is also robust to the ground-truth footing: scored directly against the released per-patch vector polygons, FieldVote reaches 35.5 versus 28.6 for the tuned watershed, and the gain persists on a stricter instance-mask footing (Appendix~\ref{app:footing}).
 % FTP comparator cited (corley_ftp, arXiv 2607.04449). Backbone: trained B7 = 35.4, B3 = 35.5 (tied); we postprocess B7. FOOTING RESOLVED 2026-07-16: the released FTP eval (ftw-planet repo, src/ftw_planet/eval.py) extracts GT shapes from the rasterized semantic mask (gt==1 connected components), the SAME footing as our headline scorer, so 35.8 vs 35.4 is a like-for-like comparison as published. The per-patch GT vector polygons are now public (HF taylor-geospatial/ftw-planet, <pid>.polygons.parquet per patch); a vector-GT re-score is an optional robustness check, not a gate.
 
 \begin{table}[t]
@@ -323,6 +323,25 @@ Although simplification does not raise PQ, it compresses geometry at almost no c
 \section{Soft-boundary watershed is neutral}
 \label{app:softboundary}
 Thresholding the boundary-class softmax with a swept cut, instead of taking the argmax, changes mean PQ by less than 0.1 across 9 countries and helps 4 of 9, so it is not a useful lever. The boundary information a soft cut exposes is already captured by the consensus over h-minima depths.
+
+\section{Ground-truth footing sensitivity}
+\label{app:footing}
+Polygon metrics depend on how the ground truth itself is represented, so we score both methods on three footings over the same \textsc{Dense-10} test splits (Table~\ref{tab:footing}). The headline footing extracts ground-truth fields as connected components of the rasterized semantic field class, which matches the released Fields of the Planet evaluation protocol~\cite{corley_ftp} and can fuse touching parcels when the separating boundary is lost to rasterization. The instance footing polygonizes per-field instance-id masks projected from the 10\,m label grid onto the 3\,m prediction grid, which prevents fusion but penalizes smooth 3\,m predictions against blocky upsampled edges. The vector footing scores directly against the released per-patch ground-truth polygons, the purest representation. Absolute PQ moves by up to six points across footings, driven almost entirely by the instance footing's resampled edges; the semantic and vector footings agree within 0.3 points. The FieldVote gain over the tuned watershed is stable on all three, so the paper's conclusion does not depend on the choice of ground-truth representation.
+
+\begin{table}[t]
+\centering
+\caption{Macro PQ (0--100) on \textsc{Dense-10} under three ground-truth footings. Absolute values shift with the footing, the semantic and vector footings agree closely, and the FieldVote gain is stable throughout.}
+\label{tab:footing}
+\begin{tabular}{lccc}
+\toprule
+Ground-truth footing & FieldVote & Tuned watershed & Gain \\
+\midrule
+Semantic mask (headline, as in~\cite{corley_ftp}) & 35.8 & 29.0 & +6.8 \\
+Instance mask (10\,m ids on 3\,m grid) & 30.0 & 24.4 & +5.6 \\
+Vector polygons (released ground truth) & 35.5 & 28.6 & +6.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
