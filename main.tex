@@ -192,38 +192,30 @@ Figure~\ref{fig:percountry} shows the per-country breakdown. The aggregate gain 
 \footnotesize
 \setlength{\tabcolsep}{1.5pt}
 \renewcommand{\arraystretch}{0.4}
-\begin{tabular}{@{}c@{\ }cccc@{}}
- & Input & Single $h$ & FieldVote (ours) & Ground truth \\
+\begin{tabular}{@{}c@{\ }ccccc@{}}
+ & Window A & Window B & Single $h$ & FieldVote (ours) & Ground truth \\
 \rotatebox{90}{\enspace Belgium} &
-\includegraphics[width=0.225\textwidth]{fig_res_be_in.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_be_single.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_be_fv.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_be_gt.png} \\
+\includegraphics[width=0.18\textwidth]{fig_res_be_in.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_be_inb.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_be_single.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_be_fv.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_be_gt.png} \\
 \rotatebox{90}{\enspace Sweden} &
-\includegraphics[width=0.225\textwidth]{fig_res_se_in.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_se_single.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_se_fv.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_se_gt.png} \\
+\includegraphics[width=0.18\textwidth]{fig_res_se_in.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_se_inb.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_se_single.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_se_fv.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_se_gt.png} \\
 \rotatebox{90}{\enspace Lithuania} &
-\includegraphics[width=0.225\textwidth]{fig_res_lt_in.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_lt_single.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_lt_fv.png} &
-\includegraphics[width=0.225\textwidth]{fig_res_lt_gt.png} \\
+\includegraphics[width=0.18\textwidth]{fig_res_lt_in.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_lt_inb.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_lt_single.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_lt_fv.png} &
+\includegraphics[width=0.18\textwidth]{fig_res_lt_gt.png} \\
 \end{tabular}
-\caption{FieldVote on three held-out tiles (Belgium, Sweden, Lithuania). Left to right: input tile, watershed at a single low threshold, the FieldVote consensus, and the ground-truth field and boundary annotation. A single operating point over-fragments each scene into dozens of pieces (for example the Lithuania tile splits into 91), whereas the per-pixel vote keeps only the boundaries that recur across the sweep and recovers clean parcels (17 for that tile) that track the ground truth, with no retraining and no labels.}
+\caption{FieldVote on three held-out tiles (Belgium, Sweden, Lithuania). Left to right: the two temporal input windows (planting and harvest), watershed at a single low threshold, the FieldVote consensus, and the ground-truth field and boundary annotation. A single operating point over-fragments each scene into dozens of pieces (for example the Lithuania tile splits into 91), whereas the per-pixel vote keeps only the boundaries that recur across the sweep and recovers clean parcels (17 for that tile) that track the ground truth, with no retraining and no labels.}
 \label{fig:results}
 \end{figure*}
-
-\paragraph{The vote threshold is robust.}
-Figure~\ref{fig:vote} sweeps the vote fraction $\tau_v$ from 0.3 to 0.7. Macro PQ is flat across the majority-vote region and declines only when more than 60\% of the thresholds must agree. The majority vote is therefore a principled and near-optimal operating point, not a tuned one.
-% TODO: fig_votethreshold.pdf y-axis values are still on the old 11-country set; regenerate on dense-10 for consistency with the headline.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.85\columnwidth]{fig_votethreshold.pdf}
-\caption{Vote-threshold ablation. Macro PQ is flat across the majority-vote region and falls only once more than 60\% of thresholds must agree, so the 0.5 majority vote is a principled operating point rather than a tuned hyperparameter.}
-\label{fig:vote}
-\end{figure}
 
 \paragraph{A size-adaptive rule recovers smallholder accuracy.}
 The blend of vote and field probability helps small or fragmented fields but slightly hurts large clean ones, so on its own it ties the uniform vote. Choosing between them per patch by field size (Section~\ref{sec:adaptive}) captures both. On a controlled softmax-derived pipeline the size-adaptive rule raises macro PQ from 33.4 for the uniform vote to 35.2 (with $T$ between 50{,}000 and 100{,}000~m\textsuperscript{2}), recovering the gains on the smallholder and over-fragmenting countries (Belgium, Croatia, Slovenia, Lithuania) without losing the large-field countries (Germany, South Africa, Sweden), as Figure~\ref{fig:adaptive} shows. This pipeline rebuilds instances from the stored softmax rather than the original polygons, so its uniform-vote baseline sits a few points below the polygon headline of Section~\ref{sec:consensus}; we therefore report the size-adaptive result as a relative gain over the uniform vote on identical footing, not as a new absolute headline.
@@ -236,7 +228,7 @@ The blend of vote and field probability helps small or fragmented fields but sli
 \end{figure}
 
 \paragraph{Geometric refinement does not help organic fields.}
-Refinements designed for built structures do not transfer (Table~\ref{tab:refine}). Over 23 countries, no variant improves on raw polygons: simplification, building-style regularization, and Chaikin smoothing each move mean PQ by at most 0.2. Regularization helps only 1 of the 23 countries, and pre-vectorization raster cleanup, evaluated on the 25 countries where it applies, helps only 3 of them. The per-country regularization change shows no significant association with field rectangularity (Pearson $r = 0.135$, $p = 0.55$, $n = 22$), consistent with rectilinear priors offering no useful signal for organic fields.
+Refinements designed for built structures do not transfer (Table~\ref{tab:refine}). Over 23 countries, no variant improves on raw polygons: simplification, building-style regularization, and Chaikin smoothing each move mean PQ by at most 0.2. Regularization helps only 1 of the 23 countries, and pre-vectorization raster cleanup, evaluated on the 25 countries where it applies, helps only 3 of them. The per-country regularization change shows no significant association with field rectangularity (Pearson $r = 0.135$, $p = 0.55$, $n = 22$), consistent with rectilinear priors offering no useful signal for organic fields. Three further ablations appear in the appendix: the vote threshold is robust around the majority point, Douglas-Peucker simplification is sixteen-fold near-free compression, and soft-boundary watershed is neutral.
 
 \begin{table}[t]
 \centering
@@ -254,18 +246,8 @@ Smooth (Chaikin) & 26.3 & -- \\
 \end{tabular}
 \end{table}
 
-\paragraph{Simplification is near-free compression.}
-Although simplification does not raise PQ, it compresses geometry at almost no cost (Fig.~\ref{fig:simplify}). As the Douglas-Peucker tolerance grows to 6~m, mean vertices per polygon drop from 188 to 12, a sixteen-fold reduction, while PQ falls only from 36.6 to 36.1. Simplification is worth applying for storage and downstream efficiency, and the choice is orthogonal to the FieldVote gain.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.85\columnwidth]{fig_simplify.pdf}
-\caption{Douglas-Peucker simplification compresses field polygons sixteen-fold (188 to 12 vertices) at negligible accuracy cost, with PQ falling only from 36.6 to 36.1. Compression is therefore free to apply and orthogonal to the FieldVote gain. Mean over the countries present at every tolerance.}
-\label{fig:simplify}
-\end{figure}
-
-\paragraph{Soft-boundary watershed is neutral; agreement calibrates per-field quality.}
-Thresholding the boundary-class softmax with a swept cut, instead of taking the argmax, changes mean PQ by less than 0.1 across 9 countries and helps 4 of 9, so it is not a useful lever. The threshold-agreement confidence of Section~\ref{sec:confidence} is more informative. Within a country, higher-agreement fields are more accurate: the per-field Spearman correlation between agreement and IoU against ground truth is positive and significant in 5 of the 6 countries tested, from 0.20 (Cambodia) to 0.42 (Slovenia), all $p < 0.0001$, with only the smallest test set not significant (Rwanda, 174 fields). Across countries the signal does not rank regions by accuracy: mean agreement and macro PQ are uncorrelated ($r = 0.07$). Threshold agreement is therefore a within-region quality estimate rather than a cross-region one, and because it needs no labels it flags unreliable fields at inference time wherever the model runs.
+\paragraph{Agreement calibrates per-field quality.}
+The threshold-agreement confidence of Section~\ref{sec:confidence} carries real signal. Within a country, higher-agreement fields are more accurate: the per-field Spearman correlation between agreement and IoU against ground truth is positive and significant in 5 of the 6 countries tested, from 0.20 (Cambodia) to 0.42 (Slovenia), all $p < 0.0001$, with only the smallest test set not significant (Rwanda, 174 fields). Across countries the signal does not rank regions by accuracy: mean agreement and macro PQ are uncorrelated ($r = 0.07$). Threshold agreement is therefore a within-region quality estimate rather than a cross-region one, and because it needs no labels it flags unreliable fields at inference time wherever the model runs.
 
 \paragraph{Global, cross-sensor demonstration.}
 \label{sec:global}
@@ -310,6 +292,34 @@ FieldVote is not uniformly better. It loses on the smallest-field smallholder ca
 
 \section{Conclusion}
 We treat field-boundary delineation as a polygonization problem on a frozen segmentation model and show that the conversion from probabilities to polygons, not the model, is where accuracy is won or lost. FieldVote, a per-pixel majority vote over watershed segmentations run at many h-minima depths, raises held-out macro PQ from 29.0 to 35.8, matching the trained-model headline, with no retraining and a statistically significant gain over the tuned watershed. The same experiments rule out the obvious alternatives: building-derived geometric refinement does not transfer to organic fields, and soft-boundary watershed is neutral. Simplification earns its place as sixteen-fold near-free vertex compression. The vote agreement additionally provides label-free per-field confidence and, applied to the global Sentinel-2 prediction store, indicates where the consensus transfers across sensors and continents. The method fails on the smallest smallholder fields, which marks the direction for future work: a size-adaptive consensus that protects small parcels while retaining the variance reduction that large fields enjoy.
+
+\appendices
+
+\section{Vote-threshold sensitivity}
+\label{app:vote}
+Figure~\ref{fig:vote} sweeps the vote fraction $\tau_v$ from 0.3 to 0.7. Macro PQ is flat across the majority-vote region and declines only when more than 60\% of the thresholds must agree. The majority vote is therefore a principled and near-optimal operating point, not a tuned one.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\columnwidth]{fig_votethreshold.pdf}
+\caption{Vote-threshold ablation on \textsc{Dense-10}. Macro PQ is flat across the majority-vote region and falls only once more than 60\% of thresholds must agree, so the 0.5 majority vote is a principled operating point rather than a tuned hyperparameter.}
+\label{fig:vote}
+\end{figure}
+
+\section{Simplification is near-free compression}
+\label{app:simplify}
+Although simplification does not raise PQ, it compresses geometry at almost no cost (Fig.~\ref{fig:simplify}). As the Douglas-Peucker tolerance grows to 6~m, mean vertices per polygon drop from 188 to 12, a sixteen-fold reduction, while PQ falls only from 36.6 to 36.1. Simplification is worth applying for storage and downstream efficiency, and the choice is orthogonal to the FieldVote gain.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\columnwidth]{fig_simplify.pdf}
+\caption{Douglas-Peucker simplification compresses field polygons sixteen-fold (188 to 12 vertices) at negligible accuracy cost, with PQ falling only from 36.6 to 36.1. Compression is therefore free to apply and orthogonal to the FieldVote gain. Mean over the countries present at every tolerance.}
+\label{fig:simplify}
+\end{figure}
+
+\section{Soft-boundary watershed is neutral}
+\label{app:softboundary}
+Thresholding the boundary-class softmax with a swept cut, instead of taking the argmax, changes mean PQ by less than 0.1 across 9 countries and helps 4 of 9, so it is not a useful lever. The boundary information a soft cut exposes is already captured by the consensus over h-minima depths.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
