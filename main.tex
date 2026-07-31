@@ -33,37 +33,48 @@ aviskar.giri@taylorgeospatial.org}
 
 \begin{strip}
 \centering
-\begin{tikzpicture}[>={Latex[length=2mm]}, font=\footnotesize,
-  img/.style={inner sep=0pt, outer sep=0pt},
-  plbl/.style={font=\scriptsize, align=center},
-  pbox/.style={draw=tgbrown, rounded corners, fill=tgperi!15, align=center, font=\footnotesize, inner sep=3pt},
-  flow/.style={->, semithick, tgbrown!75}]
-  \node[img] (in) {\includegraphics[width=0.12\textwidth]{fig_pipe_input.png}};
-  \node[plbl,below=0.5mm of in] {Input tile};
-  \node[pbox,right=7mm of in] (net) {Frozen\\net};
-  \node[img, right=7mm of net] (prob) {\includegraphics[width=0.12\textwidth]{fig_pipe_prob.png}};
-  \node[plbl,below=0.5mm of prob] {Field and boundary\\probability};
-  \node[img, above right=3mm and 12mm of prob] (wlow) {\includegraphics[width=0.10\textwidth]{fig_pipe_wslow.png}};
-  \node[plbl,above=0.5mm of wlow] {low $h$, over-split};
-  \node[img, below right=3mm and 12mm of prob] (whigh) {\includegraphics[width=0.10\textwidth]{fig_pipe_wshigh.png}};
-  \node[plbl,below=0.5mm of whigh] {high $h$, merged};
-  \coordinate (wmid) at ($(wlow.east)!0.5!(whigh.east)$);
-  \node[pbox,right=10mm of wmid] (vote) {Per-pixel\\majority vote};
-  \node[img, above right=3mm and 12mm of vote] (cons) {\includegraphics[width=0.10\textwidth]{fig_pipe_consensus.png}};
-  \node[plbl,above=0.5mm of cons] {Consensus};
-  \node[img, below right=3mm and 12mm of vote] (agr) {\includegraphics[width=0.10\textwidth]{fig_pipe_agreement.png}};
-  \node[plbl,below=0.5mm of agr] {Agreement};
-  \node[img, right=9mm of cons] (gt) {\includegraphics[width=0.10\textwidth]{fig_pipe_gt.png}};
-  \node[plbl,above=0.5mm of gt] {Ground truth};
+\begin{tikzpicture}[>={Latex[length=1.6mm]}, font=\footnotesize,
+  P/.style={inner sep=0pt, outer sep=0pt, draw=tgbrown!35, line width=0.2pt,
+            fill=white},
+  lbl/.style={font=\scriptsize, align=center, text=tgbrown, inner sep=1pt},
+  sub/.style={font=\tiny, align=center, text=tgbrown!75, inner sep=1pt},
+  box/.style={draw=tgbrown, rounded corners=1pt, fill=tgperi!18, align=center,
+              font=\scriptsize, inner sep=2.5pt, text=tgbrown},
+  flow/.style={->, line width=0.5pt, tgbrown!70}]
+  \def\ph{24mm}
+  \node[P] (in) {\includegraphics[height=\ph]{fig_pipe_input.png}};
+  \node[box, right=3.5mm of in] (net) {Frozen\\net};
+  \node[P, right=3.5mm of net] (prob) {\includegraphics[height=\ph]{fig_pipe_prob.png}};
+  % Watershed sweep drawn as a stack: one card per h-minima threshold.
+  \node[P, right=9mm of prob] (wb) {\includegraphics[height=\ph]{fig_pipe_wshigh.png}};
+  \node[P] at ($(wb.center)+(1.7mm,1.7mm)$) (wm)
+    {\includegraphics[height=\ph]{fig_pipe_wshigh.png}};
+  \node[P] at ($(wb.center)+(3.4mm,3.4mm)$) (wt)
+    {\includegraphics[height=\ph]{fig_pipe_wslow.png}};
+  \node[box, right=5mm of wt] (vote) {Per-pixel\\majority vote};
+  \node[P, right=4mm of vote] (cons) {\includegraphics[height=\ph]{fig_pipe_consensus.png}};
+  \node[P, right=2.5mm of cons] (agr) {\includegraphics[height=\ph]{fig_pipe_agreement.png}};
+  \node[P, right=6mm of agr] (gt) {\includegraphics[height=\ph]{fig_pipe_gt.png}};
+
+  % All captions hang from one baseline, set by the lowest panel in the row.
+  \coordinate (base) at ($(wb.south)+(0,-1mm)$);
+  \node[lbl, anchor=north] at (in |- base) {Input tile};
+  \node[lbl, anchor=north] at (prob |- base) {Field and boundary\\probability};
+  \node[lbl, anchor=north] at (wb |- base) {Watershed at $K$\\h-minima thresholds};
+  \node[lbl, anchor=north] at (cons |- base) {Consensus};
+  \node[lbl, anchor=north] at (agr |- base) {Agreement};
+  \node[lbl, anchor=north] at (gt |- base) {Ground truth};
+  \coordinate (top) at ($(wt.north)+(0,1mm)$);
+  \node[sub, anchor=south] at (wb |- top) {low $h$: 44 fragments,\ high $h$: merged};
+  \node[sub, anchor=south] at (cons |- top) {11 polygons};
+
   \draw[flow] (in) -- (net);
   \draw[flow] (net) -- (prob);
-  \draw[flow] (prob.east) -- (wlow.west);
-  \draw[flow] (prob.east) -- (whigh.west);
-  \draw[flow] (wlow.east) -- (vote.west);
-  \draw[flow] (whigh.east) -- (vote.west);
+  \draw[flow] (prob.east) -- ($(wb.west)+(-1mm,0)$);
+  \draw[flow] ($(wt.east)+(0,-2.2mm)$) -- (vote.west);
   \draw[flow] (vote.east) -- (cons.west);
-  \draw[flow] (vote.east) -- (agr.west);
-  \draw[dashed, semithick, tgbrown!55] (cons.east) -- node[above=-1pt, font=\scriptsize, text=tgbrown]{$\approx$} (gt.west);
+  \draw[dashed, line width=0.5pt, tgbrown!55] (agr.east) --
+    node[above=-0.5pt, font=\scriptsize, text=tgbrown]{$\approx$} (gt.west);
 \end{tikzpicture}
 \captionof{figure}{\textbf{FieldVote} on a held-out Belgium tile. A frozen network maps the input tile to a field and boundary probability map, and we change only the steps that follow. The watershed runs at many h-minima thresholds: a low threshold over-segments the fields into 44 fragments (thin internal splits) and a high threshold merges neighbors. A per-pixel majority vote keeps only the boundaries that recur across the sweep, giving 11 consensus polygons. The same vote produces a label-free per-field agreement score (green high, red low) that flags uncertain fields, and the consensus closely matches the ground-truth annotation (right).}
 \label{fig:pipeline}
@@ -105,8 +116,14 @@ We lead with object-level metrics because pixel accuracy tolerates merged or spl
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{qualitative_example.png}
-\caption{An example held-out patch (left), the field polygons FieldVote produces from the frozen model (center), and the ground-truth boundaries (right). Instance counts appear above each panel. Object-level quality depends on matching the number and shape of parcels, which pixel accuracy alone does not capture.}
+\setlength{\tabcolsep}{1.2pt}
+\begin{tabular}{@{}ccc@{}}
+\includegraphics[height=1.92in]{fig_qual_rgb.png} &
+\includegraphics[height=1.92in]{fig_qual_pred.png} &
+\includegraphics[height=1.92in]{fig_qual_gt.png} \\[1pt]
+\footnotesize Input & \footnotesize FieldVote, $n=26$ & \footnotesize Ground truth, $n=26$ \\
+\end{tabular}
+\caption{A held-out patch, the field polygons FieldVote produces from the frozen model, and the ground-truth boundaries. The two agree on the parcel count but not on the partition: the prediction splits the large central parcel and merges several narrow strips at the bottom. Pixel accuracy is insensitive to both errors, which is why we score with object-level metrics.}
 \label{fig:qualitative}
 \end{figure}
 
@@ -153,26 +170,32 @@ Table~\ref{tab:headline} reports macro PQ on \textsc{Dense-10}. FieldVote reache
 
 \begin{table}[t]
 \centering
-\caption{Macro PQ (0--100) on \textsc{Dense-10}, the held-out test splits of the ten dense-label countries (presence-only Kenya excluded). FieldVote matches the trained PlanetScope model while retraining nothing and improves on a per-country tuned watershed by 6.8 points, and the learned DelineateAnything baseline trails by more than 20 points. FieldVote and the trained model share the EfficientNet-B7 backbone. The B3 headline of Corley et al.~\cite{corley_ftp} is 35.5, effectively tied with B7. Best in \textbf{bold}.}
+\caption{Macro PQ on \textsc{Dense-10}. FieldVote matches the trained PlanetScope model without retraining and improves on the tuned watershed by 6.8 points.}
 \label{tab:headline}
-\begin{tabular}{lc}
+\begin{tabular}{@{}lr@{}}
 \toprule
 Method & Macro PQ \\
 \midrule
 DelineateAnything, default~\cite{lavreniuk2025delineateanything} & 5.0 \\
 DelineateAnything, strongest~\cite{lavreniuk2025delineateanything} & 14.6 \\
 Tuned watershed & 29.0 \\
-Trained PlanetScope model, B7~\cite{corley_ftp} & 35.4 \\
-\textbf{FieldVote (ours), B7} & \textbf{35.8} \\
+Trained PlanetScope model~\cite{corley_ftp} & 35.4 \\
+\midrule
+\textbf{FieldVote (ours)} & \textbf{35.8} \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+\begin{minipage}{0.94\columnwidth}
+\footnotesize Scores are 0--100; higher is better. FieldVote and the trained model share the EfficientNet-B7 backbone, whose B3 counterpart scores 35.5~\cite{corley_ftp}.
+\end{minipage}
 \end{table}
 
 \begin{table}[t]
 \centering
-\caption{Polygon-level metrics on \textsc{Dense-10} (0--100), FieldVote versus the per-country tuned watershed. FieldVote leads on every matching-based metric, namely Panoptic Quality, its SQ and RQ factors, average precision, and Boundary IoU. Macro PQ is the mean of per-country PQ, so it is not exactly SQ$\times$RQ of these row averages. Best in \textbf{bold}.}
+\caption{Polygon-level metrics on \textsc{Dense-10}. FieldVote leads the tuned watershed on every matching-based metric.}
 \label{tab:metrics}
-\begin{tabular}{lccccc}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
 Method & PQ & SQ & RQ & AP & B-IoU \\
 \midrule
@@ -180,6 +203,11 @@ Tuned watershed & 29.0 & 77.0 & 36.6 & 23.2 & 15.6 \\
 \textbf{FieldVote (ours)} & \textbf{35.8} & \textbf{77.7} & \textbf{44.6} & \textbf{29.2} & \textbf{15.9} \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+\begin{minipage}{0.94\columnwidth}
+\footnotesize Scores are 0--100; higher is better. Macro PQ is the mean of per-country PQ, so it is not exactly SQ$\times$RQ of these row averages.
+\end{minipage}
 \end{table}
 
 \begin{figure}[t]
@@ -191,42 +219,33 @@ Tuned watershed & 29.0 & 77.0 & 36.6 & 23.2 & 15.6 \\
 
 Figure~\ref{fig:percountry} shows the per-country breakdown. The aggregate gain comes from suppressing spurious splits in mid-to-large field regimes rather than from uniform improvement. Kenya is excluded from every macro for the presence-only reason given in Section~\ref{sec:setup}. Figure~\ref{fig:results} shows the effect qualitatively on held-out tiles. A single watershed threshold breaks each scene into dozens of fragments, while FieldVote recovers clean parcels that track the ground-truth annotation.
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering
-\footnotesize
-\setlength{\tabcolsep}{1.5pt}
-\renewcommand{\arraystretch}{0.4}
-\begin{tabular}{@{}c@{\ }ccccc@{}}
- & Window A & Window B & Single $h$ & FieldVote (ours) & Ground truth \\
-\rotatebox{90}{\enspace Belgium} &
-\includegraphics[width=0.18\textwidth]{fig_res_be_in.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_be_inb.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_be_single.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_be_fv.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_be_gt.png} \\
-\rotatebox{90}{\enspace Sweden} &
-\includegraphics[width=0.18\textwidth]{fig_res_se_in.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_se_inb.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_se_single.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_se_fv.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_se_gt.png} \\
-\rotatebox{90}{\enspace Lithuania} &
-\includegraphics[width=0.18\textwidth]{fig_res_lt_in.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_lt_inb.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_lt_single.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_lt_fv.png} &
-\includegraphics[width=0.18\textwidth]{fig_res_lt_gt.png} \\
+\setlength{\tabcolsep}{1pt}
+\renewcommand{\arraystretch}{1}
+\newcommand{\rescell}[1]{\includegraphics[width=0.2335\columnwidth]{#1}}
+\begin{tabular}{@{}c@{\ }cccc@{}}
+ & \footnotesize Input & \footnotesize Single $h$ & \footnotesize FieldVote & \footnotesize Ground truth \\
+\rotatebox{90}{\footnotesize\enspace Belgium} &
+\rescell{fig_res_be_in.png} & \rescell{fig_res_be_single.png} &
+\rescell{fig_res_be_fv.png} & \rescell{fig_res_be_gt.png} \\
+\rotatebox{90}{\footnotesize\enspace Sweden} &
+\rescell{fig_res_se_in.png} & \rescell{fig_res_se_single.png} &
+\rescell{fig_res_se_fv.png} & \rescell{fig_res_se_gt.png} \\
+\rotatebox{90}{\footnotesize\enspace Lithuania} &
+\rescell{fig_res_lt_in.png} & \rescell{fig_res_lt_single.png} &
+\rescell{fig_res_lt_fv.png} & \rescell{fig_res_lt_gt.png} \\
 \end{tabular}
-\caption{FieldVote on three held-out tiles (Belgium, Sweden, Lithuania). Left to right: the two temporal input windows (planting and harvest), watershed at a single low threshold, the FieldVote consensus, and the ground-truth field and boundary annotation. A single operating point over-fragments each scene into dozens of pieces, for example splitting the Lithuania tile into 91. The per-pixel vote keeps only the boundaries that recur across the sweep and recovers 17 parcels for that tile, which track the ground truth without retraining or labels.}
+\caption{FieldVote on three held-out tiles. Left to right: the planting-window input, watershed at a single low threshold, the FieldVote consensus, and the ground-truth field and boundary annotation. A single operating point cuts thin spurious splits across the parcels and breaks each scene into dozens of pieces, for example splitting the Lithuania tile into 91. The per-pixel vote keeps only the boundaries that recur across the sweep and recovers 17 parcels for that tile, which track the ground truth without retraining or labels.}
 \label{fig:results}
-\end{figure*}
+\end{figure}
 
 \parhead{A size-adaptive rule recovers smallholder accuracy.}
 The blend of vote and field probability helps small or fragmented fields but hurts large clean ones, so on its own it ties the uniform vote. Choosing between the two per patch by field size (Section~\ref{sec:adaptive}) captures both cases. On a controlled softmax-derived pipeline the size-adaptive rule raises macro PQ from 33.4 for the uniform vote to 35.2, with $T$ between 50{,}000 and 100{,}000~m\textsuperscript{2}. It recovers the gains on the smallholder and over-fragmenting countries (Belgium, Croatia, Slovenia, Lithuania) without losing the large-field countries (Germany, South Africa, Sweden), as Figure~\ref{fig:adaptive} shows. This pipeline rebuilds instances from the stored softmax rather than the original polygons, so its uniform-vote baseline sits a few points below the polygon headline of Section~\ref{sec:consensus}. We therefore report the size-adaptive result as a relative gain over the uniform vote on identical footing, not as a new absolute headline.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\columnwidth]{fig_adaptive.pdf}
+\includegraphics[width=\columnwidth]{fig_adaptive.pdf}
 \caption{Size-adaptive FieldVote versus the uniform vote, per country. The adaptive rule matches the uniform vote on large-field countries and improves the small-field and over-fragmenting ones, raising the macro from 33.4 to 35.2 on the same softmax pipeline. The gain is concentrated where the uniform vote over-merges smallholder parcels.}
 \label{fig:adaptive}
 \end{figure}
@@ -236,18 +255,23 @@ Refinements designed for built structures do not transfer (Table~\ref{tab:refine
 
 \begin{table}[t]
 \centering
-\caption{Mean PQ (0--100) over 23 countries for post-vectorization geometric refinement. No building-derived operator improves on the raw FieldVote polygons, and each moves the mean by at most 0.2 point. Rectilinear priors that help buildings do not transfer to organic field boundaries.}
+\caption{Post-vectorization geometric refinement, mean PQ over 23 countries. No building-derived operator improves on the raw FieldVote polygons.}
 \label{tab:refine}
-\begin{tabular}{lcc}
+\begin{tabular}{@{}lrr@{}}
 \toprule
-Variant & Mean PQ & Countries improved \\
+Variant & Mean PQ & Improved \\
 \midrule
-Raw & 26.5 & -- \\
+Raw FieldVote polygons & 26.5 & -- \\
 Simplify (Douglas--Peucker) & 26.4 & -- \\
 Regularize (building-style) & 26.3 & 1 / 23 \\
 Smooth (Chaikin) & 26.3 & -- \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+\begin{minipage}{0.94\columnwidth}
+\footnotesize Scores are 0--100. \emph{Improved} counts the countries where the operator raises PQ above the raw polygons; it was tallied only for regularization.
+\end{minipage}
 \end{table}
 
 \parhead{Agreement predicts per-field quality.}
@@ -259,28 +283,39 @@ We apply FieldVote to the global Fields of The World Sentinel-2 prediction store
 
 \begin{table}[t]
 \centering
-\caption{FieldVote on the global Sentinel-2 prediction store, over a 1536$\times$1536 window per region. Polygon counts before (tuned watershed) and after (FieldVote). FieldVote de-fragments where agreement is high and fragments more where it is low, so the label-free agreement score also serves as a deployment indicator.}
+\caption{FieldVote on the global Sentinel-2 prediction store, one 1536$\times$1536 window per region, ordered by agreement. The sign of the change in polygon count follows the agreement score.}
 \label{tab:global}
-\begin{tabular}{lccc}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Region & Tuned WS & FieldVote & Agreement (\%) \\
+Region & Agr. & Tuned WS & FieldVote & Change \\
 \midrule
-Argentina (Pampas) & 426 & 172 & 98.0 \\
-France & 416 & 290 & 95.0 \\
-Australia (NSW) & 359 & 319 & 97.0 \\
-Brazil (Mato Grosso) & 240 & 208 & 99.0 \\
-USA (Iowa) & 434 & 498 & 87.0 \\
-China (Heilongjiang) & 164 & 355 & 42.0 \\
-India (Punjab) & 20 & 152 & 29.0 \\
-Ethiopia & 31 & 81 & 16.0 \\
+Brazil (Mato Grosso) & 99 & 240 & 208 & $-32$ \\
+Argentina (Pampas) & 98 & 426 & 172 & $-254$ \\
+Australia (NSW) & 97 & 359 & 319 & $-40$ \\
+France & 95 & 416 & 290 & $-126$ \\
+\midrule
+USA (Iowa) & 87 & 434 & 498 & $+64$ \\
+China (Heilongjiang) & 42 & 164 & 355 & $+191$ \\
+India (Punjab) & 29 & 20 & 152 & $+132$ \\
+Ethiopia & 16 & 31 & 81 & $+50$ \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+\begin{minipage}{0.94\columnwidth}
+\footnotesize Agreement is the label-free score of Eq.~\ref{eq:agree}, in percent. FieldVote de-fragments the four high-agreement regions above the rule and fragments further below it, so agreement indicates where to apply it.
+\end{minipage}
 \end{table}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{global_pampas.png}
-\caption{FieldVote on the global Sentinel-2 prediction store, Argentina (Pampas). The field-probability map (green) is overlaid with tuned-watershed polygons (left, $n=426$) and FieldVote polygons (right, $n=172$). In this high-agreement region FieldVote removes spurious splits and recovers coherent parcels, with no labels and no retraining.}
+\setlength{\tabcolsep}{1.2pt}
+\begin{tabular}{@{}cc@{}}
+\includegraphics[width=0.492\columnwidth]{fig_global_tuned.png} &
+\includegraphics[width=0.492\columnwidth]{fig_global_fv.png} \\[1pt]
+\footnotesize Tuned watershed, $n=426$ & \footnotesize FieldVote, $n=172$ \\
+\end{tabular}
+\caption{FieldVote on the global Sentinel-2 prediction store, Argentina (Pampas). The field-probability map (green) is overlaid with the polygons each method produces. In this high-agreement region FieldVote removes the spurious splits that cut across parcels on the left and recovers coherent fields, with no labels and no retraining.}
 \label{fig:global}
 \end{figure}
 
@@ -305,7 +340,7 @@ Figure~\ref{fig:vote} sweeps the vote fraction $\tau_v$ from 0.3 to 0.7. Macro P
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\columnwidth]{fig_votethreshold.pdf}
+\includegraphics[width=\columnwidth]{fig_votethreshold.pdf}
 \caption{Vote-threshold ablation on \textsc{Dense-10}. Macro PQ is flat across the majority-vote region and falls only once more than 60\% of thresholds must agree, so the 0.5 majority vote is a stable operating point rather than a tuned hyperparameter.}
 \label{fig:vote}
 \end{figure}
@@ -316,7 +351,7 @@ Although simplification does not raise PQ, it compresses geometry at almost no c
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\columnwidth]{fig_simplify.pdf}
+\includegraphics[width=\columnwidth]{fig_simplify.pdf}
 \caption{Douglas--Peucker simplification compresses field polygons sixteen-fold (188 to 12 vertices) at small accuracy cost, with PQ falling only from 36.6 to 36.1. Mean over the countries present at every tolerance.}
 \label{fig:simplify}
 \end{figure}
@@ -333,17 +368,22 @@ On the vector footing we also report the polygon-count delta of Corley et al.~\c
 
 \begin{table}[t]
 \centering
-\caption{Macro PQ (0--100) on \textsc{Dense-10} under three ground-truth footings. Absolute values shift with the footing, the semantic and vector footings agree closely, and the FieldVote gain is stable throughout.}
+\caption{Macro PQ on \textsc{Dense-10} under three ground-truth footings. Absolute values shift with the footing; the FieldVote gain does not.}
 \label{tab:footing}
-\begin{tabular}{lccc}
+\begin{tabular}{@{}lrrr@{}}
 \toprule
 Footing & FieldVote & Tuned WS & Gain \\
 \midrule
-Semantic mask (headline) & 35.8 & 29.0 & +6.8 \\
-Instance mask & 30.0 & 24.4 & +5.6 \\
-Vector polygons & 35.5 & 28.6 & +6.9 \\
+Semantic mask (headline) & 35.8 & 29.0 & $+6.8$ \\
+Instance mask & 30.0 & 24.4 & $+5.6$ \\
+Vector polygons & 35.5 & 28.6 & $+6.9$ \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+\begin{minipage}{0.94\columnwidth}
+\footnotesize Scores are 0--100. The semantic and vector footings agree within 0.3 points; the instance footing is lower on both methods because of its resampled edges.
+\end{minipage}
 \end{table}
 
 \bibliographystyle{IEEEtran}
