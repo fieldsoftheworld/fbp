@@ -1,134 +1,207 @@
-"""Regenerate the paper figures: Taylor Geospatial brand colors, serif (Times)
-font, bold publication styling, metrics on the 0-100 scale, FieldVote/tuned-
-watershed legend labels. Writes vector PDFs to analysis/."""
+"""Regenerate the four vector figures in the paper.
 
-import glob
-import os
+Values are the ones plotted in the submitted figures; they are recorded here
+as literals so the figures rebuild without access to the run store. The
+provenance of each block is given in its comment. Metrics are on the 0-100
+scale throughout.
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+    python scripts/06_figures/make_figures.py [--out figures]
+"""
+
+import argparse
+from pathlib import Path
+
 import numpy as np
-import pandas as pd
 
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.serif": ["Times New Roman", "Nimbus Roman", "Times", "DejaVu Serif"],
-    "mathtext.fontset": "stix",
-    "font.size": 11,
-    "axes.labelsize": 12, "axes.labelweight": "bold", "axes.titlesize": 12,
-    "xtick.labelsize": 10, "ytick.labelsize": 10, "legend.fontsize": 9.5,
-    "axes.spines.top": False, "axes.spines.right": False,
-    "axes.grid": True, "grid.alpha": 0.35, "grid.linewidth": 0.6,
-    "grid.color": "#b8b8ac", "axes.axisbelow": True,
-    "figure.dpi": 200, "savefig.bbox": "tight", "legend.frameon": False,
-    "lines.linewidth": 2.5, "lines.markersize": 6,
-})
-OUT = "/u/agiri1/fieldvote/analysis"
-# Taylor Geospatial brand palette
-C_DEL = "#a7d0dc"    # light blue - DelineateAnything (weakest baseline)
-C_TUNED = "#80a0d8"  # periwinkle - tuned watershed / uniform vote
-C_FV = "#ff4f2c"     # red        - FieldVote (ours, highlight)
-C_BROWN = "#3b1e1c"  # brown      - secondary series (vertices)
+import style
+from style import COL, C_BROWN, C_DEL, C_FV, C_GREY, C_TUNED, nice
+
+style.use()
+import matplotlib.pyplot as plt  # noqa: E402  (after rcParams)
+
+# --- Data -------------------------------------------------------------------
+# Per-country PQ on DENSE_10 (presence-only Kenya excluded).
+# Source: multi_hmin_ensemble headline run; see scripts/02_consensus.
+COUNTRIES = ["belgium", "sweden", "latvia", "south_africa", "lithuania",
+             "croatia", "germany", "slovenia", "cambodia", "portugal"]
+DELANY = np.array([9.2, 16.0, 9.1, 1.2, 4.7, 5.4, 0.7, 1.8, 0.0, 2.0])
+TUNED = np.array([30.6, 41.7, 41.6, 45.8, 33.4, 20.5, 32.5, 14.0, 17.1, 12.9])
+FIELDVOTE = np.array([52.9, 50.5, 50.2, 47.6, 46.6, 35.8, 31.2, 24.0, 9.5, 9.7])
+
+# Uniform vote vs size-adaptive vote on the softmax-derived pipeline
+# (T = 100k m^2). Source: scripts/03_refinement adaptive sweep.
+UNIFORM = np.array([49.05, 49.64, 48.77, 48.24, 42.62, 30.40, 30.56, 19.99, 7.38, 7.15])
+ADAPTIVE = np.array([52.03, 49.03, 48.57, 47.85, 45.12, 34.42, 30.49, 22.73, 9.32, 12.07])
+
+# Vote-threshold sweep: macro PQ vs fraction of thresholds required to agree.
+VOTE_FRAC = np.array([0.3, 0.4, 0.5, 0.6, 0.7])
+VOTE_PQ = np.array([35.97, 35.97, 35.78, 33.29, 33.29])
+
+# Douglas-Peucker tolerance sweep, mean over the countries present at every
+# tolerance: PQ and mean vertices per polygon.
+SIMP_TOL = np.array([0.0, 1.0, 3.0, 6.0])
+SIMP_PQ = np.array([36.61, 36.61, 36.46, 36.13])
+SIMP_VERT = np.array([187.2, 187.2, 28.5, 11.4])
 
 
-def nice(names):
-    return [n.replace("_", " ").title() for n in names]
+def dumbbell(ax, labels, lo, hi, c_lo, c_hi, lab_lo, lab_hi, extra=None,
+             lab_extra=None, delta_header=r"$\Delta$"):
+    """Sorted change plot: one row per country, baseline -> ours.
 
+    Rows are ordered by the change, so gains and losses separate visually and
+    the reader does not have to difference two bar lengths by eye.
+    """
+    d = hi - lo
+    order = np.argsort(d)
+    y = np.arange(len(labels))
 
-def pq(f, frag):
-    d = pd.read_csv(f)
-    r = d[d.geojson.str.contains(frag)]
-    return float(r.iloc[0].pq) * 100 if len(r) else np.nan
+    for i, j in enumerate(order):
+        gain = d[j] >= 0
+        ax.plot([lo[j], hi[j]], [i, i],
+                color=C_FV if gain else C_GREY,
+                lw=2.0, alpha=0.85 if gain else 0.55,
+                solid_capstyle="butt", zorder=2)
+    if extra is not None:
+        ax.scatter(extra[order], y, s=13, color=C_DEL, zorder=3,
+                   edgecolor="white", linewidth=0.4, label=lab_extra)
+    # Baseline marker is smaller and sits on top, so it stays visible on the
+    # rows where the change is too small to separate the two dots.
+    ax.scatter(hi[order], y, s=26, color=c_hi, zorder=4,
+               edgecolor="white", linewidth=0.5, label=lab_hi)
+    ax.scatter(lo[order], y, s=13, color=c_lo, zorder=5,
+               edgecolor="white", linewidth=0.5, label=lab_lo)
 
-
-# --- Fig: per-country (DENSE_10, presence-only Kenya excluded) ---
-co = ["belgium", "sweden", "latvia", "south_africa", "lithuania", "croatia",
-      "germany", "slovenia", "cambodia", "portugal"]
-delany = np.array([.092, .160, .091, .012, .047, .054, .007, .018, .0, .020]) * 100
-single = np.array([.306, .417, .416, .458, .334, .205, .325, .140, .171, .129]) * 100
-cons = np.array([.529, .505, .502, .476, .466, .358, .312, .240, .095, .097]) * 100
-order = np.argsort(cons)
-y = np.arange(len(co))
-h = 0.27
-fig, ax = plt.subplots(figsize=(3.6, 4.4))
-ax.barh(y + h, delany[order], h, label="DelineateAnything", color=C_DEL)
-ax.barh(y, single[order], h, label="Tuned watershed", color=C_TUNED)
-ax.barh(y - h, cons[order], h, label="FieldVote", color=C_FV)
-ax.set_yticks(y)
-ax.set_yticklabels([nice(co)[i] for i in order])
-ax.set_xlabel("Panoptic Quality")
-ax.grid(axis="y", alpha=0)
-ax.legend(loc="lower right")
-fig.savefig(f"{OUT}/fig_percountry.pdf")
-plt.close(fig)
-
-# --- Fig: vote-threshold ---
-rows = [pd.read_csv(f) for f in glob.glob(f"{OUT}/../consensus_sweep/*.csv")]
-if rows:
-    sweep = pd.concat(rows)
-    if "country" in sweep.columns:
-        sweep = sweep[sweep["country"] != "kenya"]
-    macro = sweep.groupby("frac").pq.mean() * 100
-    fig, ax = plt.subplots(figsize=(3.4, 2.7))
-    ax.plot(macro.index, macro.values, "o-", color=C_FV)
-    ax.set_xlabel("Vote threshold (fraction agreeing)")
-    ax.set_ylabel("Macro PQ")
-    fig.savefig(f"{OUT}/fig_votethreshold.pdf")
-    plt.close(fig)
-
-# --- Fig: simplify tradeoff ---
-TOLS = [0, 1, 3, 6]
-DIRS = {0: "pp_tol0", 1: "pp_tol1", 3: "pp2", 6: "pp_tol6"}
-base = "/u/agiri1/fieldvote"
-sets = [{os.path.basename(f).replace("metrics_", "").replace(".csv", "")
-         for f in glob.glob(f"{base}/{DIRS[t]}/metrics_*.csv")} for t in TOLS]
-common = sorted(set.intersection(*sets))
-pqv, vv = [], []
-for t in TOLS:
-    pqs = [pq(f"{base}/{DIRS[t]}/metrics_{c}.csv", "_pp1_simplify.geojson") for c in common]
-    vs = []
-    for c in common:
-        vc = pd.read_csv(f"{base}/{DIRS[t]}/vertices_{c}.csv")
-        rr = vc[vc.stage == "1_simplify"]
-        vs.append(float(rr.iloc[0].mean_vertices) if len(rr) else np.nan)
-    pqv.append(np.nanmean(pqs))
-    vv.append(np.nanmean(vs))
-fig, ax1 = plt.subplots(figsize=(3.4, 2.7))
-ax1.plot(TOLS, pqv, "o-", color=C_FV, label="PQ")
-ax1.set_xlabel("Simplification tolerance (m)")
-ax1.set_ylabel("Panoptic Quality", color=C_FV)
-ax1.tick_params(axis="y", colors=C_FV)
-ax2 = ax1.twinx()
-ax2.spines["top"].set_visible(False)
-ax2.plot(TOLS, vv, "s--", color=C_BROWN, label="vertices")
-ax2.set_ylabel("Vertices / polygon", color=C_BROWN)
-ax2.tick_params(axis="y", colors=C_BROWN)
-ax2.grid(False)
-fig.savefig(f"{OUT}/fig_simplify.pdf")
-plt.close(fig)
-
-# --- Fig: size-adaptive vs uniform vote (per country) ---
-hv, ad, names = [], [], []
-for c in co:
-    fm = f"{base}/msearch2/metrics_{c}.csv"
-    fa = f"{base}/adapt/metrics_{c}.csv"
-    if os.path.exists(fm) and os.path.exists(fa):
-        hv.append(pq(fm, c + "_v0_hardvote"))
-        ad.append(pq(fa, c + "_a_T100k"))
-        names.append(c)
-if names:
-    yy = np.arange(len(names))
-    fig, ax = plt.subplots(figsize=(3.6, 4.0))
-    ax.barh(yy + 0.2, hv, 0.4, label="Uniform vote", color=C_TUNED)
-    ax.barh(yy - 0.2, ad, 0.4, label="Size-adaptive FieldVote", color=C_FV)
-    ax.set_yticks(yy)
-    ax.set_yticklabels(nice(names))
-    ax.grid(axis="y", alpha=0)
+    ax.set_yticks(y)
+    ax.set_yticklabels([nice(labels[j]) for j in order])
+    ax.tick_params(axis="y", length=0)
     ax.set_xlabel("Panoptic Quality")
-    ax.legend(loc="lower right")
-    fig.savefig(f"{OUT}/fig_adaptive.pdf")
-    plt.close(fig)
-    print("adaptive fig: hardvote macro %.1f adaptive macro %.1f" % (np.nanmean(hv), np.nanmean(ad)))
+    ax.grid(axis="x")
+    ax.set_ylim(-0.7, len(labels) - 0.3)
 
-print("figures written to", OUT)
+    # Signed change in a right-hand column, so the per-country effect is a
+    # number rather than a length difference.
+    xmax = max(lo.max(), hi.max())
+    if extra is not None:
+        xmax = max(xmax, extra.max())
+    xcol = xmax * 1.24
+    ax.set_xlim(0, xcol)
+    # Grid and ticks stop at the data; the delta column is not a value axis.
+    step = 10
+    ax.set_xticks(np.arange(0, int(xmax / step) * step + 1, step))
+    for i, j in enumerate(order):
+        ax.text(xcol, i, f"{d[j]:+.1f}", va="center", ha="right", fontsize=7.5,
+                color=C_FV if d[j] >= 0 else C_GREY)
+    ax.text(xcol, len(labels) - 0.35, delta_header, va="center", ha="right",
+            fontsize=7.5, color=C_BROWN)
+    return order
+
+
+def fig_percountry(out):
+    fig, ax = plt.subplots(figsize=(COL, 2.75))
+    dumbbell(ax, COUNTRIES, TUNED, FIELDVOTE, C_TUNED, C_FV,
+             "Tuned watershed", "FieldVote", extra=DELANY,
+             lab_extra="DelineateAnything")
+    h, l = ax.get_legend_handles_labels()
+    ax.legend([h[l.index(k)] for k in ("DelineateAnything", "Tuned watershed", "FieldVote")],
+              ["DelineateAnything", "Tuned watershed", "FieldVote"],
+              loc="lower center", bbox_to_anchor=(0.5, 1.05), ncol=3,
+              handletextpad=0.3, columnspacing=1.0)
+    fig.savefig(out / "fig_percountry.pdf")
+    plt.close(fig)
+
+
+def fig_adaptive(out):
+    fig, ax = plt.subplots(figsize=(COL, 2.6))
+    dumbbell(ax, COUNTRIES, UNIFORM, ADAPTIVE, C_TUNED, C_FV,
+             "Uniform vote", "Size-adaptive")
+    h, l = ax.get_legend_handles_labels()
+    keys = ["Uniform vote", "Size-adaptive"]
+    ax.legend([h[l.index(k)] for k in keys], keys,
+              loc="lower center", bbox_to_anchor=(0.5, 1.05), ncol=2,
+              handletextpad=0.3, columnspacing=1.2)
+    fig.savefig(out / "fig_adaptive.pdf")
+    plt.close(fig)
+
+
+def fig_votethreshold(out):
+    fig, ax = plt.subplots(figsize=(COL, 1.95))
+    ax.axvspan(0.28, 0.52, color=C_TUNED, alpha=0.10, lw=0)
+    ax.plot(VOTE_FRAC, VOTE_PQ, "-", color=C_FV, zorder=3)
+    ax.plot(VOTE_FRAC, VOTE_PQ, "o", color=C_FV, ms=4, zorder=4,
+            markeredgecolor="white", markeredgewidth=0.5)
+
+    # Mark the operating point used everywhere else in the paper with a rule
+    # to the axis, so no leader line crosses the curve.
+    ax.axvline(0.5, color=C_BROWN, lw=0.6, ls=(0, (2, 2)), zorder=1)
+    ax.text(0.49, 33.05, "majority vote,\nused throughout", fontsize=7,
+            color=C_BROWN, ha="right", va="bottom")
+    ax.text(0.40, 36.35, "flat region", fontsize=7, color=C_TUNED,
+            ha="center", va="center")
+    ax.set_xlabel(r"Vote threshold $\tau_v$ (fraction of thresholds agreeing)")
+    ax.set_ylabel("Macro PQ")
+    ax.set_xticks(VOTE_FRAC)
+    ax.set_ylim(32.8, 36.6)
+    ax.grid(axis="y")
+    fig.savefig(out / "fig_votethreshold.pdf")
+    plt.close(fig)
+
+
+def fig_simplify(out):
+    fig, ax = plt.subplots(figsize=(COL, 2.05))
+
+    # Vertices on a log axis: the sixteen-fold drop is the story.
+    ax.plot(SIMP_TOL, SIMP_VERT, "s--", color=C_BROWN, ms=3.6,
+            label="Vertices / polygon (left)")
+    ax.set_yscale("log")
+    ax.set_ylim(8, 400)
+    ax.set_yticks([10, 30, 100, 300])
+    ax.set_yticklabels(["10", "30", "100", "300"])
+    ax.set_ylabel("Vertices / polygon", color=C_BROWN)
+    ax.set_xlabel("Douglas–Peucker tolerance (m)")
+    ax.set_xticks(SIMP_TOL)
+    ax.grid(axis="y")
+    for x, v in zip(SIMP_TOL, SIMP_VERT):
+        if x in (0.0, 6.0):
+            ax.annotate(f"{v:.0f}", (x, v), textcoords="offset points",
+                        xytext=(0, 6), ha="center", fontsize=7, color=C_BROWN)
+
+    # PQ on a wide, untruncated axis: the point is that it does not move.
+    ax2 = ax.twinx()
+    ax2.spines["top"].set_visible(False)
+    ax2.plot(SIMP_TOL, SIMP_PQ, "o-", color=C_FV, ms=3.6,
+             label="Panoptic Quality (right)")
+    ax2.set_ylim(28, 40)
+    ax2.set_yticks([30, 34, 38])
+    ax2.set_ylabel("Panoptic Quality", color=C_FV)
+    ax2.tick_params(axis="y", colors=C_FV)
+    ax2.spines["right"].set_visible(True)
+    ax2.spines["right"].set_color(C_FV)
+    ax2.annotate(f"{SIMP_PQ[0]:.1f}", (0.0, SIMP_PQ[0]), textcoords="offset points",
+                 xytext=(2, -10), ha="left", fontsize=7, color=C_FV)
+    ax2.annotate(f"{SIMP_PQ[-1]:.1f}", (6.0, SIMP_PQ[-1]), textcoords="offset points",
+                 xytext=(-2, -10), ha="right", fontsize=7, color=C_FV)
+
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, loc="lower center", bbox_to_anchor=(0.5, 1.0),
+              ncol=2, handletextpad=0.4, columnspacing=1.0)
+    fig.savefig(out / "fig_simplify.pdf")
+    plt.close(fig)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", type=Path, default=Path("figures"))
+    args = ap.parse_args()
+    args.out.mkdir(parents=True, exist_ok=True)
+    fig_percountry(args.out)
+    fig_adaptive(args.out)
+    fig_votethreshold(args.out)
+    fig_simplify(args.out)
+    print("macro PQ  tuned %.1f  fieldvote %.1f" % (TUNED.mean(), FIELDVOTE.mean()))
+    print("macro PQ  uniform %.1f  adaptive %.1f" % (UNIFORM.mean(), ADAPTIVE.mean()))
+    print("figures written to", args.out)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
