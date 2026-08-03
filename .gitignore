@@ -8,3 +8,5 @@ main.log
 *.fdb_latexmk
 *.fls
 .DS_Store
+main_grsl.pdf
+main_grsl.log
