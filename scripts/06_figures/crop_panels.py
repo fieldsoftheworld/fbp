@@ -39,7 +39,7 @@ GROUPS = {
          "fig_pipe_consensus", "fig_pipe_agreement", "fig_pipe_gt"],
     ),
 }
-for _c in ("be", "se", "lt"):
+for _c in ("be", "se", "lt", "hr", "lv"):
     GROUPS[_c] = (
         [f"fig_res_{_c}_{s}" for s in ("in", "inb", "single", "fv", "gt")],
         [f"fig_res_{_c}_{s}" for s in ("single", "fv", "gt")],
