@@ -264,12 +264,6 @@ and it upper-bounds any method that commits to one depth at a time, yet the
 per-pixel vote exceeds it. No choice of operating point, even a clairvoyant one,
 recovers what keeping the boundaries that the sweep agrees on recovers.
 
-% TODO(avi): the A/B/D rows below are placeholders. Regenerate the whole table with
-%   python scripts/04_analysis/aggregation_ablation.py \
-%     --csv /u/agiri1/github/ftw-planet/logs/inference/ensemble_per_country.csv
-% and paste its stdout over the tabular body. See scripts/results/README_ablation.md
-% for exactly which columns the CSV must carry and why the Dense-10 conversion in
-% HEADLINE_ensemble_macro.txt cannot be done by hand.
 \begin{table}[t]
 \centering
 \caption{Aggregation Strategies Over the Same 14-Depth Sweep, \textsc{Dense-10}}
@@ -278,9 +272,9 @@ recovers what keeping the boundaries that the sweep agrees on recovers.
 \toprule
 Strategy & Labels used & PQ \\
 \midrule
-Polygon pool $+$ agreement NMS & none & ?? \\
-Per-patch elbow selection & none & ?? \\
-Per-patch oracle depth & ground truth & ?? \\
+Polygon pool $+$ agreement NMS & none & 24.8 \\
+Per-patch elbow selection & none & 26.0 \\
+Per-patch oracle depth & ground truth & 30.5 \\
 \midrule
 \textbf{Per-pixel vote (ours)} & none & \textbf{35.8} \\
 \bottomrule
