@@ -1,0 +1,26 @@
+{
+  "sources": [
+    "scripts/results/ensemble_per_country.csv",
+    "scripts/results/HEADLINE_ensemble_macro.txt",
+    "scripts/results/vector_gt_rescore.csv"
+  ],
+  "values": {
+    "BasePQ": 29.013999999999996,
+    "VotePQ": 35.782754373242874,
+    "GainPQ": 6.768754373242878,
+    "VectorBasePQ": 28.578303830845904,
+    "VectorVotePQ": 35.461016015125196,
+    "GainLow": 1.385113236218505,
+    "GainHigh": 12.18016958396099
+  },
+  "wilcoxon_two_sided": 0.048828125,
+  "bootstrap": {
+    "unit": "country",
+    "replicates": 100000,
+    "seed": 0
+  },
+  "patches": 2215,
+  "countries_improved": 7,
+  "oracle_patches": 2193,
+  "effective_depths": "Not recorded in the tracked result exports."
+}
