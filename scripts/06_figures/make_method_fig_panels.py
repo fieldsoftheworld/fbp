@@ -11,6 +11,7 @@ Run from the repo root so data/ and logs/inference/ resolve.
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -22,11 +23,19 @@ import matplotlib.pyplot as plt
 import rasterio
 import shapely.geometry
 
-REPO = Path("/u/agiri1/github/ftw-planet")
+# Locations of the two external inputs, overridable so the renderer runs
+# outside the machine it was written on. See scripts/06_figures/README.md.
+#   FTW_PLANET_REPO  checkout that provides multi_hmin_ensemble, the
+#                    polygon_metrics_eval helpers, the ftw_planet package,
+#                    the FTW-Planet dataset under data/, and the per-h_min
+#                    GeoJSONs under logs/inference/.
+#   FIELDVOTE_STORE  run store holding predict_v2/<country>/<patch>.npz.
+REPO = Path(os.environ.get("FTW_PLANET_REPO", "/u/agiri1/github/ftw-planet"))
+STORE = Path(os.environ.get("FIELDVOTE_STORE", "/u/agiri1/fieldvote"))
 sys.path.insert(0, str(REPO / "scripts/inference"))
 import multi_hmin_ensemble as mhe  # noqa: E402
 
-PV = Path("/u/agiri1/fieldvote/predict_v2")
+PV = STORE / "predict_v2"
 # Set at runtime from the h-values actually exported for the country.
 LOW_H, MID_H, HIGH_H = 2.0, 8.0, 12.0
 FIELD_GREEN = "#639922"
@@ -210,7 +219,7 @@ def render_patch(country, pid, sample, polys_per_h, outdir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--country", default="belgium")
-    ap.add_argument("--out", type=Path, default=Path("/u/agiri1/fieldvote/methodfig"))
+    ap.add_argument("--out", type=Path, default=STORE / "methodfig")
     ap.add_argument("--scan-limit", type=int, default=150)
     ap.add_argument("--top", type=int, default=4)
     ap.add_argument("--patch", default=None, help="render one specific patch")
