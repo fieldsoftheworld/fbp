@@ -10,3 +10,4 @@ main.log
 .DS_Store
 main_grsl.pdf
 main_grsl.log
+__pycache__/
