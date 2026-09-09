@@ -34,7 +34,7 @@
 
 % Trained-model comparator: the Fields of the Planet (FTP) paper.
 @misc{corley_ftp,
-  title = {Fields of the Planet: Field Boundary Mapping Beyond 10m},
+  title = {{Fields of the Planet}: Field Boundary Mapping Beyond 10m},
   author = {Corley, Isaac and Robinson, Caleb and Marcus, Jennifer and Kerner, Hannah},
   year = {2026},
   month = jul,
@@ -56,13 +56,11 @@
   doi = {10.5194/essd-15-317-2023}
 }
 
-% Global FTW data product. No paper exists (verified against Crossref/arXiv);
-% cited as a data product, mirroring how the FTP paper cites source.coop releases.
 @misc{ftw_global,
-  title = {Global Fields of The World: Global Agricultural Field-Boundary Predictions},
+  title = {Global {Fields of The World} ({FTW})},
   author = {{Fields of The World}},
   howpublished = {\url{https://source.coop/ftw/global-data}},
-  year = {2025},
+  year = {2026},
   note = {Data product}
 }
 
@@ -73,6 +71,10 @@
   pages = {1050--1059},
   year = {2016},
   month = jun,
+  volume = {48},
+  series = {Proceedings of Machine Learning Research},
+  publisher = {PMLR},
+  url = {https://proceedings.mlr.press/v48/gal16.html},
   eprint = {1506.02142},
   archivePrefix = {arXiv}
 }
@@ -100,7 +102,7 @@
 }
 
 @inproceedings{kerner2024ftw,
-  title = {Fields of The World: A Machine Learning Benchmark Dataset for Global Agricultural Field Boundary Segmentation},
+  title = {{Fields of The World}: A Machine Learning Benchmark Dataset for Global Agricultural Field Boundary Segmentation},
   author = {Kerner, Hannah and Chaudhari, Snehal and Ghosh, Aninda and Robinson, Caleb and Ahmad, Adeel and Choi, Eddie and Jacobs, Nathan and Holmes, Chris and Mohr, Matthias and Dodhia, Rahul and Lavista Ferres, Juan M. and Marcus, Jennifer},
   booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
   volume = {39},
@@ -144,6 +146,8 @@
   pages = {6402--6413},
   year = {2017},
   month = dec,
+  volume = {30},
+  url = {https://proceedings.neurips.cc/paper_files/paper/2017/hash/9ef2ed4b7fd2c810847ffa5fa85bce38-Abstract.html},
   eprint = {1612.01474},
   archivePrefix = {arXiv}
 }
@@ -154,7 +158,9 @@
   year = {2025},
   month = apr,
   eprint = {2504.02534},
-  archivePrefix = {arXiv}
+  archivePrefix = {arXiv},
+  howpublished = {arXiv:2504.02534},
+  url = {https://arxiv.org/abs/2504.02534}
 }
 
 @inproceedings{neubeck2006nms,
@@ -275,4 +281,84 @@
   pages   = {819--833},
   year    = {2018},
   doi     = {10.1109/TPAMI.2017.2700300}
+}
+
+@inproceedings{angulo2007stochastic,
+  title = {Stochastic Watershed Segmentation},
+  author = {Angulo, Jes{\'u}s and Jeulin, Dominique},
+  booktitle = {Proceedings of the 8th International Symposium on Mathematical Morphology (ISMM)},
+  pages = {265--276},
+  year = {2007},
+  month = oct,
+  publisher = {MCT/INPE},
+  url = {https://people.cmm.minesparis.psl.eu/users/jesus/publicat/AnguloJeulin_ISMM07.pdf}
+}
+
+@article{persello2019delineation,
+  title = {Delineation of Agricultural Fields in Smallholder Farms from Satellite Images Using Fully Convolutional Networks and Combinatorial Grouping},
+  author = {Persello, Claudio and Tolpekin, Valentyn A. and Bergado, John R. and de By, Rolf A.},
+  journal = {Remote Sensing of Environment},
+  volume = {231},
+  pages = {111253},
+  year = {2019},
+  month = sep,
+  doi = {10.1016/j.rse.2019.111253}
+}
+
+@article{waldner2020edge,
+  title = {Deep Learning on Edge: Extracting Field Boundaries from Satellite Images with a Convolutional Neural Network},
+  author = {Waldner, Fran{\c{c}}ois and Diakogiannis, Foivos I.},
+  journal = {Remote Sensing of Environment},
+  volume = {245},
+  pages = {111741},
+  year = {2020},
+  month = aug,
+  doi = {10.1016/j.rse.2020.111741}
+}
+
+@article{warfield2004staple,
+  title = {Simultaneous Truth and Performance Level Estimation ({STAPLE}): An Algorithm for the Validation of Image Segmentation},
+  author = {Warfield, Simon K. and Zou, Kelly H. and Wells, William M.},
+  journal = {IEEE Transactions on Medical Imaging},
+  volume = {23},
+  number = {7},
+  pages = {903--921},
+  year = {2004},
+  month = jul,
+  doi = {10.1109/TMI.2004.828354}
+}
+
+@inproceedings{muhawenayo2026prue,
+  title = {{PRUE}: A Practical Recipe for Field Boundary Segmentation at Scale},
+  author = {Muhawenayo, Gedeon and Robinson, Caleb and Khanal, Subash and Fang, Zhanpei and Corley, Isaac and Wollam, Alexander and Gao, Tianyi and Strnad, Leonard and Avery, Ryan and Estes, Lyndon and T{\'a}rano, Ana and Jacobs, Nathan and Kerner, Hannah},
+  booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages = {6484--6495},
+  year = {2026},
+  month = jun,
+  url = {https://openaccess.thecvf.com/content/CVPR2026/html/Muhawenayo_PRUE_A_Practical_Recipe_for_Field_Boundary_Segmentation_at_Scale_CVPR_2026_paper.html}
+}
+
+@inproceedings{ronneberger2015unet,
+  title = {{U-Net}: Convolutional Networks for Biomedical Image Segmentation},
+  author = {Ronneberger, Olaf and Fischer, Philipp and Brox, Thomas},
+  booktitle = {Medical Image Computing and Computer-Assisted Intervention (MICCAI)},
+  series = {Lecture Notes in Computer Science},
+  volume = {9351},
+  pages = {234--241},
+  year = {2015},
+  publisher = {Springer},
+  doi = {10.1007/978-3-319-24574-4_28}
+}
+
+@inproceedings{tan2019efficientnet,
+  title = {{EfficientNet}: Rethinking Model Scaling for Convolutional Neural Networks},
+  author = {Tan, Mingxing and Le, Quoc},
+  booktitle = {Proceedings of the 36th International Conference on Machine Learning},
+  series = {Proceedings of Machine Learning Research},
+  volume = {97},
+  pages = {6105--6114},
+  year = {2019},
+  month = jun,
+  publisher = {PMLR},
+  url = {https://proceedings.mlr.press/v97/tan19a.html}
 }

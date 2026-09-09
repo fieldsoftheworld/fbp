@@ -36,3 +36,5 @@ and bootstrap settings. It does not rerun model inference or polygon scoring.
 
 See `REVISION_NOTES.md` for revision details and `EXPERIMENT_REVIEW.md` for the
 experimental audit and prioritized work needed before submission.
+See `BIBLIOGRAPHY_AUDIT.md` for verified reference metadata, added related work,
+and the comparisons motivated by that literature.

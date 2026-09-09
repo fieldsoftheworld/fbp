@@ -62,7 +62,13 @@ Separations present in only a minority of runs can disappear, joining fragments 
 The vote can also remove true separations, so agreement across depths does not guarantee correct field boundaries.
 
 Hierarchical segmentation represents contours at multiple strengths and produces partitions at different levels~\cite{arbelaez2011hierarchical,maninis2018cob}.
-Iterative h-minima methods also use changes in watershed markers~\cite{koyuncu2016iterative}.
+For agricultural fields, Persello et al.~\cite{persello2019delineation} combine learned contours, an oriented watershed hierarchy, and combinatorial grouping.
+Waldner and Diakogiannis~\cite{waldner2020edge} average predictions across acquisition dates to improve temporal consistency.
+PRUE studies model design and training for field segmentation~\cite{muhawenayo2026prue}, while Delineate Anything predicts field instance masks directly~\cite{lavreniuk2025delineateanything}.
+
+Stochastic watershed estimates contour recurrence across random marker configurations and segments the resulting contour density~\cite{angulo2007stochastic}.
+Iterative h-minima methods vary marker suppression to recover cell nuclei~\cite{koyuncu2016iterative}.
+\method{} uses a prescribed depth sweep and thresholds binary polygon support from fixed network outputs.
 We evaluate foreground consensus for field polygonization using fixed predictions from the Fields of the Planet model~\cite{corley_ftp}.
 The experiments compare aggregation strategies on ten countries, measure sensitivity to the reference representation, and identify regional failures.
 Changing the polygonization method improves macro panoptic quality by \GainPQ{} points with the network predictions held fixed.
@@ -98,6 +104,8 @@ with $\tau=0.5$.
 We extract polygons from the four-connected foreground components of $M$.
 For an even number of runs, ties are assigned to foreground, so a pixel needs at least $\lceil K/2\rceil$ foreground votes.
 A run with no polygons at a patch contributes a zero mask.
+Label-fusion methods such as STAPLE estimate a consensus together with the reliability of its input segmentations~\cite{warfield2004staple}.
+Our vote assigns equal weight to each run; $v(p)$ measures agreement across depths and is not a calibrated probability of a correct label.
 
 The vote combines polygon support without averaging contour coordinates or instance identities.
 A gap excluded by enough runs remains a separation, while a gap covered by at least half of the runs can be filled.
@@ -150,8 +158,8 @@ Each mark is one country score from one frozen model.}
 \label{sec:experiments}
 
 \subsection{Setup}
-We use predictions from the frozen PlanetScope UNet released with Fields of the Planet~\cite{corley_ftp}.
-The model has an EfficientNet-B7 encoder and predicts field interior, boundary, and background.
+We use predictions from the frozen PlanetScope U-Net~\cite{ronneberger2015unet} released with Fields of the Planet~\cite{corley_ftp}.
+The model has an EfficientNet-B7 encoder~\cite{tan2019efficientnet} and predicts field interior, boundary, and background.
 Our evaluation uses the held-out test splits of ten densely annotated Fields of The World countries~\cite{kerner2024ftw}, comprising 2,215 scored patches.
 We exclude presence-only Kenya, where unlabeled fields confound false-positive counts.
 Every country receives equal weight in the macro average despite differences in sample counts, including two scored patches in Portugal and sixteen in Cambodia.
@@ -255,7 +263,7 @@ Across ten countries, the method improves macro PQ under both semantic-mask and 
 Gains vary by country, and the output still misses parcel divisions.
 Further evaluation should isolate the effect of grid conversion and establish how to preserve weak boundaries in small fields.
 
-\IEEEtriggeratref{2}
+\IEEEtriggeratref{6}
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 \end{document}
