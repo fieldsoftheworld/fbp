@@ -11,3 +11,9 @@ main.log
 main_grsl.pdf
 main_grsl.log
 __pycache__/
+experiments/out/
+main_grsl_revised.pdf
+main_grsl_revised.log
+experiments/figures/*.png
+supplementary.pdf
+supplementary.log
