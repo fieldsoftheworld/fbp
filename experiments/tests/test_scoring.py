@@ -1,0 +1,138 @@
+"""Pooling and depth-selection arithmetic on synthetic tallies."""
+
+import pandas as pd
+import pytest
+from fieldvote.matching import THRESHOLDS
+from fieldvote.run_eval import BINS
+from fieldvote.scoring import (
+    macro,
+    pool_country,
+    select_depth,
+    select_depth_global,
+)
+
+
+def _row(country, patch, strategy, tp, fp, fn, iou_sum, split="test", ref="vector"):
+    r = {
+        "run": "r",
+        "split": split,
+        "protocol": "pixel",
+        "reference": ref,
+        "strategy": strategy,
+        "country": country,
+        "patch_id": patch,
+        "n_gt": tp + fn,
+        "n_pred": tp + fp,
+        "iou_sum_50": iou_sum,
+        "gt_split": 0,
+        "pred_merge": 0,
+        "gt_missed": fn,
+        "pred_spurious": fp,
+        "px_ha": 0.0009,
+        "t_build": 0.0,
+    }
+    for t in THRESHOLDS:
+        k = f"{int(round(t * 100)):02d}"
+        r[f"tp_{k}"], r[f"fp_{k}"], r[f"fn_{k}"] = tp, fp, fn
+    for b in BINS:
+        r[f"tp_50_{b}"] = tp if b == "large" else 0
+        r[f"fp_50_{b}"] = fp if b == "large" else 0
+        r[f"fn_50_{b}"] = fn if b == "large" else 0
+        r[f"iou_sum_50_{b}"] = iou_sum if b == "large" else 0.0
+    return r
+
+
+def test_pool_country_pq_is_sq_times_rq():
+    df = pd.DataFrame(
+        [
+            _row("a", "p1", "s", tp=3, fp=1, fn=1, iou_sum=2.4),
+            _row("a", "p2", "s", tp=1, fp=1, fn=3, iou_sum=0.9),
+            _row("a", "p3", "s", tp=0, fp=0, fn=0, iou_sum=0.0),  # empty/empty counts
+        ]
+    )
+    c = pool_country(df).iloc[0]
+    tp, fp, fn = 4, 2, 4
+    p, r = tp / (tp + fp), tp / (tp + fn)
+    rq = 2 * p * r / (p + r)
+    sq = 3.3 / 4
+    assert c.rq == pytest.approx(rq)
+    assert c.sq == pytest.approx(sq)
+    assert c.pq == pytest.approx(sq * rq)
+    assert c.n_patches == 3 and c.n_scored == 2
+    assert c.count_bias == pytest.approx(((4 - 4) + (2 - 4) + 0) / 3)
+    assert c.pq_large == pytest.approx(c.pq) and c.pq_small == 0.0
+
+
+def test_macro_requires_all_countries():
+    df = pd.DataFrame(
+        [_row("a", "p", "s", 1, 0, 0, 0.8), _row("b", "p", "s", 1, 1, 0, 0.7)]
+    )
+    c = pool_country(df)
+    m = macro(c, ("a", "b"))
+    assert m.iloc[0].pq == pytest.approx((c.pq.iloc[0] + c.pq.iloc[1]) / 2)
+    with pytest.raises(ValueError, match="missing countries"):
+        macro(c, ("a", "b", "z"))
+
+
+def _country_scores(split, pq_by):
+    """pq_by: {country: {strategy: (tp, fp, fn, iou_sum)}} -> pooled country frame."""
+    rows = []
+    for c, d in pq_by.items():
+        for s, (tp, fp, fn, iou) in d.items():
+            rows.append(_row(c, "p", s, tp, fp, fn, iou, split=split))
+    return pool_country(pd.DataFrame(rows))
+
+
+def test_select_depth_test_and_val():
+    test = _country_scores(
+        "test",
+        {
+            "a": {"raw:h2": (2, 0, 0, 1.8), "raw:h8": (1, 1, 1, 0.9)},
+            "b": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},
+        },
+    )
+    val = _country_scores(
+        "val",
+        {
+            "a": {"raw:h2": (1, 2, 2, 0.5), "raw:h8": (2, 0, 0, 1.9)},
+            "b": {"raw:h2": (1, 2, 2, 0.5), "raw:h8": (2, 0, 0, 1.9)},
+        },
+    )
+    ws_test = select_depth(test, test, "raw", "ws_test").set_index("country")
+    assert ws_test.loc["a", "selected_depth"] == "raw:h2"
+    assert ws_test.loc["b", "selected_depth"] == "raw:h8"
+    assert (ws_test.strategy == "ws_test").all()
+    # reported scores come from the test frame, choice from val
+    ws_val = select_depth(test, val, "raw", "ws_val").set_index("country")
+    assert ws_val.loc["a", "selected_depth"] == "raw:h8"
+    assert ws_val.loc["a", "pq"] == pytest.approx(
+        test.set_index(["country", "strategy"]).loc[("a", "raw:h8"), "pq"]
+    )
+
+
+def test_select_depth_global_loco():
+    test = _country_scores(
+        "test",
+        {
+            c: {"raw:h2": (2, 0, 0, 1.8), "raw:h8": (1, 1, 1, 0.9)}
+            for c in ("a", "b", "c")
+        },
+    )
+    # val: h8 wins in a and b, h2 wins in c by a landslide
+    val = _country_scores(
+        "val",
+        {
+            "a": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},
+            "b": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},
+            "c": {"raw:h2": (5, 0, 0, 4.9), "raw:h8": (0, 5, 5, 0.0)},
+        },
+    )
+    loco = select_depth_global(
+        test, val, "raw", "ws_loco", ("a", "b", "c"), exclude_target=True
+    ).set_index("country")
+    # for c, the other two both prefer h8; for a, {b: h8, c: h2} -> mean PQ decides
+    assert loco.loc["c", "selected_depth"] == "raw:h8"
+    gval = select_depth_global(
+        test, val, "raw", "ws_gval", ("a", "b", "c"), exclude_target=False
+    )
+    assert gval.selected_depth.nunique() == 1
