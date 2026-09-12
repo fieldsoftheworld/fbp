@@ -1,0 +1,7 @@
+family,n_settings_tried,val_choice,pq_val_choice,test_choice,pq_test_choice,pq_per_country,gap_per_minus_val,n_distinct_winners,winners
+ours,11,raw:v:nbg-sup-h2-t0.7,38.46650930289842,raw:v:nbg-sup-h2-t0.7,38.46650930289842,39.02434786908652,0.5578385661880958,6,"nbg-sup-h1-t0.5, nbg-sup-h2-t0.7, nbg-sup-h2-t0.8, nbg-sup-h2-t0.9, nbg-sup-h4-t0.5, nbg-sup-h4-t0.7"
+ucm,9,raw:v:nbg-ucm-k0.7,32.703166322172756,raw:v:nbg-ucm-k0.6,32.71482064465234,33.341123672500196,0.6379573503274394,4,"nbg-ucm-k0.4, nbg-ucm-k0.6, nbg-ucm-k0.7, nbg-ucm-k0.8"
+swst,6,raw:v:nbg-swst-n80-m30-t0.3,20.56985349853618,raw:v:nbg-swst-n80-m30-t0.3,20.56985349853618,22.065945480835776,1.496091982299594,4,"nbg-swst-n30-m30-t0.3, nbg-swst-n80-m30-t0.1, nbg-swst-n80-m30-t0.2, nbg-swst-n80-m30-t0.3"
+iterh,5,raw:v:arg-iterh-a50000,26.42463221787989,raw:v:arg-iterh-a50000,26.42463221787989,26.62602558109098,0.2013933632110887,3,"arg-iterh-a20000, arg-iterh-a50000, nbg-iterh-a50000"
+thr,8,raw:v:arg-thr-te0.5-tb0.7,34.904921123434704,raw:v:arg-thr-te0.5-tb0.5,34.90598847208395,35.10083097394351,0.1959098505088075,5,"arg-thr-te0.3-tb0.5, arg-thr-te0.5-tb0.3, arg-thr-te0.5-tb0.5, arg-thr-te0.5-tb0.7, arg-thr-te0.7-tb0.5"
+depth,14,rt:h4,35.805823827987815,rt:h4,35.805823827987815,35.85026541485489,0.044441586867072225,3,"h2, h4, h8"
