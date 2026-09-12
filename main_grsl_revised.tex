@@ -29,9 +29,9 @@
 \begin{abstract}
 Field boundary networks predict background, field, and boundary classes, and a marker-controlled watershed on the field class turns the prediction into parcels.
 We measure two failures of this conversion on Fields of The World.
-Pixels won by the boundary class are dropped from the foreground, which removes thin and small parcels.
+Pixels assigned to the boundary class are excluded from the foreground, which removes thin and small parcels.
 The watershed cuts fields at geometric necks that carry no boundary evidence, so its instances score worse than their union.
-We propose a post-processing rule that takes every non-background pixel as foreground and keeps a watershed split only where the network's boundary probability exceeds its field probability along most of the split line.
+We propose a post-processing rule that takes every non-background pixel as foreground and keeps a watershed split only where the network's boundary probability is at least its field probability along most of the split line.
 The rule compares the network's own class probabilities, uses three constants that are the same for every country and sensor, and needs no reference polygons at inference.
 On ten held-out countries it raises panoptic quality by \GainMin{} to \GainMax{} points over the released pipeline given the same minimum-size step, for two encoders and two sensors, PlanetScope and Sentinel-2.
 It improves \UpTotal{} of 40 country and model pairs, with the largest gains on parcels under 0.5~ha.
@@ -42,33 +42,35 @@ Agricultural field delineation, instance segmentation, watershed transform, post
 \end{IEEEkeywords}
 
 \section{Introduction}
-\IEEEPARstart{F}{ield} polygons are the unit at which crop area, yield, and management practices are reported, so a field boundary model is only useful once its pixel predictions become one polygon per parcel.
-Public benchmarks now cover this task at 10~m with Sentinel-2~\cite{kerner2024ftw,dandrimont2023ai4boundaries,persello2023ai4smallfarms} and at 3~m with PlanetScope~\cite{corley_ftp}, and the models trained on them predict three classes, background, field interior, and boundary~\cite{waldner2020decode,waldner2020edge,kerner2024ftw,muhawenayo2026prue}, most recently for a global map at 10~m~\cite{ftw_global}.
-The released pipelines convert this map with a marker-controlled watershed~\cite{soille2004morphological} in which field pixels form the mask, the distance to the nearest predicted boundary pixel forms the surface, and $h$-maxima of that distance seed the flood~\cite{waldner2020decode,corley_ftp}.
-Adjacent instances are then merged into connected components before polygons are extracted.
+\IEEEPARstart{F}{ield} polygons are the reporting unit for crop area, yield, and management practices, so a field boundary model is only useful once its pixel predictions become one polygon per parcel.
+Public benchmarks now cover this task at 10~m with Sentinel-2~\cite{kerner2024ftw,dandrimont2023ai4boundaries,persello2023ai4smallfarms} and at 3~m with PlanetScope~\cite{corley_ftp}.
+Models trained on them predict three classes, background, field interior, and boundary~\cite{waldner2020decode,waldner2020edge,kerner2024ftw,muhawenayo2026prue}, most recently for a global map at 10~m~\cite{ftw_global}.
+The released pipelines convert this map with a marker-controlled watershed~\cite{soille2004morphological}, using field pixels as the mask and the distance to the nearest predicted boundary pixel as the surface.
+The $h$-maxima of that distance seed the flood~\cite{waldner2020decode,corley_ftp}, and the pipelines merge adjacent instances into connected components before extracting polygons.
 The global map~\cite{ftw_global} skips the watershed and takes connected components of the field class, so it shares the first of the two failures below.
 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\linewidth]{rev_gallery.pdf}
 \caption{\textbf{Released pipeline and ours on one test patch per country.}
-Each triple shows the image, the parcels of the released pipeline, and ours; reference parcels are outlined in black and the number is the PQ of the full patch.
-Rows 1--3: PlanetScope B3 on nine countries; rows 4--6: Sentinel-2 B7 on eight countries and one failure case on PlanetScope.
+Each triple shows the image, the released pipeline's parcels, and ours, with reference parcels outlined in black and the number giving the PQ of the full patch.
+Rows 1--3 show PlanetScope B3 on nine countries, and rows 4--6 show Sentinel-2 B7 on eight countries and one failure case on PlanetScope.
 For each country we show the patch with the largest gain among those whose densest window holds at least eight reference parcels.}
 \label{fig:gallery}
 \end{figure*}
 
 Two properties of this conversion cost accuracy (Fig.~\ref{fig:gallery}).
-First, the field mask excludes every pixel the boundary class wins.
+First, the field mask excludes every pixel assigned to the boundary class.
 Where a parcel is narrow or its edges are uncertain, the boundary class covers it and the parcel disappears.
 On PlanetScope with the B3 model, \BaseMiss\% of reference parcels have no prediction covering half of their area, and the released pipeline predicts fewer parcels than the reference in all ten countries.
 Second, the watershed places its lines at geometric necks of the mask.
-Whether a neck coincides with a predicted boundary is never checked, and scoring the watershed instances gives \RawInstPQ{} panoptic quality against \CCPQ{} for the plain connected components of the same mask.
-Merging the instances back recovers the accuracy, which is what the released pipelines do, but it also discards every correct split.
+The watershed does not check whether a neck coincides with a predicted boundary.
+Its instances score \RawInstPQ{} panoptic quality against \CCPQ{} for the plain connected components of the same mask.
+The released pipelines recover the accuracy by merging the instances back, but also discard every correct split.
 
-We change the conversion in two places.
-The foreground becomes every pixel that is not background, so boundary pixels stay inside the parcels they border.
-The watershed then runs with lines, and a line is kept only if at least a fraction $\tau$ of its pixels have boundary probability at least equal to field probability, and otherwise the two regions merge.
+We include every non-background pixel in the foreground, so boundary pixels stay inside the parcels they border.
+The watershed then runs with lines, keeping a line only if at least a fraction $\tau$ of its pixels have boundary probability at least equal to field probability.
+Otherwise, the two regions merge.
 The split test compares two outputs of the same network at the same pixel, so it does not depend on probability calibration.
 The marker depth stays at the released default of $h=2$.
 A minimum parcel size, which any conversion can apply, removes the smallest polygons at the end.
@@ -79,7 +81,8 @@ The rule raises macro panoptic quality by \GainMin{} to \GainMax{} points over t
 Selecting the best watershed depth per country on the test labels recovers less than a third of that gain (Sec.~\ref{sec:results}).
 
 \section{Related Work}
-Field delineation from satellite imagery has moved from edge detection and region growing~\cite{wagner2020growing} to fully convolutional networks that predict boundary and interior classes~\cite{persello2019delineation,waldner2020decode,waldner2020edge} and, most recently, to benchmark datasets that fix the annotation and the evaluation~\cite{kerner2024ftw,dandrimont2023ai4boundaries,persello2023ai4smallfarms,corley_ftp}.
+Field delineation from satellite imagery has moved from edge detection and region growing~\cite{wagner2020growing} to fully convolutional networks that predict boundary and interior classes~\cite{persello2019delineation,waldner2020decode,waldner2020edge}.
+More recently, benchmark datasets have fixed the annotation and evaluation~\cite{kerner2024ftw,dandrimont2023ai4boundaries,persello2023ai4smallfarms,corley_ftp}.
 PRUE~\cite{muhawenayo2026prue} compared encoders, decoders, and training recipes on Fields of The World and found that a U-Net with an EfficientNet encoder remains the most accurate choice.
 Fields of the Planet~\cite{corley_ftp} reports that these three-class networks outperform the Delineate Anything instance models~\cite{lavreniuk2025delineateanything}, in both their first and second versions, on the same held-out countries.
 Polygon extraction with frame fields or graph networks has been studied for buildings~\cite{girard2021framefield,zorzi2022polyworld,zorzi2020regularization}, but the released field models on these benchmarks remain three-class semantic networks followed by a watershed or by connected components.
@@ -87,32 +90,37 @@ We evaluate on those released networks, so an improvement in their conversion to
 
 Hierarchical segmentation orders contours by strength and thresholds the hierarchy~\cite{arbelaez2011hierarchical,maninis2018cob}, and Persello et al.~\cite{persello2019delineation} apply this grouping to field contours.
 Stochastic watershed estimates contour probability by resampling markers~\cite{angulo2007stochastic}, and iterative $h$-minima methods adapt the marker depth per object~\cite{koyuncu2016iterative}.
-These methods decide splits from the geometry of one surface or from marker statistics.
+The methods decide splits from the geometry of one surface or from marker statistics.
 We instead test each watershed line against a second network output, the boundary probability, so the split decision uses evidence the surface does not contain.
 We also change the foreground so that pixels of that boundary class are not discarded.
 
 \section{Method}
 \label{sec:method}
 The input is the softmax output $p_{\mathrm{bg}}, p_{\mathrm{field}}, p_{\mathrm{bnd}}$ of a three-class network on one image, and the output is a set of field polygons (Fig.~\ref{fig:pipeline}).
-Only the argmax and the two class probabilities at each pixel are used.
+We use only the argmax and the two class probabilities at each pixel.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{rev_method.pdf}
 \caption{\textbf{Every intermediate image on one PlanetScope crop.}
-(a) Image. (b) Boundary probability from the network. (c) Foreground: the released pipeline keeps the green pixels only; we also keep the orange boundary pixels. (d) Distance to the predicted boundary with the $h$-maxima markers. (e) Watershed regions and the lines between them. (f) Each line colored by its support $s(\ell)$, the fraction of its pixels where $p_{\mathrm{bnd}}\geq p_{\mathrm{field}}$; blue lines ($s\geq\tau$) are kept and red lines are merged. (g) Resulting parcels with the reference outlined.}
+Panels (a) and (b) show the image and the network's boundary probability.
+In the foreground (c), the released pipeline keeps only green pixels, while we also keep orange boundary pixels.
+Panel (d) shows the distance to the predicted boundary with the $h$-maxima markers, and (e) shows watershed regions and their separating lines.
+In (f), each line is colored by its support $s(\ell)$, the fraction of its pixels where $p_{\mathrm{bnd}}\geq p_{\mathrm{field}}$.
+Blue lines ($s\geq\tau$) are kept and red lines are merged, giving the parcels in (g) with the reference outlined.}
 \label{fig:pipeline}
 \end{figure*}
 
 \paragraph{Foreground}
 The foreground mask is $F=\{\arg\max p \neq \mathrm{bg}\}$, the union of the field and boundary classes.
 The released pipelines use the field class alone, which removes a parcel whenever the boundary class covers it.
-In our evaluation this rule alone, without any splitting, merges neighboring parcels into single components and lowers panoptic quality to \NbgNonePQ{}, so the foreground change is only useful together with a split rule that can separate the parcels the boundary pixels now connect.
+In our evaluation, the foreground rule alone, without splitting, merges neighboring parcels into single components and lowers panoptic quality to \NbgNonePQ{}.
+The change is therefore only useful with a split rule that separates the parcels now connected by boundary pixels.
 
 \paragraph{Split proposals}
 Let $D$ be the Euclidean distance from each pixel to the nearest pixel with $\arg\max p = \mathrm{bnd}$, set to zero outside $F$.
 The $h$-maxima of $D$ with $h=2$ pixels are the markers, and a watershed of $-D$ restricted to $F$ produces regions separated by one-pixel lines~\cite{soille2004morphological}.
-This is the released procedure with the mask replaced by $F$ and with lines retained.
+We replace the released procedure's mask with $F$ and retain its lines.
 The watershed over-segments by design, because it cuts at every neck of the mask, and the next step decides which cuts to keep.
 
 \paragraph{Boundary-supported merging}
@@ -125,16 +133,18 @@ s(\ell)=\frac{1}{|\ell|}\sum_{x\in\ell}\mathbf{1}\left[p_{\mathrm{bnd}}(x)\geq p
 where $\mathbf{1}[\cdot]$ is the indicator function.
 A line with $s(\ell)\geq\tau$ is kept as a one-pixel gap and the two regions become separate parcels.
 A line with $s(\ell)<\tau$ is removed and the two regions merge.
-All line decisions are applied together with a union-find, and a line pixel is filled only when every region it touches ends up in the same group and no neighboring line pixel would be filled with a different one.
-A kept line therefore stays a one-pixel gap, and each connected group of foreground pixels becomes one parcel.
-We use $\tau=0.7$; values from 0.7 to 0.9 change the result by at most half a point (Sec.~\ref{sec:ablation}).
+We apply all line decisions together with a union-find.
+A line pixel is filled only when every region it touches ends up in the same group and no neighboring line pixel would be filled with a different one.
+Each kept line stays a one-pixel gap, and each connected group of foreground pixels becomes one parcel.
+We use $\tau=0.7$, and values from 0.7 to 0.9 change the result by at most half a point (Sec.~\ref{sec:ablation}).
 
 \paragraph{Polygons}
-Each parcel becomes one polygon from its pixel boundary, without simplification, and the one-pixel gaps keep neighbors distinct when the polygons are rasterized on the same grid.
-Parcels smaller than 900~m$^2$ are then dropped.
-This threshold gives the released pipeline its highest validation score, and for ours the validation score varies by less than half a point between 450 and 1800~m$^2$ (supplementary material).
-It is given in ground area rather than pixels so that it means the same on either sensor.
-This last step is not specific to our rule, and Sec.~\ref{sec:ablation} reports it for the released pipeline as well.
+We convert each parcel's pixel boundary to one polygon without simplification.
+The one-pixel gaps keep neighbors distinct when the polygons are rasterized on the same grid.
+We then drop parcels smaller than 900~m$^2$.
+The threshold gives the released pipeline its highest validation score, while our validation score varies by less than half a point between 450 and 1800~m$^2$ (supplementary material).
+We specify the threshold in ground area rather than pixels so that it means the same on either sensor.
+The minimum-size step also applies to other conversions, and Sec.~\ref{sec:ablation} reports it for the released pipeline as well.
 
 \section{Experiments}
 \label{sec:experiments}
@@ -146,17 +156,19 @@ The PlanetScope set is the subset of these patches with a co-registered PlanetSc
 The reference for every score is the released vector parcels clipped to each patch, not the rasterized semantic mask.
 
 \paragraph{Models}
-The models are the EfficientNet-B3 and B7 U-Nets of Fields of the Planet for PlanetScope~\cite{corley_ftp} and of Fields of The World for Sentinel-2~\cite{kerner2024ftw}, run from the released checkpoints with the released inference settings, including eight-fold flip and rotation averaging.
+We run the EfficientNet-B3 and B7 U-Nets of Fields of the Planet for PlanetScope~\cite{corley_ftp} and of Fields of The World for Sentinel-2~\cite{kerner2024ftw}.
+We use the released checkpoints and inference settings, including eight-fold flip and rotation averaging.
 Sentinel-2 chips are distributed on a 256$\times$256 grid per patch, so their ground sampling varies with latitude.
-Following the released evaluation we upsample by two and score on that grid, and no weights are changed.
+Following the released evaluation, we upsample by two and score on that grid without changing any weights.
 
 \paragraph{Baselines}
 The released pipeline takes the field argmax, runs the watershed at $h=2$, and extracts connected components of the union of instances.
 Our implementation reproduces the per-country panoptic quality reported for PlanetScope~\cite{corley_ftp} to within $10^{-3}$, and the same for Sentinel-2~\cite{kerner2024ftw} under the native-resolution scoring of that paper.
 The best single depth selects, for each country, the depth in $\{0.5,\ldots,64\}$ with the highest test score under the same procedure.
 It uses the test labels, so it bounds what depth tuning can achieve.
-We also implement four prior conversions on the same predictions: extent and boundary thresholds~\cite{waldner2020decode}, hierarchical merging of an over-segmentation by mean boundary probability along each shared border~\cite{arbelaez2011hierarchical,maninis2018cob,persello2019delineation}, stochastic watershed with random markers~\cite{angulo2007stochastic}, and iterative marker depth~\cite{koyuncu2016iterative}.
-We sweep each over its own grid on PlanetScope B3 and report on test the setting with the highest macro score on the \emph{validation} split, the same rule we use for ours, and the chosen settings are reused unchanged on Sentinel-2.
+Four prior conversions run on the same predictions, namely extent and boundary thresholds~\cite{waldner2020decode}, hierarchical merging of an over-segmentation by mean boundary probability along each shared border~\cite{arbelaez2011hierarchical,maninis2018cob,persello2019delineation}, stochastic watershed with random markers~\cite{angulo2007stochastic}, and iterative marker depth~\cite{koyuncu2016iterative}.
+For each, we sweep its own grid on PlanetScope B3 and report test results for the setting with the highest macro score on the \emph{validation} split.
+We use the same selection rule for ours and reuse the chosen settings unchanged on Sentinel-2.
 
 \paragraph{Metrics}
 We match predicted and reference polygons greedily at intersection over union 0.5.
@@ -198,22 +210,26 @@ The minimum-size step is the same 900~m$^2$ threshold in both rows that use it.}
 \centering
 \includegraphics[width=\linewidth]{rev_percountry.pdf}
 \caption{\textbf{Per-country PQ change.}
-Change over the released pipeline with the same minimum-size step, for each model and sensor, sorted by the mean of the four; the bar marks that mean.
+Changes over the released pipeline with the same minimum-size step are shown for each model and sensor, sorted by the mean of the four.
+The bar marks that mean.
 \UpTotal{} of 40 pairs improve, and the one decrease is under half a point (Portugal, PlanetScope B3, two patches).}
 \label{fig:percountry}
 \end{figure}
 
 \subsection{Comparison with Prior Post-Processing}
 \label{sec:compare}
-None of the prior conversions exceeds the released pipeline on these predictions, and ours is the only one above it (Table~\ref{tab:compare}).
-Thresholding the two probability maps is the strongest and the cheapest of them, but a parcel whose shared boundary is broken stays merged, which is the case the watershed exists to handle.
-Hierarchical merging is the closest to ours in mechanism, since it also scores a border by boundary probability, but it ranks borders on an absolute scale and merges until a level is reached, while our test compares two probabilities at the same pixel.
-The minimum-size step of Sec.~\ref{sec:method} is applied to every row, and it helps the methods that leave the most fragments the most, without changing the ordering.
-Replacing the one shared setting with the best setting for each country, chosen with that country's own test labels, adds \OursTune{} points to ours and at most \PriorTuneMax{} to any prior method, so the ordering does not depend on per-region tuning.
+Ours is the only conversion that exceeds the released pipeline on these predictions (Table~\ref{tab:compare}).
+Thresholding the two probability maps is the strongest and cheapest prior conversion, but a parcel whose shared boundary is broken stays merged.
+The watershed is designed to handle such cases.
+Hierarchical merging is closest to ours in mechanism because it also scores borders by boundary probability.
+It ranks borders on an absolute scale and merges until a level is reached, while our test compares two probabilities at the same pixel.
+Every row carries the minimum-size step of Sec.~\ref{sec:method}, which helps most for the methods that leave the most fragments and does not change the ordering.
+Replacing the shared setting with each country's best setting, chosen using its own test labels, adds \OursTune{} points to ours and at most \PriorTuneMax{} to any prior method.
+The ordering therefore does not depend on per-region tuning.
 We measure cost on one core, on PlanetScope patches grouped by how many reference parcels they contain.
-On Sentinel-2 every method costs more on the larger grid, and the ordering on dense patches is unchanged (supplementary material).
-Ours adds \OursSlowdown{} over the released pipeline on dense patches, and stochastic watershed, which repeats the flood for every marker draw, is \SwstSlowdown{} slower than ours.
-Peak additional memory stays under \PeakMB{}~MB per patch for every method on either sensor, so the choice is about time rather than memory.
+On Sentinel-2, every method takes longer on the larger grid, and the ordering on dense patches is unchanged (supplementary material).
+Ours adds \OursSlowdown{} over the released pipeline on dense patches, while stochastic watershed, which repeats the flood for every marker draw, is \SwstSlowdown{} slower than ours.
+Peak additional memory stays under \PeakMB{}~MB per patch for every method on either sensor, so runtime determines the choice rather than memory.
 
 \begin{table}[t]
 \centering
@@ -241,12 +257,16 @@ Timings are the median over sampled patches with 10--29 and 100+ reference parce
 \subsection{Ablation}
 \label{sec:ablation}
 Neither change helps alone (Table~\ref{tab:ablation}).
-The wider foreground without a split rule merges neighboring parcels into single components, and the split rule on the field foreground has nothing to add, because the gaps the boundary class already leaves in that mask separate most parcels.
+The wider foreground without a split rule merges neighboring parcels into single components.
+The split rule adds nothing on the field foreground because gaps left by the boundary class already separate most parcels.
 The gain appears only when the boundary pixels are kept and the watershed lines through them are tested.
-Over the sweeps in the supplementary material the result changes by at most half a point for $\tau$ between 0.7 and 0.9, $h=1$ loses about one point, $h=4$ one to two, and $h=8$ removes the markers of small parcels and loses accuracy.
+In the supplementary sweeps, the result changes by at most half a point for $\tau$ between 0.7 and 0.9.
+With $h=1$ it loses about one point, with $h=4$ one to two, and with $h=8$ it loses accuracy because the markers of small parcels disappear.
 The alternatives we tried in place of the argmax, an Otsu threshold on the field probability, morphological closing of the boundary class, and a watershed on the boundary probability itself, all score below the released pipeline on both splits (supplementary material).
-Requiring a minimum kept-line length, widening the support test to a tolerance band, and merging slivers into a neighbor each lowered the validation score, and filling holes inside a parcel changed it by less than a tenth of a point.
-The minimum parcel size is the one added step that helps, and it helps the released pipeline as well, by \BaseAreaGain{} points against \OursAreaGain{} for ours on PlanetScope B3, so the ordering is the same with or without it.
+Requiring a minimum kept-line length, widening the support test to a tolerance band, and merging slivers into a neighbor each lowered the validation score.
+Filling holes inside a parcel changed it by less than a tenth of a point.
+Of the added steps, only the minimum parcel size helps, improving the released pipeline by \BaseAreaGain{} points against \OursAreaGain{} for ours on PlanetScope B3.
+The ordering is the same with or without the minimum-size step.
 The released polygonization tool~\cite{kerner2024ftw} exposes such a threshold, although the published evaluation does not apply one.
 
 \begin{table}[t]
@@ -272,19 +292,17 @@ The supplementary material gives the full $\tau$ and $h$ sweeps on all four pair
 
 \subsection{Qualitative Results}
 Fig.~\ref{fig:pipeline} follows one crop through the pipeline.
-The orange pixels in panel~(c) are the ones the released mask discards.
-They are the narrow strips between fields and along the road, and they return as parcels in panel~(g).
-Panel~(f) separates the two kinds of watershed line.
-A line that follows a predicted boundary has support near one and is kept, and a line that cuts across a field at a neck has support near zero and is merged.
-The failure case in Fig.~\ref{fig:gallery} (last example) shows the limit of the rule.
-A track inside a reference parcel is predicted as boundary, the line along it is supported, and the parcel is split.
+The orange pixels in panel~(c) form narrow strips between fields and along the road, which the released mask discards and our method recovers as parcels in panel~(g).
+In panel~(f), a line following a predicted boundary has support near one and is kept, while one cutting across a field at a neck has support near zero and is merged.
+In the failure case in Fig.~\ref{fig:gallery} (last example), the network predicts a track inside a reference parcel as boundary, supporting the line along it and splitting the parcel.
 The rule cannot separate an internal track from a parcel boundary when the network labels both as boundary.
 
 \section{Conclusion}
 We keep the boundary class inside the foreground and let it decide which watershed splits are kept.
 The two changes together improve polygon accuracy over the released pipeline on two encoders and two sensors with no per-region tuning, and the gain comes from parcels that the field mask had discarded.
 The rule requires a predicted boundary class, so it does not apply to instance segmentation outputs that carry masks and scores only.
-On Sentinel-2 the recovered parcels are narrower than the 10~m the sensor resolves and survive only on the upsampled prediction grid, and when the polygons are rasterized back to 10~m before scoring the gain is lost and ours falls below the released pipeline.
+On Sentinel-2, the recovered parcels are narrower than the 10~m the sensor resolves and survive only on the upsampled prediction grid.
+Rasterizing the polygons back to 10~m before scoring removes the gain, and ours falls below the released pipeline.
 Parcels the network does not detect at all remain missing, and those are now the largest error.
 
 \bibliographystyle{IEEEtran}
