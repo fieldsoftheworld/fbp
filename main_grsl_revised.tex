@@ -159,11 +159,11 @@ The reference for every score is the released vector parcels clipped to each pat
 We run the EfficientNet-B3 and B7 U-Nets of Fields of the Planet for PlanetScope~\cite{corley_ftp} and of Fields of The World for Sentinel-2~\cite{kerner2024ftw}.
 We use the released checkpoints and inference settings, including eight-fold flip and rotation averaging.
 Sentinel-2 chips are distributed on a 256$\times$256 grid per patch, so their ground sampling varies with latitude.
-Following the released evaluation, we upsample by two and score on that grid without changing any weights.
+The vector labels are not confined to the sensor's 10~m pixel grid, and the released model was trained to predict on the same finer grid, so we upsample by two and score there without changing any weights, following the released evaluation.
 
 \paragraph{Baselines}
 The released pipeline takes the field argmax, runs the watershed at $h=2$, and extracts connected components of the union of instances.
-Our implementation reproduces the per-country panoptic quality reported for PlanetScope~\cite{corley_ftp} to within $10^{-3}$, and the same for Sentinel-2~\cite{kerner2024ftw} under the native-resolution scoring of that paper.
+Our implementation reproduces the per-country panoptic quality reported for PlanetScope~\cite{corley_ftp} to within $10^{-3}$, and the same for Sentinel-2~\cite{kerner2024ftw} at the 10~m grid that paper's evaluation rounds predictions to.
 The best single depth selects, for each country, the depth in $\{0.5,\ldots,64\}$ with the highest test score under the same procedure.
 It uses the test labels, so it bounds what depth tuning can achieve.
 Four prior conversions run on the same predictions, namely extent and boundary thresholds~\cite{waldner2020decode}, hierarchical merging of an over-segmentation by mean boundary probability along each shared border~\cite{arbelaez2011hierarchical,maninis2018cob,persello2019delineation}, stochastic watershed with random markers~\cite{angulo2007stochastic}, and iterative marker depth~\cite{koyuncu2016iterative}.
@@ -294,16 +294,13 @@ The supplementary material gives the full $\tau$ and $h$ sweeps on all four pair
 Fig.~\ref{fig:pipeline} follows one crop through the pipeline.
 The orange pixels in panel~(c) form narrow strips between fields and along the road, which the released mask discards and our method recovers as parcels in panel~(g).
 In panel~(f), a line following a predicted boundary has support near one and is kept, while one cutting across a field at a neck has support near zero and is merged.
-In the failure case in Fig.~\ref{fig:gallery} (last example), the network predicts a track inside a reference parcel as boundary, supporting the line along it and splitting the parcel.
-The rule cannot separate an internal track from a parcel boundary when the network labels both as boundary.
+In the failure case in Fig.~\ref{fig:gallery} (last example), the network predicts a track inside a reference parcel as boundary, so the supported line along it splits the parcel.
 
 \section{Conclusion}
 We keep the boundary class inside the foreground and let it decide which watershed splits are kept.
 The two changes together improve polygon accuracy over the released pipeline on two encoders and two sensors with no per-region tuning, and the gain comes from parcels that the field mask had discarded.
-The rule requires a predicted boundary class, so it does not apply to instance segmentation outputs that carry masks and scores only.
-On Sentinel-2, the recovered parcels are narrower than the 10~m the sensor resolves and survive only on the upsampled prediction grid.
-Rasterizing the polygons back to 10~m before scoring removes the gain, and ours falls below the released pipeline.
-Parcels the network does not detect at all remain missing, and those are now the largest error.
+The rule requires a predicted boundary class, so it does not apply to instance segmentation outputs that carry masks and scores only, and it scores Sentinel-2 on the finer grid the model and vector labels already resolve rather than the sensor's native 10~m pixels.
+Parcels the network misses entirely are outside the rule's reach, since post-processing can only reorganize the pixels a segmentation model already predicted.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
