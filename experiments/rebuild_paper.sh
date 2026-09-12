@@ -17,6 +17,11 @@ for spec in "planet_b3 test pixel val" "planet_b7 test pixel val" "s2_b7 test pi
   [ -f "experiments/out/scores/$1/test/$3/ftp_gate.csv" ] && cp "experiments/out/scores/$1/test/$3/ftp_gate.csv" "$d"/ || true
 done
 
+echo "== validation split (supplementary grids) =="
+experiments/run.sh fieldvote.report --run planet_b3 --split val --protocol pixel --val-split "" > /dev/null
+mkdir -p experiments/results/planet_b3/val
+cp experiments/out/scores/planet_b3/val/pixel/{country,macro}.csv experiments/results/planet_b3/val/
+
 echo "== cost and transfer =="
 experiments/run.sh fieldvote.transfer --run planet_b3 > /dev/null
 

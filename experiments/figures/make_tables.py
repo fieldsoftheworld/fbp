@@ -98,7 +98,14 @@ def compare_rows() -> list[str]:
             f(mb3.loc[s3].pq),
             f(ms2.loc[s2].pq) if s2 in ms2.index else "--",
         )
-        gap = f"{tr.loc[fam].gap_per_minus_val:+.1f}"
+        # The released row is reported at its default h=2, so its headroom is
+        # measured from h=2, not from the validation-best depth.
+        gap_val = (
+            tr.loc[fam].pq_per_country - 100 * mb3.loc[BASE].pq
+            if fam == "depth"
+            else tr.loc[fam].gap_per_minus_val
+        )
+        gap = f"{gap_val:+.1f}"
         cells = [
             pq3,
             pq2,
