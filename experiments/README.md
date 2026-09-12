@@ -234,6 +234,33 @@ means different parcel sizes on the two sensors (Planet 9.0 m^2/px, the
 upsampled S2 grid 5.5 m^2/px here). Headline gains compare against the
 released pipeline given the same minimum-size step (`arg-ws2+A900`).
 
+## Global run (`fieldvote/global_*.py`, `fieldvote/cache_global.py`)
+
+The global FTW map (arXiv:2605.11055) is a PRUE B7 U-Net run at 10 m whose
+polygons are connected components of the field argmax with a 4-px minimum, no
+watershed. Its 3-class float32 softmax is a Zarr v3 store
+(`https://data.source.coop/ftw/global-data/predictions/zarr/alpha/global.zarr`,
+`(time, band, y, x)`, EPSG:4326, 8.98e-5 deg/px, time 0 = 2024 and 1 = 2025,
+8192^2 shards with 2048^2 inner chunks). Two uses:
+
+* **Diffs and cost at scale.** `global_tiles` lists the 270,684 inner chunks
+  with mean 2025 field probability > 0.01 from the 2048x overview (one overview
+  pixel per chunk) and tags them with Natural Earth countries;
+  `hpc/global.sbatch` runs one 300-tile shard per array task
+  (`--array=0-899%150`, plus `OFFSET=900` for the last three). Each chunk is
+  read once (1.8 s) and processed as 16 sub-tiles of 512^2, the letter's patch
+  size, so the validated settings of the prior methods mean what they meant in
+  Table II. Per (tile, method): parcel count, area, parcel-area histogram, wall
+  ms, peak RSS. Stochastic watershed runs on every 20th tile. About 8 s per
+  tile, ~600 CPU-h for one year. `global_report` aggregates to `summary.csv`,
+  `by_country.csv`, `area_hist.csv` under `out/global/`.
+* **A third model with labels.** `cache_global` reads the store window under
+  every FTW test patch (labels are EPSG:4326 too) into the standard cache
+  layout as run `global_s2`; `hpc/global_labeled.sbatch` then runs candidates,
+  scoring on the store grid, and the report, so the production model's
+  predictions get the same PQ table as the four released runs. Imagery year
+  (2025) differs from the label years, which affects every method equally.
+
 ## TODO
 
 * Runtime breakdown per stage (review item 14).
