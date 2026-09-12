@@ -1,0 +1,42 @@
+{
+  "run": "global_s2",
+  "split": "test",
+  "created_utc": "2026-09-12T18:10:05+00:00",
+  "host": "rails13",
+  "source": "https://data.source.coop/ftw/global-data/predictions/zarr/alpha/global.zarr",
+  "time_index": 1,
+  "year": 2025,
+  "grid": "store grid, EPSG:4326, 8.9831198e-05 deg/px",
+  "icvr_git": "726fe22a893a4369dbe602d1448dc9b24d2dd851",
+  "args": {
+    "run": "global_s2",
+    "time_index": 1,
+    "split": "test",
+    "countries": [
+      "belgium",
+      "cambodia",
+      "croatia",
+      "germany",
+      "latvia",
+      "lithuania",
+      "portugal",
+      "slovenia",
+      "south_africa",
+      "sweden"
+    ],
+    "root": null,
+    "limit": 0
+  },
+  "patches_per_country": {
+    "belgium": 198,
+    "cambodia": 25,
+    "croatia": 353,
+    "germany": 350,
+    "latvia": 741,
+    "lithuania": 528,
+    "portugal": 10,
+    "slovenia": 228,
+    "south_africa": 85,
+    "sweden": 516
+  }
+}
