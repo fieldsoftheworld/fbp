@@ -22,8 +22,9 @@ The supplementary material includes the full parameter sweeps, complete grids se
 Every number comes from the same runs as the letter, scored against the released vector parcels.
 
 \section{Full Parameter Sweeps}
-Table~\ref{tab:supp_sweep} gives macro PQ for every setting of $\tau$ and $h$ on all four model and sensor pairs, and repeats the foreground and split-rule comparison for each of them.
-The letter reports the two PlanetScope B3 and Sentinel-2 B7 columns.
+Table~\ref{tab:supp_sweep} gives macro panoptic quality (PQ) for every setting of $\tau$ and $h$ on all four model and sensor pairs.
+It also reports each pair's foreground and split-rule comparison.
+The letter reports the PlanetScope B3 and Sentinel-2 B7 columns.
 Scores remain flat for support thresholds between 0.7 and 0.9 on every pair, while $h=8$ loses accuracy on every pair because the $h$-maxima of small parcels disappear.
 
 \begin{table}[h]
@@ -42,7 +43,7 @@ Setting & Planet B3 & Planet B7 & S2 B7 & S2 B3 \\
 \end{table}
 
 \section{Complete Grids for Prior Methods}
-Table~\ref{tab:supp_priors} lists every setting tried on PlanetScope B3, with the validation score used to choose one and the test score it then reached.
+Table~\ref{tab:supp_priors} lists every setting tried on PlanetScope B3, its validation score for selection, and its test score.
 The letter reports the row with the highest validation score in each family, with the 900~m$^2$ minimum-size step added afterward.
 For the thresholds, iterative depth, and stochastic watershed, the chosen setting lies at the edge of the search grid.
 Iterative depth and stochastic watershed remain more than nine points below the released pipeline at every setting tried.
@@ -70,7 +71,7 @@ Setting & Validation PQ & Test PQ \\
 \end{table}
 
 \section{Alternatives Named in the Ablation}
-Table~\ref{tab:supp_variants} gives the validation PQ on PlanetScope B3, and the test PQ where it was scored, of every alternative the ablation of the letter mentions without a number.
+Table~\ref{tab:supp_variants} gives PlanetScope B3 validation PQ, and test PQ where scored, for every alternative mentioned without a number in the letter's ablation.
 The foreground alternatives replace the argmax rule and use no split test.
 We applied the added steps to ours at $\tau=0.7$ and $h=2$ without the minimum-size step and scored them only on the validation split.
 Pixel counts refer to the 3~m PlanetScope grid.
@@ -113,8 +114,8 @@ Country & Rel. & Ours & Rel. & Ours & Rel. & Ours & Rel. & Ours \\
 
 \section{Timing by Parcel Density}
 Table~\ref{tab:supp_timing} gives the median milliseconds per patch in four density bins on both sensors.
-We measured on one core with threads pinned, taking the fastest of three repeats after a warm-up call.
-We sampled thirty patches per bin with a fixed seed.
+We sampled thirty patches per bin with a fixed seed and timed them on one core with threads pinned.
+Timings use the fastest of three repeats after a warm-up call.
 Sentinel-2 patches contain more pixels, so every method takes longer there.
 The ordering between methods is unchanged in the sparsest and densest bins, and iterative marker depth is slower than ours in the two middle bins.
 
@@ -136,9 +137,10 @@ Method & 1--9 & 10--29 & 30--99 & 100+ & 1--9 & 10--29 & 30--99 & 100+ \\
 \end{table}
 
 \section{Reproduction}
-We cache predictions once per checkpoint with the released inference settings, and every post-processing method reads that cache, so inference differences do not affect the comparison.
+We cache predictions once per checkpoint with the released inference settings.
+Every post-processing method reads the same cache, so inference differences do not affect the comparison.
 To reproduce the results, cache each released checkpoint's softmax output and build the candidate polygon sets.
 Then score every method against the reference parcels and generate the tables and figures.
-Our implementation of the released conversion reproduces the published per-country panoptic quality for PlanetScope to within $10^{-3}$, and the same for Sentinel-2 under the native-resolution scoring of that paper.
+Our implementation of the released conversion reproduces the published per-country panoptic quality for PlanetScope to within $10^{-3}$, and the same for Sentinel-2 at the 10~m grid that paper's evaluation rounds predictions to.
 
 \end{document}

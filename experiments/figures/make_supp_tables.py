@@ -24,6 +24,11 @@ RUNS = [
     ("s2_b3", "test/pixel", "S2 B3"),
 ]
 OURS, BASE = "raw:v:nbg-sup-h2-t0.7+A900", "rt:h2"
+# Fig. 3 of the letter (experiments/figures/per_country.py) compares ours
+# against the released pipeline WITH the minimum-size step, since that is the
+# like-for-like comparison the letter reports; the per-country table below is
+# captioned as reproducing that figure, so it must use the same baseline.
+COUNTRY_BASE = "raw:v:arg-ws2+A900"
 OURS_NOFILTER = "raw:v:nbg-sup-h2-t0.7"
 NAMES = {
     "belgium": "Belgium",
@@ -187,7 +192,7 @@ def country_rows() -> list[str]:
     for run, sub, label in RUNS:
         c = pd.read_csv(RES / run / sub / "country.csv")
         c = c[c.reference == "vector"]
-        base = c[c.strategy == BASE].set_index("country").pq
+        base = c[c.strategy == COUNTRY_BASE].set_index("country").pq
         ours = c[c.strategy == OURS].set_index("country").pq
         tabs[label] = (100 * base, 100 * ours)
     rows = []

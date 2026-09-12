@@ -42,7 +42,7 @@ def deltas(run: str, sub: str) -> pd.Series:
 
 
 def main() -> None:
-    use_style(family="serif")
+    use_style()
     table = pd.DataFrame({label: deltas(run, sub) for run, sub, label, _, _ in RUNS})
     order = table.mean(axis=1).sort_values().index  # smallest mean gain at the bottom
     table = table.loc[order]

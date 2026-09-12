@@ -57,7 +57,7 @@ def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.nd
 
 
 def main() -> None:
-    use_style(family="serif")
+    use_style()
     npz = cache_dir(f"{RUN}/test") / COUNTRY / f"{PID}.npz"
     grid = refs.load_grid(npz, COUNTRY)
     with np.load(npz) as d:
@@ -103,7 +103,10 @@ def main() -> None:
 
     sup_img = np.ones((*fg.shape, 3))
     sup_img[fg] = (0.88, 0.88, 0.88)
-    cmap = plt.get_cmap("coolwarm_r")
+    cmap = mcolors.LinearSegmentedColormap.from_list(
+        "line_support", [PALETTE["red"], "white", PALETTE["blue"]]
+    )
+    norm = mcolors.TwoSlopeNorm(vmin=0, vcenter=TAU, vmax=1)
     thick = binary_dilation(lines, iterations=1) & fg
     # propagate s to the thickened line pixels from the nearest line pixel
     from scipy.ndimage import distance_transform_edt as edt
@@ -111,7 +114,7 @@ def main() -> None:
     _, (ir, ic) = edt(~lines, return_indices=True)
     s_thick = s_map[ir, ic]
     m = thick & ~np.isnan(s_thick)
-    sup_img[m] = cmap(s_thick[m])[:, :3]
+    sup_img[m] = cmap(norm(s_thick[m]))[:, :3]
 
     final_img = label_colors(final, 2)
     final_img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
@@ -190,7 +193,7 @@ def main() -> None:
             0.045 * pos.height,
         ]
     )
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(0, 1))
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cb.set_ticks([0, TAU, 1])
     cb.ax.tick_params(labelsize=5, length=1.5, pad=1)

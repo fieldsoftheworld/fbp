@@ -41,7 +41,7 @@ from fieldvote.paths import (  # noqa: E402
     scores_dir,
 )
 from fieldvote.variants import run_variant  # noqa: E402
-from figstyle import WIDE, save, use_style  # noqa: E402
+from figstyle import PALETTE, WIDE, save, use_style  # noqa: E402
 
 TAU, H = 0.7, 2.0
 VARIANT = "nbg-sup-h2-t0.7+A900"
@@ -147,12 +147,10 @@ def rgb_for(run: str, country: str, pid: str, shape: tuple[int, int]) -> np.ndar
 def label_colors(inst: np.ndarray, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
     n = int(inst.max())
-    hues = rng.permutation(n) / max(n, 1)
-    cols = (
-        np.stack([mcolors.hsv_to_rgb((h, 0.45, 0.92)) for h in hues])
-        if n
-        else np.zeros((0, 3))
+    palette = np.array(
+        [mcolors.to_rgb(color) for name, color in PALETTE.items() if name != "black"]
     )
+    cols = palette[rng.permutation(n) % len(palette)]
     out = np.ones((*inst.shape, 3))
     m = inst > 0
     out[m] = cols[inst[m] - 1]
@@ -230,7 +228,7 @@ def draw_pred(ax, inst, gt, seed, pq: float, bold: bool = False):
 
 
 def main() -> None:
-    use_style(family="serif")
+    use_style()
     wp = per_patch_delta("planet_b3", "pixel")
     ws = per_patch_delta("s2_b7", "pixel")
     examples = [
@@ -297,7 +295,7 @@ def main() -> None:
                 )
     handles = [
         Patch(
-            facecolor="#cfe8d8", edgecolor="#999999", label="predicted parcel (fill)"
+            facecolor=PALETTE["green"], edgecolor="#999999", label="predicted parcel (fill)"
         ),
         Patch(facecolor="white", edgecolor="black", label="reference parcel (outline)"),
     ]
