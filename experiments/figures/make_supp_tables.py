@@ -58,26 +58,26 @@ def sweep_rows() -> list[str]:
     rows = []
     blocks = [
         (
-            "Support threshold $\\tau$ ($h=2$)",
+            "Support Threshold $\\tau$ ($h=2$)",
             [
                 (f"$\\tau={t}$", f"raw:v:nbg-sup-h2-t{t}")
                 for t in ("0.3", "0.5", "0.7", "0.8", "0.9", "1")
             ],
         ),
         (
-            "Marker depth $h$ ($\\tau=0.7$)",
+            "Marker Depth $h$ ($\\tau=0.7$)",
             [(f"$h={h}$", f"raw:v:nbg-sup-h{h}-t0.7") for h in ("1", "2", "4", "8")],
         ),
         (
-            "Foreground and split rule",
+            "Foreground and Split Rule",
             [
-                ("Field, components", "cc"),
-                ("Field, watershed instances", "raw:h2"),
-                ("Field, watershed components", BASE),
-                ("Field, supported splits", "raw:v:arg-sup-h2-t0.7"),
-                ("Not-background, components", "raw:v:nbg-none"),
-                ("Not-background, supported splits", OURS_NOFILTER),
-                ("Ours, with minimum size", OURS),
+                ("Field, Components", "cc"),
+                ("Field, Watershed Instances", "raw:h2"),
+                ("Field, Watershed Components", BASE),
+                ("Field, Supported Splits", "raw:v:arg-sup-h2-t0.7"),
+                ("Not-Background, Components", "raw:v:nbg-none"),
+                ("Not-Background, Supported Splits", OURS_NOFILTER),
+                ("Ours, With Minimum Size", OURS),
             ],
         ),
     ]
@@ -100,10 +100,10 @@ def priors_rows() -> list[str]:
     )
     test = macro("planet_b3", "test")
     fams = [
-        ("Extent/boundary thresholds", "raw:v:arg-thr-"),
-        ("Hierarchical merging", "raw:v:nbg-ucm-"),
-        ("Iterative marker depth", "raw:v:"),
-        ("Stochastic watershed", "raw:v:nbg-swst-"),
+        ("Extent/Boundary Thresholds", "raw:v:arg-thr-"),
+        ("Hierarchical Merging", "raw:v:nbg-ucm-"),
+        ("Iterative Marker Depth", "raw:v:"),
+        ("Stochastic Watershed", "raw:v:nbg-swst-"),
     ]
     rows = []
     for title, prefix in fams:
@@ -141,40 +141,40 @@ def variants_rows() -> list[str]:
     rel = "raw:v:arg-ws2"
     blocks = [
         (
-            "Released pipeline and ours, no minimum size",
+            "Released Pipeline and Ours, No Minimum Size",
             [("Released", BASE), ("Ours", ours)],
         ),
         (
-            "Alternatives to the argmax foreground",
+            "Alternatives to the Argmax Foreground",
             [
-                ("Otsu threshold on field probability", "raw:v:otsu-none"),
-                ("Field probability at least 0.5", "raw:v:pf50-none"),
-                ("Boundary class closed, radius 1 px", "raw:v:arg-close1"),
-                ("Boundary class closed, radius 2 px", "raw:v:arg-close2"),
-                ("Watershed on boundary probability, $h=0.1$", "raw:v:arg-pb-h0.1-t0.5"),
-                ("Watershed on boundary probability, $h=0.2$", "raw:v:arg-pb-h0.2-t0.5"),
-                ("Not-background, boundary closed, radius 1 px", "raw:v:nbg-close1"),
-                ("Not-background, boundary-probability watershed", "raw:v:nbg-pb-h0.2-t0.5"),
+                ("Otsu Threshold on Field Probability", "raw:v:otsu-none"),
+                ("Field Probability at Least 0.5", "raw:v:pf50-none"),
+                ("Boundary Class Closed, Radius 1 px", "raw:v:arg-close1"),
+                ("Boundary Class Closed, Radius 2 px", "raw:v:arg-close2"),
+                ("Watershed on Boundary Probability, $h=0.1$", "raw:v:arg-pb-h0.1-t0.5"),
+                ("Watershed on Boundary Probability, $h=0.2$", "raw:v:arg-pb-h0.2-t0.5"),
+                ("Not-Background, Boundary Closed, Radius 1 px", "raw:v:nbg-close1"),
+                ("Not-Background, Boundary-Probability Watershed", "raw:v:nbg-pb-h0.2-t0.5"),
             ],
         ),
         (
-            "Steps added to ours",
+            "Steps Added to Ours",
             [
-                ("Kept line at least 3 px", f"{ours}+l3"),
-                ("Kept line at least 5 px", f"{ours}+l5"),
-                ("Kept line at least 10 px", f"{ours}+l10"),
-                ("Support tolerance band, 1 px", f"{ours}+b1"),
-                ("Support tolerance band, 2 px", f"{ours}+b2"),
-                ("Fill holes under 50 px", f"{ours}+f50"),
-                ("Fill holes under 200 px", f"{ours}+f200"),
-                ("Fill every hole", f"{ours}+f-1"),
-                ("Merge slivers under 20 px into a neighbor", f"{ours}+m20"),
-                ("Merge slivers under 50 px into a neighbor", f"{ours}+m50"),
-                ("Merge slivers under 200 px into a neighbor", f"{ours}+m200"),
+                ("Kept Line at Least 3 px", f"{ours}+l3"),
+                ("Kept Line at Least 5 px", f"{ours}+l5"),
+                ("Kept Line at Least 10 px", f"{ours}+l10"),
+                ("Support Tolerance Band, 1 px", f"{ours}+b1"),
+                ("Support Tolerance Band, 2 px", f"{ours}+b2"),
+                ("Fill Holes Under 50 px", f"{ours}+f50"),
+                ("Fill Holes Under 200 px", f"{ours}+f200"),
+                ("Fill Every Hole", f"{ours}+f-1"),
+                ("Merge Slivers Under 20 px Into a Neighbor", f"{ours}+m20"),
+                ("Merge Slivers Under 50 px Into a Neighbor", f"{ours}+m50"),
+                ("Merge Slivers Under 200 px Into a Neighbor", f"{ours}+m200"),
             ],
         ),
         (
-            "Minimum parcel size",
+            "Minimum Parcel Size",
             [(f"Released, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
             + [(f"Ours, {a} m$^2$", f"{ours}+A{a}") for a in (450, 900, 1800, 3600)],
         ),
@@ -210,9 +210,9 @@ def timing_rows() -> list[str]:
     labels = {
         "released": "Released",
         "thr": "Thresholds",
-        "ucm": "Hierarchical merging",
-        "iterh": "Iterative marker depth",
-        "swst": "Stochastic watershed",
+        "ucm": "Hierarchical Merging",
+        "iterh": "Iterative Marker Depth",
+        "swst": "Stochastic Watershed",
         "ours": "Ours",
     }
     frames = {}

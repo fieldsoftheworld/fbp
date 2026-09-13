@@ -44,21 +44,21 @@ COMPARE = [
     ("Released", "$h$", "depth", "released", "raw:v:arg-ws2"),
     ("Thresholds~\\cite{waldner2020decode}", "$t_e$, $t_b$", "thr", "thr", None),
     (
-        "Hierarchical merging~\\cite{arbelaez2011hierarchical}",
+        "Hierarchical Merging~\\cite{arbelaez2011hierarchical}",
         "$k$",
         "ucm",
         "ucm",
         None,
     ),
     (
-        "Iterative depth~\\cite{koyuncu2016iterative}",
+        "Iterative Depth~\\cite{koyuncu2016iterative}",
         "$a$, sched.",
         "iterh",
         "iterh",
         None,
     ),
     (
-        "Stochastic watershed~\\cite{angulo2007stochastic}",
+        "Stochastic Watershed~\\cite{angulo2007stochastic}",
         "$n$, $m$, $t$",
         "swst",
         "swst",
@@ -153,7 +153,7 @@ def main() -> None:
         higher = [True, True, True, True, False, False]
         for name, strat in (
             ("Released, $h{=}2$", BASE),
-            ("Released, min size", RELEASED_FILTER),
+            ("Released, Min Size", RELEASED_FILTER),
             ("Ours", OURS),
         ):
             r = m.loc[strat]
@@ -212,21 +212,30 @@ def main() -> None:
     ms2 = macro_vec("s2_b7", "test/pixel")
 
     def delta(m: pd.DataFrame, s: str) -> str:
+        """Signed PQ change, colored green when it helps and red when it hurts.
+
+        \\gainc and \\lossc are defined in the preamble of the letter, so the
+        two colors are set in one place rather than per cell.
+        """
         if s not in m.index:
             return "--"
-        return f"${100 * (m.loc[s].pq - m.loc[BASE].pq):+.1f}$"
+        d = 100 * (m.loc[s].pq - m.loc[BASE].pq)
+        # a change that rounds to 0.0 is shown as neither a gain nor a loss,
+        # so the color never claims more than the printed digit supports
+        cmd = "flatc" if abs(d) < 0.05 else ("gainc" if d > 0 else "lossc")
+        return f"\\{cmd}{{${d:+.1f}$}}"
 
     abl = [
-        (r"\multicolumn{3}{@{}l}{\emph{Foreground and split rule}} \\", None),
-        ("Field, components", "cc"),
-        ("Field, watershed instances", "raw:h2"),
-        ("Field, watershed components ($h{=}2$)", BASE),
-        ("Field, supported splits", "raw:v:arg-sup-h2-t0.7"),
-        ("Not-background, components", "raw:v:nbg-none"),
-        ("Not-background, supported splits", OURS_NOFILTER),
-        (r"\multicolumn{3}{@{}l}{\emph{Minimum parcel size of 900~m$^2$}} \\", None),
-        ("Released, with minimum size", RELEASED_FILTER),
-        ("Ours, without minimum size", OURS_NOFILTER),
+        (r"\multicolumn{3}{@{}l}{\emph{Foreground and Split Rule}} \\", None),
+        ("Field, Components", "cc"),
+        ("Field, Watershed Instances", "raw:h2"),
+        ("Field, Watershed Components ($h{=}2$)", BASE),
+        ("Field, Supported Splits", "raw:v:arg-sup-h2-t0.7"),
+        ("Not-Background, Components", "raw:v:nbg-none"),
+        ("Not-Background, Supported Splits", OURS_NOFILTER),
+        (r"\multicolumn{3}{@{}l}{\emph{Minimum Parcel Size of 900~m$^2$}} \\", None),
+        ("Released, With Minimum Size", RELEASED_FILTER),
+        ("Ours, Without Minimum Size", OURS_NOFILTER),
     ]
     lines = []
     for name, strat in abl:
@@ -236,7 +245,7 @@ def main() -> None:
         a, b = delta(mb3, strat), delta(ms2, strat)
         if strat == OURS:
             # bold inside math needs \mathbf; \textbf around $...$ does nothing
-            a, b = (f"$\\mathbf{{{x.strip('$')}}}$" for x in (a, b))
+            a, b = (x.replace("{$", "{$\\mathbf{").replace("$}", "}$}") for x in (a, b))
         lines.append(f"{name} & {a} & {b} \\\\")
     (OUT / "rev_ablation_rows.tex").write_text("\n".join(lines) + "\n")
 

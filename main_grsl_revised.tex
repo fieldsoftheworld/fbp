@@ -11,6 +11,14 @@
 \usepackage{amssymb}
 \usepackage{cite}
 \usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+% Sign colors for the ablation table, defined once. Dark enough to stay legible
+% in greyscale print, where they separate by lightness rather than hue.
+\definecolor{gaingreen}{HTML}{1B7837}
+\definecolor{lossred}{HTML}{B2182B}
+\newcommand{\gainc}[1]{\textcolor{gaingreen}{#1}}
+\newcommand{\lossc}[1]{\textcolor{lossred}{#1}}
+\newcommand{\flatc}[1]{#1}
 \graphicspath{{figures/}}
 \input{tables/rev_values}
 % LaTeX's \input misbehaves inside tabular; use the primitive for table bodies.
@@ -77,7 +85,7 @@ The marker depth stays at the released default of $h=2$.
 A minimum parcel size, which any conversion can apply, removes the smallest polygons at the end.
 All three constants are the same for every country and sensor.
 
-We evaluate on the ten densely annotated held-out countries of Fields of The World v2~\cite{kerner2024ftw} with the released EfficientNet~\cite{tan2019efficientnet} U-Nets~\cite{ronneberger2015unet} for PlanetScope~\cite{corley_ftp} and Sentinel-2~\cite{kerner2024ftw}, scored against the vector parcels.
+We evaluate on the ten densely annotated held-out countries of Fields of The World~\cite{kerner2024ftw} with the released EfficientNet~\cite{tan2019efficientnet} U-Nets~\cite{ronneberger2015unet} for PlanetScope~\cite{corley_ftp} and Sentinel-2~\cite{kerner2024ftw}, scored against the vector parcels.
 With the same minimum-size step, the released pipeline trails our rule by \GainMin{} to \GainMax{} macro panoptic quality points across two encoders and two sensors.
 Improvements occur in \UpTotal{} of the 40 country and model pairs.
 Selecting the best watershed depth per country on the test labels recovers less than a third of that gain (Sec.~\ref{sec:results}).
@@ -152,7 +160,7 @@ The minimum-size step also applies to other conversions, and Sec.~\ref{sec:ablat
 \label{sec:experiments}
 
 \paragraph{Data}
-We use the test split of the ten densely annotated held-out countries of Fields of The World v2~\cite{kerner2024ftw}, named in Fig.~\ref{fig:percountry}, with 2,544 PlanetScope patches at 3~m~\cite{corley_ftp} and 3,034 Sentinel-2 patches.
+We use the test split of the ten densely annotated held-out countries of Fields of The World~\cite{kerner2024ftw}, named in Fig.~\ref{fig:percountry}, with 2,544 PlanetScope patches at 3~m~\cite{corley_ftp} and 3,034 Sentinel-2 patches.
 Kenya is excluded because its annotations are presence-only.
 The PlanetScope set is the subset of these patches with a co-registered PlanetScope image, so each sensor is compared against its own baseline rather than against the other.
 The reference for every score is the released vector parcels clipped to each patch, not the rasterized semantic mask.
@@ -196,7 +204,7 @@ At the patch level the recovered parcels are thin ones the released pipeline dro
 \caption{Polygon Accuracy on Ten Held-Out Countries}
 \label{tab:main}
 \footnotesize
-\setlength{\tabcolsep}{2.1pt}
+\setlength{\tabcolsep}{1.85pt}
 \begin{tabular}{@{}llcccccc@{}}
 \toprule
 Model & Method & PQ$\uparrow$ & SQ$\uparrow$ & RQ$\uparrow$ & PQ$_{\mathrm{s}}\uparrow$ & Miss$\downarrow$ & Merge$\downarrow$ \\

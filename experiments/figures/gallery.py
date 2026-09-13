@@ -228,7 +228,7 @@ def draw_pred(ax, inst, gt, seed, pq: float, bold: bool = False):
 
 
 def main() -> None:
-    use_style()
+    use_style(family="serif")
     wp = per_patch_delta("planet_b3", "pixel")
     ws = per_patch_delta("s2_b7", "pixel")
     examples = [
@@ -237,7 +237,7 @@ def main() -> None:
         if c != "portugal"
     ]
     examples += [("s2_b7", c, pick(ws, "s2_b7", c), "S2 B7") for c in S2_COUNTRIES]
-    examples.append((*FAILURE, "Planet B3, failure"))
+    examples.append((*FAILURE, "Planet B3, Failure"))
     n_rows = int(np.ceil(len(examples) / PER_ROW))
     ncols = PER_ROW * 3
     panel = (WIDE * 0.985) / (ncols + 0.35 * (PER_ROW - 1))
@@ -272,7 +272,7 @@ def main() -> None:
         axes[1].text(
             0.5,
             1.03,
-            f"{NAMES[country]}, {tag}, {n_gt} parcels",
+            f"{NAMES[country]}, {tag}, {n_gt} Parcels",
             transform=axes[1].transAxes,
             fontsize=6,
             ha="center",
@@ -280,7 +280,7 @@ def main() -> None:
         )
         if k == 0:
             # inside the panels, so the labels cost no vertical space
-            for ax, t in zip(axes, ("image", "released", "ours"), strict=True):
+            for ax, t in zip(axes, ("Image", "Released", "Ours"), strict=True):
                 ax.text(
                     0.03,
                     0.97,
@@ -295,9 +295,9 @@ def main() -> None:
                 )
     handles = [
         Patch(
-            facecolor=PALETTE["green"], edgecolor="#999999", label="predicted parcel (fill)"
+            facecolor=PALETTE["green"], edgecolor="#999999", label="Predicted Parcel (Fill)"
         ),
-        Patch(facecolor="white", edgecolor="black", label="reference parcel (outline)"),
+        Patch(facecolor="white", edgecolor="black", label="Reference Parcel (Outline)"),
     ]
     fig.legend(
         handles=handles,

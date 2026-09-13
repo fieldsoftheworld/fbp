@@ -42,7 +42,7 @@ def deltas(run: str, sub: str) -> pd.Series:
 
 
 def main() -> None:
-    use_style()
+    use_style(family="serif")
     table = pd.DataFrame({label: deltas(run, sub) for run, sub, label, _, _ in RUNS})
     order = table.mean(axis=1).sort_values().index  # smallest mean gain at the bottom
     table = table.loc[order]
@@ -71,11 +71,11 @@ def main() -> None:
         color="black",
         linewidth=1.0,
         zorder=4,
-        label="mean of four",
+        label="Mean of Four",
     )
     ax.set_yticks(y, [NAMES[c] for c in order])
     ax.set_ylim(-0.6, len(order) - 0.4)
-    ax.set_xlabel("PQ change vs. field components at $h=2$ (points)")
+    ax.set_xlabel("PQ Change vs. Released Pipeline With Minimum Size (Points)")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", length=0)

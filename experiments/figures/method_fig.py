@@ -57,7 +57,7 @@ def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.nd
 
 
 def main() -> None:
-    use_style()
+    use_style(family="serif")
     npz = cache_dir(f"{RUN}/test") / COUNTRY / f"{PID}.npz"
     grid = refs.load_grid(npz, COUNTRY)
     with np.load(npz) as d:
@@ -120,17 +120,17 @@ def main() -> None:
     final_img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
 
     panels = [
-        (rgb, "(a) image", None),
-        (pb, "(b) boundary\nprobability $p_{\\mathrm{bnd}}$", "gray_r"),
-        (fg_img, "(c) foreground; orange =\nboundary pixels kept", None),
+        (rgb, "(a) Image", None),
+        (pb, "(b) Boundary\nProbability $p_{\\mathrm{bnd}}$", "gray_r"),
+        (fg_img, "(c) Foreground; Orange =\nBoundary Pixels Kept", None),
         (
             np.where(fg, dist, np.nan),
-            "(d) distance $D$ to boundary;\nred = $h$-maxima markers",
+            "(d) Distance $D$ to Boundary;\nRed = $h$-Maxima Markers",
             "viridis",
         ),
-        (ws_img, "(e) watershed regions\nand lines", None),
-        (sup_img, "(f) line support $s(\\ell)$;\nkept if $s\\geq\\tau=0.7$", None),
-        (final_img, "(g) parcels; reference\noutlined in black", None),
+        (ws_img, "(e) Watershed Regions\nand Lines", None),
+        (sup_img, "(f) Line Support $s(\\ell)$;\nKept if $s\\geq\\tau=0.7$", None),
+        (final_img, "(g) Parcels; Reference\nOutlined in Black", None),
     ]
     n = len(panels)
     panel_w = WIDE / (n + 0.9)
