@@ -45,11 +45,12 @@ ASPECT = 0.62
 # Rows are cropped to a 4:3 window: the full patch width, less height, so three
 # rows fit the page without shrinking the panels.
 # All three hold many fields per patch, so the watershed has real decisions to
-# make; the Cambodia crop is windowed so its smallholder fields stay legible.
+# make. Two rows are PlanetScope and one Sentinel-2, and the Cambodia crop is
+# windowed so its smallholder fields stay legible.
 EXAMPLES = [
-    ("planet_b3", "croatia", "g10-3_00071_11", "Croatia", 0.63),
-    ("planet_b3", "slovenia", "g13_00038_6", "Slovenia", 0.63),
-    ("planet_b3", "cambodia", "g59_0000001536-0000000000", "Cambodia", 0.26),
+    ("planet_b3", "croatia", "g10-3_00071_11", "Croatia, PS", 0.63),
+    ("planet_b3", "slovenia", "g13_00038_6", "Slovenia, PS", 0.63),
+    ("s2_b7", "cambodia", "g60_0000000000-0000001536", "Cambodia, S2", 0.26),
 ]
 COLUMNS = [
     "(a) Image",
