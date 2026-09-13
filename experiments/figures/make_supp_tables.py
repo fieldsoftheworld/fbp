@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 RES = ROOT / "experiments" / "results"
 OUT = ROOT / "tables"
 RUNS = [
-    ("planet_b3", "test", "Planet B3"),
-    ("planet_b7", "test", "Planet B7"),
+    ("planet_b3", "test", "PS B3"),
+    ("planet_b7", "test", "PS B7"),
     ("s2_b7", "test/pixel", "S2 B7"),
     ("s2_b3", "test/pixel", "S2 B3"),
 ]
@@ -239,7 +239,7 @@ def timing_rows() -> list[str]:
         "ours": "Boundary veto",
     }
     frames = {}
-    for run, label in (("planet_b3", "Planet B3"), ("s2_b7", "S2 B7")):
+    for run, label in (("planet_b3", "PS B3"), ("s2_b7", "S2 B7")):
         f = RES / "cost" / f"{run}_test.csv"
         if f.exists():
             df = pd.read_csv(f)

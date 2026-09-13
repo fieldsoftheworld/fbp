@@ -24,6 +24,7 @@ import pandas as pd
 import rasterio
 import rasterio.features
 from matplotlib import colors as mcolors
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from scipy.ndimage import binary_dilation, distance_transform_edt, label
 
@@ -232,12 +233,12 @@ def main() -> None:
     wp = per_patch_delta("planet_b3", "pixel")
     ws = per_patch_delta("s2_b7", "pixel")
     examples = [
-        ("planet_b3", c, pick(wp, "planet_b3", c), "Planet B3")
+        ("planet_b3", c, pick(wp, "planet_b3", c), "PS")
         for c in DENSE10
         if c != "portugal"
     ]
-    examples += [("s2_b7", c, pick(ws, "s2_b7", c), "S2 B7") for c in S2_COUNTRIES]
-    examples.append((*FAILURE, "Planet B3, Failure"))
+    examples += [("s2_b7", c, pick(ws, "s2_b7", c), "S2") for c in S2_COUNTRIES]
+    examples.append((*FAILURE, "PS, Failure"))
     n_rows = int(np.ceil(len(examples) / PER_ROW))
     ncols = PER_ROW * 3
     panel = (WIDE * 0.985) / (ncols + 0.35 * (PER_ROW - 1))
@@ -271,12 +272,24 @@ def main() -> None:
         n_gt = len(np.unique(gt[gt > 0]))
         axes[1].text(
             0.5,
-            1.03,
-            f"{NAMES[country]}, {tag}, {n_gt} Parcels",
+            1.055,
+            f"{NAMES[country]}, {tag}, {n_gt} Fields",
             transform=axes[1].transAxes,
             fontsize=6,
             ha="center",
             va="bottom",
+        )
+        # rule under the title, spanning the triple, so each title visibly
+        # belongs to the three panels beneath it rather than floating between
+        left, right = axes[0].get_position(), axes[2].get_position()
+        fig.add_artist(
+            Line2D(
+                [left.x0, right.x1],
+                [left.y1 + 0.0045, left.y1 + 0.0045],
+                transform=fig.transFigure,
+                color="#444444",
+                linewidth=0.5,
+            )
         )
         if k == 0:
             # inside the panels, so the labels cost no vertical space
@@ -295,9 +308,9 @@ def main() -> None:
                 )
     handles = [
         Patch(
-            facecolor=PALETTE["green"], edgecolor="#999999", label="Predicted Parcel (Fill)"
+            facecolor=PALETTE["green"], edgecolor="#999999", label="Predicted Field (Fill)"
         ),
-        Patch(facecolor="white", edgecolor="black", label="Reference Parcel (Outline)"),
+        Patch(facecolor="white", edgecolor="black", label="Reference Field (Outline)"),
     ]
     fig.legend(
         handles=handles,

@@ -1,10 +1,11 @@
-"""Worked example of the post-processing (Fig. 2): every intermediate image on one crop.
+"""Worked example of the post-processing (Fig. 2): every intermediate image on three crops.
 
-Panels, left to right: image; boundary probability; foreground with the pixels
-the field argmax would drop; distance surface with h-maxima markers; watershed
-regions and lines; lines colored by their support s(l); final parcels with
-reference outlines. Recomputed from the prediction cache with the same code
-that produced the tables.
+Columns, left to right: image; boundary probability; foreground with the pixels
+the field class would drop; distance surface with the seed points; watershed
+regions and lines; lines colored by their support s(l); final polygons with
+reference outlines. One row per crop, all three chosen for dense field layouts
+where the conversion has something to get wrong. Recomputed from the prediction
+cache with the same code that produced the tables.
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/method_fig.py
 """
@@ -38,7 +39,31 @@ from figstyle import PALETTE, WIDE, save, use_style  # noqa: E402
 from gallery import label_colors, outlines, rgb_for  # noqa: E402
 
 TAU, H = 0.7, 2.0
-RUN, COUNTRY, PID = "planet_b3", "lithuania", "g11_00047_7"
+# height:width of each row; wider rows let three of them fit the page budget
+ASPECT = 0.62
+# (run, country, patch, label, crop height in px or None for the full height).
+# Rows are cropped to a 4:3 window: the full patch width, less height, so three
+# rows fit the page without shrinking the panels.
+# All three hold many fields per patch, so the watershed has real decisions to
+# make; the Cambodia crop is windowed so its smallholder fields stay legible.
+EXAMPLES = [
+    ("planet_b3", "croatia", "g10-3_00071_11", "Croatia", 0.63),
+    ("planet_b3", "slovenia", "g13_00038_6", "Slovenia", 0.63),
+    ("planet_b3", "cambodia", "g59_0000001536-0000000000", "Cambodia", 0.26),
+]
+COLUMNS = [
+    "(a) Image",
+    "(b) Boundary\nProbability $p_{\\mathrm{bnd}}$",
+    "(c) Foreground; Orange =\nBoundary Pixels Kept",
+    "(d) Distance $D$ to Boundary;\nRed = Seed Points",
+    "(e) Watershed Regions\nand Lines",
+    "(f) Line Support $s(\\ell)$;\nKept if $s\\geq\\tau=0.7$",
+    "(g) Polygons; Reference\nOutlined in Black",
+]
+SUPPORT_CMAP = mcolors.LinearSegmentedColormap.from_list(
+    "line_support", [PALETTE["red"], "white", PALETTE["blue"]]
+)
+SUPPORT_NORM = mcolors.TwoSlopeNorm(vmin=0, vcenter=TAU, vmax=1)
 
 
 def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.ndarray:
@@ -56,10 +81,14 @@ def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.nd
     return s
 
 
-def main() -> None:
-    use_style(family="serif")
-    npz = cache_dir(f"{RUN}/test") / COUNTRY / f"{PID}.npz"
-    grid = refs.load_grid(npz, COUNTRY)
+def build_row(run: str, country: str, pid: str, crop: float):
+    """The seven panel images for one crop, plus its seed-point coordinates.
+
+    ``crop`` is the kept fraction of the patch's short side; the window is
+    centered and spans the full width, giving every row the same aspect.
+    """
+    npz = cache_dir(f"{run}/test") / country / f"{pid}.npz"
+    grid = refs.load_grid(npz, country)
     with np.load(npz) as d:
         prob, seg = d["prob"].astype(np.float32), d["seg"].astype(np.uint8)
     fg = foreground(seg, prob, "nbg")
@@ -70,7 +99,7 @@ def main() -> None:
     )
     lines = fg & (ws == 0)
     s_map = line_support(ws, lines, prob)
-    final, _, kept = supported_split(fg, seg, prob, H, TAU, return_lines=True)
+    final = supported_split(fg, seg, prob, H, TAU)
     gt_shapes, _ = refs.vector(grid)
     gt = np.zeros(grid.shape, dtype=np.int32)
     if gt_shapes:
@@ -82,31 +111,26 @@ def main() -> None:
         )
 
     Hh, Ww = grid.shape
-    side = min(Hh, Ww)
-    r0, c0 = (Hh - side) // 2, (Ww - side) // 2
-    sl = (slice(r0, r0 + side), slice(c0, c0 + side))
-    rgb = rgb_for(RUN, COUNTRY, PID, grid.shape)[sl]
-    seg, fg, dist, markers, ws, lines, s_map, final, kept, gt = (
-        a[sl] for a in (seg, fg, dist, markers, ws, lines, s_map, final, kept, gt)
+    wide = min(Ww, int(round(min(Hh, Ww) * crop / ASPECT)))
+    tall = int(round(wide * ASPECT))
+    r0, c0 = (Hh - tall) // 2, (Ww - wide) // 2
+    sl = (slice(r0, r0 + tall), slice(c0, c0 + wide))
+    rgb = rgb_for(run, country, pid, grid.shape)[sl]
+    seg, fg, dist, markers, ws, lines, s_map, final, gt = (
+        a[sl] for a in (seg, fg, dist, markers, ws, lines, s_map, final, gt)
     )
     pb = prob[2][sl]
 
-    # panel images
     fg_img = np.ones((*fg.shape, 3))
     fg_img[seg == 1] = mcolors.to_rgb(PALETTE["green"])
-    fg_img[(seg == 2)] = mcolors.to_rgb(
-        PALETTE["orange"]
-    )  # boundary pixels the released mask drops
+    # the boundary-class pixels the FTP conversion drops from its foreground
+    fg_img[seg == 2] = mcolors.to_rgb(PALETTE["orange"])
 
     ws_img = label_colors(ws, 4)
     ws_img[binary_dilation(lines, iterations=1) & fg] = (0.15, 0.15, 0.15)
 
     sup_img = np.ones((*fg.shape, 3))
     sup_img[fg] = (0.88, 0.88, 0.88)
-    cmap = mcolors.LinearSegmentedColormap.from_list(
-        "line_support", [PALETTE["red"], "white", PALETTE["blue"]]
-    )
-    norm = mcolors.TwoSlopeNorm(vmin=0, vcenter=TAU, vmax=1)
     thick = binary_dilation(lines, iterations=1) & fg
     # propagate s to the thickened line pixels from the nearest line pixel
     from scipy.ndimage import distance_transform_edt as edt
@@ -114,86 +138,101 @@ def main() -> None:
     _, (ir, ic) = edt(~lines, return_indices=True)
     s_thick = s_map[ir, ic]
     m = thick & ~np.isnan(s_thick)
-    sup_img[m] = cmap(norm(s_thick[m]))[:, :3]
+    sup_img[m] = SUPPORT_CMAP(SUPPORT_NORM(s_thick[m]))[:, :3]
 
     final_img = label_colors(final, 2)
     final_img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
 
     panels = [
-        (rgb, "(a) Image", None),
-        (pb, "(b) Boundary\nProbability $p_{\\mathrm{bnd}}$", "gray_r"),
-        (fg_img, "(c) Foreground; Orange =\nBoundary Pixels Kept", None),
-        (
-            np.where(fg, dist, np.nan),
-            "(d) Distance $D$ to Boundary;\nRed = $h$-Maxima Markers",
-            "viridis",
-        ),
-        (ws_img, "(e) Watershed Regions\nand Lines", None),
-        (sup_img, "(f) Line Support $s(\\ell)$;\nKept if $s\\geq\\tau=0.7$", None),
-        (final_img, "(g) Parcels; Reference\nOutlined in Black", None),
+        (rgb, None),
+        (pb, "gray_r"),
+        (fg_img, None),
+        (np.where(fg, dist, np.nan), "viridis"),
+        (ws_img, None),
+        (sup_img, None),
+        (final_img, None),
     ]
-    n = len(panels)
+    return panels, np.nonzero(markers > 0)
+
+
+def main() -> None:
+    use_style(family="serif")
+    rows = [(lab, *build_row(r, c, p, crop)) for r, c, p, lab, crop in EXAMPLES]
+    n, nr = len(COLUMNS), len(rows)
     panel_w = WIDE / (n + 0.9)
-    fig = plt.figure(figsize=(WIDE, panel_w * 1.45))
+    # the bottom strip carries the column titles and the support colorbar
+    fig = plt.figure(figsize=(WIDE, panel_w * ASPECT * nr * 1.06 + 0.46))
+    bottom = 0.46 / (panel_w * ASPECT * nr * 1.06 + 0.46)
     gs = fig.add_gridspec(
-        1, n, left=0.004, right=0.996, top=0.99, bottom=0.30, wspace=0.16
+        nr, n, left=0.004, right=0.996, top=0.995, bottom=bottom, wspace=0.16, hspace=0.06
     )
-    axes = [fig.add_subplot(gs[0, j]) for j in range(n)]
-    for ax, (img, title, cm) in zip(axes, panels, strict=True):
-        if cm is None:
-            ax.imshow(img, interpolation="nearest")
-        else:
-            ax.imshow(
-                img,
-                cmap=cm,
-                interpolation="nearest",
-                vmin=0 if cm == "gray_r" else None,
+    axes = [[fig.add_subplot(gs[i, j]) for j in range(n)] for i in range(nr)]
+
+    for i, (label_text, panels, (mr, mc)) in enumerate(rows):
+        for j, (img, cm) in enumerate(panels):
+            ax = axes[i][j]
+            if cm is None:
+                ax.imshow(img, interpolation="nearest")
+            else:
+                ax.imshow(
+                    img,
+                    cmap=cm,
+                    interpolation="nearest",
+                    vmin=0 if cm == "gray_r" else None,
+                )
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.grid(False)
+            for s in ax.spines.values():
+                s.set_linewidth(0.4)
+                s.set_color("#888888")
+        # seed points on the distance panel
+        axes[i][3].scatter(mc, mr, s=1.2, color=PALETTE["red"], linewidths=0)
+        # name the crop inside its first panel, so it costs no layout width
+        axes[i][0].text(
+            0.035,
+            0.965,
+            label_text,
+            transform=axes[i][0].transAxes,
+            fontsize=5.5,
+            ha="left",
+            va="top",
+            bbox=dict(boxstyle="square,pad=0.15", fc="white", ec="none", alpha=0.85),
+        )
+        # arrows between columns, on every row, so each row reads as one pass
+        for j in range(n - 1):
+            a, b = axes[i][j].get_position(), axes[i][j + 1].get_position()
+            y = (a.y0 + a.y1) / 2
+            fig.patches.append(
+                FancyArrowPatch(
+                    (a.x1 + 0.002, y),
+                    (b.x0 - 0.002, y),
+                    transform=fig.transFigure,
+                    arrowstyle="-|>",
+                    mutation_scale=4,
+                    color="#555555",
+                    linewidth=0.5,
+                )
             )
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.grid(False)
-        for s in ax.spines.values():
-            s.set_linewidth(0.4)
-            s.set_color("#888888")
-        ax.text(
+
+    # column titles once, under the bottom row
+    for j, title in enumerate(COLUMNS):
+        axes[-1][j].text(
             0.5,
-            -0.05,
+            -0.06,
             title,
-            transform=ax.transAxes,
+            transform=axes[-1][j].transAxes,
             fontsize=6,
             ha="center",
             va="top",
             linespacing=1.15,
         )
-    # markers on the distance panel
-    mr, mc = np.nonzero(markers > 0)
-    axes[3].scatter(mc, mr, s=1.6, color=PALETTE["red"], linewidths=0)
-    # arrows between panels
-    for j in range(n - 1):
-        a, b = axes[j].get_position(), axes[j + 1].get_position()
-        y = (a.y0 + a.y1) / 2
-        fig.patches.append(
-            FancyArrowPatch(
-                (a.x1 + 0.002, y),
-                (b.x0 - 0.002, y),
-                transform=fig.transFigure,
-                arrowstyle="-|>",
-                mutation_scale=5,
-                color="#555555",
-                linewidth=0.6,
-            )
-        )
-    # colorbar for (f)
-    pos = axes[5].get_position()
+    # colorbar for column (f), under its titles
+    pos = axes[-1][5].get_position()
     cax = fig.add_axes(
-        [
-            pos.x0 + 0.12 * pos.width,
-            pos.y0 - 0.30 * pos.height,
-            0.76 * pos.width,
-            0.045 * pos.height,
-        ]
+        [pos.x0 + 0.12 * pos.width, bottom * 0.30, 0.76 * pos.width, 0.013]
     )
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm = plt.cm.ScalarMappable(cmap=SUPPORT_CMAP, norm=SUPPORT_NORM)
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cb.set_ticks([0, TAU, 1])
     cb.ax.tick_params(labelsize=5, length=1.5, pad=1)

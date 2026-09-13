@@ -64,7 +64,7 @@ The global map~\cite{ftw_global} skips the watershed and extracts connected comp
 \caption{\textbf{The boundary veto recovers narrow and small fields discarded by the FTP conversion, in every country and on both sensors.}
 Each triple shows the image and both conversions' polygons, with reference polygons outlined in black and the patch's PQ printed on each map.
 The recovered fields include strips along tracks and hedgerows and small fields covered by the boundary class.
-Rows 1--3 are PlanetScope B3 and rows 4--6 Sentinel-2 B7, ending with a failure in which a predicted boundary along a track splits one reference field.
+Panels are labeled PS for PlanetScope and S2 for Sentinel-2, rows 1--3 running the B3 model on PlanetScope and rows 4--6 the B7 model on Sentinel-2, ending with a failure in which a predicted boundary along a track splits one reference field.
 Each panel is the largest-gain patch for its country among those whose densest window holds at least eight reference fields.}
 \label{fig:gallery}
 \end{figure*}
@@ -112,7 +112,8 @@ The boundary veto uses only the most probable class at each pixel, written $\arg
 The pixels the network assigns to the boundary class, orange in (c), are the ones the FTP conversion drops from the foreground and the boundary veto keeps.
 A watershed over the distance to the predicted boundary (d) proposes too many splits (e) because it cuts at every narrow point.
 Colors show support for each proposed line (f), with blue lines following predicted boundaries and red lines crossing fields.
-The veto keeps the blue lines and removes the red ones to produce one polygon per field (g), with the reference outlined in black.}
+The veto keeps the blue lines and removes the red ones to produce one polygon per field (g), with the reference outlined in black.
+Each row is one PlanetScope crop, chosen where fields are dense enough that the conversion has real decisions to make.}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -186,7 +187,6 @@ All values are on a 0--100 scale.
 The boundary veto raises PQ on all four model and sensor pairs with the same minimum-size step as the FTP conversion (Table~\ref{tab:main}).
 Even selecting each country's best watershed depth on its test labels produces a smaller gain (Table~\ref{tab:compare}, $\Delta$tune).
 SQ and RQ improve along with small-field PQ, while the miss rate falls on every pair and the merge rate changes by at most 1.5 points in either direction.
-Recovering discarded fields accounts for the gain, as the ablation confirms.
 The largest improvements occur in the smallest fields (Table~\ref{tab:main}), where smallholder mapping needs them~\cite{persello2023ai4smallfarms}.
 On PlanetScope B3, PQ below 0.5~ha rises from 15.7 to 20.5, compared with 52.0 to 53.4 above 2~ha, with the same ordering on all four pairs (supplementary material).
 Cambodia has the smallest fields and gains most on average over the four pairs, while Portugal, with two test patches, has the only pair that decreases (Fig.~\ref{fig:percountry}).
@@ -227,8 +227,7 @@ All but one of the forty pairs improve, with the exception in the country that h
 \subsection{Comparison with Prior Post-Processing}
 \label{sec:compare}
 The boundary veto is the only conversion that exceeds the FTP conversion on these predictions (Table~\ref{tab:compare}).
-Thresholding the two probability maps gives the highest accuracy and lowest cost among prior conversions, but it leaves neighboring fields merged wherever a predicted boundary has a gap.
-A watershed can separate those fields.
+Thresholding the two probability maps gives the highest accuracy and lowest cost among prior conversions, but it leaves neighboring fields merged wherever a predicted boundary has a gap, which is what a watershed can separate.
 Hierarchical merging resembles the boundary veto because both score borders by boundary probability, but it uses an absolute threshold while we compare probabilities at the same pixel.
 Selecting each country's best setting using its own test labels instead of the shared setting adds \OursTune{} points to the boundary veto and at most \PriorTuneMax{} to any prior method.
 We measure runtime on one core, grouping PlanetScope patches by the number of reference fields they contain.
@@ -264,7 +263,6 @@ Timings are medians over sampled patches in two density bins, on one core.}
 \label{sec:ablation}
 Keeping boundary-class pixels without splitting merges neighboring fields and lowers PQ to \NbgNonePQ{} (Table~\ref{tab:ablation}).
 Conversely, the split rule adds nothing to the field-class foreground because gaps left by the boundary class already separate most fields.
-We need both changes to recover discarded fields while keeping neighbors separate.
 The supplementary sweeps show at most half a point of variation for $\tau$ between 0.7 and 0.9.
 With $h=1$, PQ falls by about one point, with $h=4$ by one to two, and with $h=8$ it falls because small fields lose their seeds.
 Three alternatives to the most probable class also failed: Otsu thresholding, which separates low from high field probabilities automatically, morphological closing, which fills gaps in the boundary class, and a watershed driven by boundary probability in place of distance.
