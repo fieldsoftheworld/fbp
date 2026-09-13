@@ -41,7 +41,7 @@ def f(x: float, nd: int = 1) -> str:
 
 COMPARE = [
     # label, knobs, transfer family, profile method, macro strategy on test
-    ("Released", "$h$", "depth", "released", "raw:v:arg-ws2"),
+    ("FTP conversion", "$h$", "depth", "released", "raw:v:arg-ws2"),
     ("Thresholds~\\cite{waldner2020decode}", "$t_e$, $t_b$", "thr", "thr", None),
     (
         "Hierarchical Merging~\\cite{arbelaez2011hierarchical}",
@@ -64,7 +64,7 @@ COMPARE = [
         "swst",
         None,
     ),
-    ("Ours", "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
+    ("Boundary veto", "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
 ]
 
 
@@ -113,7 +113,7 @@ def compare_rows() -> list[str]:
             f"{ms.loc[meth, '10-29']:.0f}",
             f"{ms.loc[meth, '100+']:.0f}",
         ]
-        if label == "Ours":
+        if label == "Boundary veto":
             cells = [f"\\textbf{{{c}}}" for c in cells[:2]] + cells[
                 2:
             ]  # plain numbers, not math
@@ -149,12 +149,13 @@ def main() -> None:
         m = macro_vec(run, sub)
         c = country_vec(run, sub)
         rows = []
-        cols = ["pq", "sq", "rq", "pq_small", "miss_rate", "merge_rate"]
-        higher = [True, True, True, True, False, False]
+        # macro PQ/SQ/RQ, then the small-field bin (<0.5 ha) the gain lands in
+        cols = ["pq", "sq", "rq", "pq_small", "rq_small", "miss_rate", "merge_rate"]
+        higher = [True, True, True, True, True, False, False]
         for name, strat in (
-            ("Released, $h{=}2$", BASE),
-            ("Released, Min Size", RELEASED_FILTER),
-            ("Ours", OURS),
+            ("FTP, $h{=}2$", BASE),
+            ("FTP + Min Size", RELEASED_FILTER),
+            ("Boundary Veto", OURS),
         ):
             r = m.loc[strat]
             cells = []
@@ -234,8 +235,8 @@ def main() -> None:
         ("Not-Background, Components", "raw:v:nbg-none"),
         ("Not-Background, Supported Splits", OURS_NOFILTER),
         (r"\multicolumn{3}{@{}l}{\emph{Minimum Parcel Size of 900~m$^2$}} \\", None),
-        ("Released, With Minimum Size", RELEASED_FILTER),
-        ("Ours, Without Minimum Size", OURS_NOFILTER),
+        ("FTP, With Minimum Size", RELEASED_FILTER),
+        ("Boundary Veto, Without Minimum Size", OURS_NOFILTER),
     ]
     lines = []
     for name, strat in abl:

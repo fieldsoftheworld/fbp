@@ -280,7 +280,7 @@ def main() -> None:
         )
         if k == 0:
             # inside the panels, so the labels cost no vertical space
-            for ax, t in zip(axes, ("Image", "Released", "Ours"), strict=True):
+            for ax, t in zip(axes, ("Image", "FTP", "Veto"), strict=True):
                 ax.text(
                     0.03,
                     0.97,

@@ -4,7 +4,8 @@ Writes tables/supp_*.tex:
   supp_sweep_rows    every tau and h setting, all four model/sensor runs
   supp_priors_rows   every prior-method setting, validation and test
   supp_variants_rows every alternative named in the ablation, validation and test
-  supp_country_rows  per-country PQ, released and ours, all four runs
+  supp_size_rows     PQ and RQ in FTP's hectare bins, all four runs
+  supp_country_rows  per-country PQ, FTP conversion and boundary veto, all four runs
   supp_timing_rows   median ms/patch in four density bins, both sensors
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_supp_tables.py
@@ -77,7 +78,7 @@ def sweep_rows() -> list[str]:
                 ("Field, Supported Splits", "raw:v:arg-sup-h2-t0.7"),
                 ("Not-Background, Components", "raw:v:nbg-none"),
                 ("Not-Background, Supported Splits", OURS_NOFILTER),
-                ("Ours, With Minimum Size", OURS),
+                ("Boundary Veto + Min Size", OURS),
             ],
         ),
     ]
@@ -141,8 +142,8 @@ def variants_rows() -> list[str]:
     rel = "raw:v:arg-ws2"
     blocks = [
         (
-            "Released Pipeline and Ours, No Minimum Size",
-            [("Released", BASE), ("Ours", ours)],
+            "FTP Conversion and Boundary Veto, No Minimum Size",
+            [("FTP conversion", BASE), ("Boundary veto", ours)],
         ),
         (
             "Alternatives to the Argmax Foreground",
@@ -158,7 +159,7 @@ def variants_rows() -> list[str]:
             ],
         ),
         (
-            "Steps Added to Ours",
+            "Steps Added to the Boundary Veto",
             [
                 ("Kept Line at Least 3 px", f"{ours}+l3"),
                 ("Kept Line at Least 5 px", f"{ours}+l5"),
@@ -175,8 +176,8 @@ def variants_rows() -> list[str]:
         ),
         (
             "Minimum Parcel Size",
-            [(f"Released, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
-            + [(f"Ours, {a} m$^2$", f"{ours}+A{a}") for a in (450, 900, 1800, 3600)],
+            [(f"FTP, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
+            + [(f"Boundary veto, {a} m$^2$", f"{ours}+A{a}") for a in (450, 900, 1800, 3600)],
         ),
     ]
     rows = []
@@ -184,6 +185,28 @@ def variants_rows() -> list[str]:
         rows.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for label, k in items:
             rows.append(f"{label} & {pq(val, k)} & {pq(test, k)} \\\\")
+    return rows
+
+
+def size_rows() -> list[str]:
+    """PQ and RQ in FTP's own hectare bins: small <0.5, medium 0.5-2, large >2."""
+    cols = ["pq_small", "pq_medium", "pq_large", "rq_small", "rq_medium", "rq_large"]
+    methods = [
+        ("FTP, $h{=}2$", BASE),
+        ("FTP + min size", "raw:v:arg-ws2+A900"),
+        ("Boundary veto", OURS),
+    ]
+    rows = []
+    for run, sub, label in RUNS:
+        m = macro(run, sub)
+        rows.append(f"\\multicolumn{{7}}{{@{{}}l}}{{\\emph{{{label}}}}} \\\\")
+        for name, strat in methods:
+            if strat not in m.index:
+                continue
+            r = m.loc[strat]
+            rows.append(
+                f"{name} & " + " & ".join(f"{100 * r[c]:.1f}" for c in cols) + r" \\"
+            )
     return rows
 
 
@@ -208,12 +231,12 @@ def country_rows() -> list[str]:
 def timing_rows() -> list[str]:
     order = ["1-9", "10-29", "30-99", "100+"]
     labels = {
-        "released": "Released",
+        "released": "FTP conversion",
         "thr": "Thresholds",
         "ucm": "Hierarchical Merging",
         "iterh": "Iterative Marker Depth",
         "swst": "Stochastic Watershed",
-        "ours": "Ours",
+        "ours": "Boundary veto",
     }
     frames = {}
     for run, label in (("planet_b3", "Planet B3"), ("s2_b7", "S2 B7")):
@@ -236,6 +259,7 @@ def main() -> None:
         ("sweep", sweep_rows),
         ("priors", priors_rows),
         ("variants", variants_rows),
+        ("size", size_rows),
         ("country", country_rows),
         ("timing", timing_rows),
     ):

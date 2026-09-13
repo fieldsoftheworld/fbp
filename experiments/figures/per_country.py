@@ -75,7 +75,7 @@ def main() -> None:
     )
     ax.set_yticks(y, [NAMES[c] for c in order])
     ax.set_ylim(-0.6, len(order) - 0.4)
-    ax.set_xlabel("PQ Change vs. Released Pipeline With Minimum Size (Points)")
+    ax.set_xlabel("PQ Change of the Boundary Veto vs. FTP + Min Size (Points)")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", length=0)
