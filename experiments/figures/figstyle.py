@@ -48,6 +48,14 @@ CYCLE = [PALETTE[k] for k in ("blue", "orange", "green", "red", "purple", "cyan"
 BASELINE = "#7F7F7F"
 MUTED = "#CFCFCF"
 
+# Image-panel furniture shared by the gallery and worked pipeline.
+PANEL_EDGE = "#888888"
+PANEL_LINEWIDTH = 0.35
+LABEL_BBOX = {"boxstyle": "square,pad=0.15", "fc": "white", "ec": "none", "alpha": 0.95}
+# Signed text needs darker colors than large categorical fills.
+GAIN = "#1B7837"
+LOSS = "#B2182B"
+
 SEQUENTIAL = "viridis"
 DIVERGING = "RdBu_r"
 

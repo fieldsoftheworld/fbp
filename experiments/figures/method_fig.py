@@ -35,7 +35,16 @@ from fieldvote.variants import (  # noqa: E402
     foreground,
     supported_split,
 )
-from figstyle import PALETTE, WIDE, save, use_style  # noqa: E402
+from figstyle import (  # noqa: E402
+    LABEL_BBOX,
+    LOSS,
+    PALETTE,
+    PANEL_EDGE,
+    PANEL_LINEWIDTH,
+    WIDE,
+    save,
+    use_style,
+)
 from gallery import label_colors, outlines, rgb_for  # noqa: E402
 
 TAU, H = 0.7, 2.0
@@ -54,15 +63,15 @@ EXAMPLES = [
 ]
 COLUMNS = [
     "(a) Image",
-    "(b) Boundary\nProbability $p_{\\mathrm{bnd}}$",
-    "(c) Foreground; Orange =\nBoundary Pixels Kept",
-    "(d) Distance $D$ to Boundary;\nRed = Seed Points",
+    "(b) Boundary\nProbability",
+    "(c) Foreground\nOrange: Boundary Class",
+    "(d) Distance $D$\nWhite: Seed Points",
     "(e) Watershed Regions\nand Lines",
-    "(f) Line Support $s(\\ell)$;\nKept if $s\\geq\\tau=0.7$",
-    "(g) Polygons; Reference\nOutlined in Black",
+    "(f) Line Support $s(\\ell)$\nKept if $s\\geq\\tau$",
+    "(g) Polygons\nBlack: Reference Outlines",
 ]
 SUPPORT_CMAP = mcolors.LinearSegmentedColormap.from_list(
-    "line_support", [PALETTE["red"], "white", PALETTE["blue"]]
+    "line_support", [LOSS, "white", PALETTE["blue"]]
 )
 SUPPORT_NORM = mcolors.TwoSlopeNorm(vmin=0, vcenter=TAU, vmax=1)
 
@@ -165,7 +174,14 @@ def main() -> None:
     fig = plt.figure(figsize=(WIDE, panel_w * ASPECT * nr * 1.06 + 0.46))
     bottom = 0.46 / (panel_w * ASPECT * nr * 1.06 + 0.46)
     gs = fig.add_gridspec(
-        nr, n, left=0.004, right=0.996, top=0.995, bottom=bottom, wspace=0.16, hspace=0.06
+        nr,
+        n,
+        left=0.004,
+        right=0.996,
+        top=0.995,
+        bottom=bottom,
+        wspace=0.16,
+        hspace=0.06,
     )
     axes = [[fig.add_subplot(gs[i, j]) for j in range(n)] for i in range(nr)]
 
@@ -185,10 +201,12 @@ def main() -> None:
             ax.set_yticks([])
             ax.grid(False)
             for s in ax.spines.values():
-                s.set_linewidth(0.4)
-                s.set_color("#888888")
+                s.set_linewidth(PANEL_LINEWIDTH)
+                s.set_color(PANEL_EDGE)
         # seed points on the distance panel
-        axes[i][3].scatter(mc, mr, s=1.2, color=PALETTE["red"], linewidths=0)
+        axes[i][3].scatter(
+            mc, mr, s=2.2, facecolor="white", edgecolor="black", linewidths=0.25
+        )
         # name the crop inside its first panel, so it costs no layout width
         axes[i][0].text(
             0.035,
@@ -198,7 +216,7 @@ def main() -> None:
             fontsize=5.5,
             ha="left",
             va="top",
-            bbox=dict(boxstyle="square,pad=0.15", fc="white", ec="none", alpha=0.85),
+            bbox=LABEL_BBOX,
         )
         # arrows between columns, on every row, so each row reads as one pass
         for j in range(n - 1):
@@ -231,12 +249,13 @@ def main() -> None:
     # colorbar for column (f), under its titles
     pos = axes[-1][5].get_position()
     cax = fig.add_axes(
-        [pos.x0 + 0.12 * pos.width, bottom * 0.30, 0.76 * pos.width, 0.013]
+        [pos.x0 + 0.06 * pos.width, bottom * 0.30, 0.88 * pos.width, 0.02]
     )
     sm = plt.cm.ScalarMappable(cmap=SUPPORT_CMAP, norm=SUPPORT_NORM)
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cb.set_ticks([0, TAU, 1])
-    cb.ax.tick_params(labelsize=5, length=1.5, pad=1)
+    cb.set_ticklabels(["0", r"$\tau=0.7$", "1"])
+    cb.ax.tick_params(labelsize=5.5, length=1.5, pad=1)
     cb.outline.set_linewidth(0.4)
     save(fig, str(ROOT / "figures" / "rev_method"), formats=("pdf",))
 

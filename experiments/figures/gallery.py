@@ -1,8 +1,8 @@
 """Cross-country gallery (Fig. 1): released pipeline vs. ours on one patch per country.
 
 Each example is a triple: image, released components, ours; reference parcels
-are drawn as black outlines on both prediction panels and the numbers are
-polygon counts in the crop. Rows cover all ten dense-label countries on
+are drawn as black outlines on both prediction panels; titles give crop field
+counts and badges give full-patch PQ. Rows cover all ten dense-label countries on
 PlanetScope B3 except Portugal (two test patches), eight countries on
 Sentinel-2 B7, and one failure case. Patch choice per (model, country): the
 largest per-patch PQ gain (ours minus released) among test patches with 10-120
@@ -42,7 +42,15 @@ from fieldvote.paths import (  # noqa: E402
     scores_dir,
 )
 from fieldvote.variants import run_variant  # noqa: E402
-from figstyle import PALETTE, WIDE, save, use_style  # noqa: E402
+from figstyle import (  # noqa: E402
+    LABEL_BBOX,
+    PALETTE,
+    PANEL_EDGE,
+    PANEL_LINEWIDTH,
+    WIDE,
+    save,
+    use_style,
+)
 
 TAU, H = 0.7, 2.0
 VARIANT = "nbg-sup-h2-t0.7+A900"
@@ -224,7 +232,7 @@ def draw_pred(ax, inst, gt, seed, pq: float, bold: bool = False):
         fontweight="bold" if bold else "normal",
         ha="right",
         va="bottom",
-        bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.9),
+        bbox=LABEL_BBOX,
     )
 
 
@@ -260,15 +268,15 @@ def main() -> None:
         pq_b, pq_o = patch_pq(wp if run == "planet_b3" else ws, country, pid)
         axes = [fig.add_subplot(gs[row, col * 3 + j]) for j in range(3)]
         axes[0].imshow(rgb, interpolation="nearest")
-        draw_pred(axes[1], base, gt, 1, pq_b)
+        draw_pred(axes[1], base, gt, 1, pq_b, bold=pq_b > pq_o)
         draw_pred(axes[2], ours, gt, 2, pq_o, bold=pq_o > pq_b)
         for ax in axes:
             ax.set_xticks([])
             ax.set_yticks([])
             ax.grid(False)
             for s in ax.spines.values():
-                s.set_linewidth(0.3)
-                s.set_color("#999999")
+                s.set_linewidth(PANEL_LINEWIDTH)
+                s.set_color(PANEL_EDGE)
         n_gt = len(np.unique(gt[gt > 0]))
         axes[1].text(
             0.5,
@@ -302,13 +310,13 @@ def main() -> None:
                     fontsize=5.5,
                     ha="left",
                     va="top",
-                    bbox=dict(
-                        boxstyle="square,pad=0.15", fc="white", ec="none", alpha=0.85
-                    ),
+                    bbox=LABEL_BBOX,
                 )
     handles = [
         Patch(
-            facecolor=PALETTE["green"], edgecolor="#999999", label="Predicted Field (Fill)"
+            facecolor=PALETTE["green"],
+            edgecolor=PANEL_EDGE,
+            label="Predicted Field (Color Fill)",
         ),
         Patch(facecolor="white", edgecolor="black", label="Reference Field (Outline)"),
     ]

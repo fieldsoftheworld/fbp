@@ -41,7 +41,7 @@ def f(x: float, nd: int = 1) -> str:
 
 COMPARE = [
     # label, knobs, transfer family, profile method, macro strategy on test
-    ("FTP conversion", "$h$", "depth", "released", "raw:v:arg-ws2"),
+    ("FTP Conversion", "$h$", "depth", "released", "raw:v:arg-ws2"),
     ("Thresholds~\\cite{waldner2020decode}", "$t_e$, $t_b$", "thr", "thr", None),
     (
         "Hierarchical Merging~\\cite{arbelaez2011hierarchical}",
@@ -64,7 +64,7 @@ COMPARE = [
         "swst",
         None,
     ),
-    ("Boundary veto", "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
+    ("Boundary Veto", "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
 ]
 
 
@@ -113,7 +113,7 @@ def compare_rows() -> list[str]:
             f"{ms.loc[meth, '10-29']:.0f}",
             f"{ms.loc[meth, '100+']:.0f}",
         ]
-        if label == "Boundary veto":
+        if fam == "ours":
             cells = [f"\\textbf{{{c}}}" for c in cells[:2]] + cells[
                 2:
             ]  # plain numbers, not math
@@ -161,6 +161,9 @@ def main() -> None:
             cells = []
             for col, hi in zip(cols, higher, strict=True):
                 v = f(r[col])
+                # Equal numeric widths align decimals in centered metric columns.
+                if len(v.partition(".")[0]) == 1:
+                    v = rf"\phantom{{0}}{v}"
                 shown = [m.loc[t][col] for t in (BASE, RELEASED_FILTER, OURS) if t in m.index]
                 best = max(shown) if hi else min(shown)
                 if r[col] == best:
@@ -169,7 +172,8 @@ def main() -> None:
             rows.append((name, cells))
         first = True
         for name, cells in rows:
-            lead = f"\\multirow{{3}}{{*}}{{{sensor} {enc}}}" if first else ""
+            sensor_short = {"PlanetScope": "PS", "Sentinel-2": "S2"}[sensor]
+            lead = f"\\multirow{{3}}{{*}}{{{sensor_short} {enc}}}" if first else ""
             first = False
             main_rows.append(f"{lead} & {name} & " + " & ".join(cells) + r" \\")
         main_rows.append(r"\midrule" if run != RUNS[-1][0] else "")
@@ -237,10 +241,15 @@ def main() -> None:
         (r"\multicolumn{3}{@{}l}{\emph{Minimum Parcel Size of 900~m$^2$}} \\", None),
         ("FTP, With Minimum Size", RELEASED_FILTER),
         ("Boundary Veto, Without Minimum Size", OURS_NOFILTER),
+        # with the step as well, so the block shows what it is worth to each
+        # conversion rather than leaving the veto's half to be inferred
+        ("Boundary Veto, With Minimum Size", OURS),
     ]
     lines = []
     for name, strat in abl:
         if strat is None:
+            if lines:
+                lines.append(r"\addlinespace[2pt]")
             lines.append(name)
             continue
         a, b = delta(mb3, strat), delta(ms2, strat)

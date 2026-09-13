@@ -83,6 +83,8 @@ def sweep_rows() -> list[str]:
         ),
     ]
     for title, items in blocks:
+        if rows:
+            rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{5}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for label, strat in items:
             rows.append(
@@ -120,6 +122,8 @@ def priors_rows() -> list[str]:
         keys = sorted(keys)
         if not keys:
             continue
+        if rows:
+            rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for k in keys:
             short = k.replace("raw:v:", "")
@@ -143,7 +147,7 @@ def variants_rows() -> list[str]:
     blocks = [
         (
             "FTP Conversion and Boundary Veto, No Minimum Size",
-            [("FTP conversion", BASE), ("Boundary veto", ours)],
+            [("FTP Conversion", BASE), ("Boundary Veto", ours)],
         ),
         (
             "Alternatives to the Argmax Foreground",
@@ -177,11 +181,13 @@ def variants_rows() -> list[str]:
         (
             "Minimum Parcel Size",
             [(f"FTP, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
-            + [(f"Boundary veto, {a} m$^2$", f"{ours}+A{a}") for a in (450, 900, 1800, 3600)],
+            + [(f"Boundary Veto, {a} m$^2$", f"{ours}+A{a}") for a in (450, 900, 1800, 3600)],
         ),
     ]
     rows = []
     for title, items in blocks:
+        if rows:
+            rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for label, k in items:
             rows.append(f"{label} & {pq(val, k)} & {pq(test, k)} \\\\")
@@ -193,20 +199,27 @@ def size_rows() -> list[str]:
     cols = ["pq_small", "pq_medium", "pq_large", "rq_small", "rq_medium", "rq_large"]
     methods = [
         ("FTP, $h{=}2$", BASE),
-        ("FTP + min size", "raw:v:arg-ws2+A900"),
-        ("Boundary veto", OURS),
+        ("FTP + Min Size", "raw:v:arg-ws2+A900"),
+        ("Boundary Veto", OURS),
     ]
     rows = []
     for run, sub, label in RUNS:
         m = macro(run, sub)
+        if rows:
+            rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{7}}{{@{{}}l}}{{\\emph{{{label}}}}} \\\\")
         for name, strat in methods:
             if strat not in m.index:
                 continue
             r = m.loc[strat]
-            rows.append(
-                f"{name} & " + " & ".join(f"{100 * r[c]:.1f}" for c in cols) + r" \\"
-            )
+            cells = []
+            for c in cols:
+                cell = f"{100 * r[c]:.1f}"
+                best = max(m.loc[s, c] for _, s in methods if s in m.index)
+                if r[c] == best:
+                    cell = f"\\textbf{{{cell}}}"
+                cells.append(cell)
+            rows.append(f"{name} & " + " & ".join(cells) + r" \\")
     return rows
 
 
@@ -223,7 +236,11 @@ def country_rows() -> list[str]:
         cells = []
         for _, _, label in RUNS:
             b, o = tabs[label]
-            cells += [f"{b[country]:.1f}", f"{o[country]:.1f}"]
+            pair = [b[country], o[country]]
+            cells += [
+                f"\\textbf{{{value:.1f}}}" if value == max(pair) else f"{value:.1f}"
+                for value in pair
+            ]
         rows.append(f"{name} & " + " & ".join(cells) + r" \\")
     return rows
 
@@ -231,12 +248,12 @@ def country_rows() -> list[str]:
 def timing_rows() -> list[str]:
     order = ["1-9", "10-29", "30-99", "100+"]
     labels = {
-        "released": "FTP conversion",
+        "released": "FTP Conversion",
         "thr": "Thresholds",
         "ucm": "Hierarchical Merging",
         "iterh": "Iterative Marker Depth",
         "swst": "Stochastic Watershed",
-        "ours": "Boundary veto",
+        "ours": "Boundary Veto",
     }
     frames = {}
     for run, label in (("planet_b3", "PS B3"), ("s2_b7", "S2 B7")):

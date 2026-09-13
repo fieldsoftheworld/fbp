@@ -27,13 +27,13 @@ The letter includes the PlanetScope B3 and Sentinel-2 B7 columns.
 
 \begin{table}[h]
 \centering
-\caption{Accuracy Holds Near the Chosen Thresholds}
+\caption{Accuracy holds near the chosen thresholds}
 \label{tab:supp_sweep}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lcccc@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Setting & PS B3 & PS B7 & S2 B7 & S2 B3 \\
+Setting (PQ $\uparrow$) & PS B3 & PS B7 & S2 B7 & S2 B3 \\
 \midrule
 \tablebody{tables/supp_sweep_rows.tex}
 \bottomrule
@@ -48,11 +48,11 @@ Iterative marker depth and stochastic watershed stay more than nine points below
 
 \begin{table}[h]
 \centering
-\caption{No Setting of Any Prior Conversion Reaches FTP}
+\caption{No setting of any prior conversion reaches FTP}
 \label{tab:supp_priors}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
-\begin{tabular}{@{}lcc@{}}
+\begin{tabular}{@{}lrr@{}}
 \toprule
 Setting & Validation PQ & Test PQ \\
 \midrule
@@ -76,11 +76,11 @@ Pixel counts refer to the 3~m PlanetScope grid.
 
 \begin{table}[h]
 \centering
-\caption{Every Alternative to the Veto Scores Lower}
+\caption{No alternative foreground or added step helps}
 \label{tab:supp_variants}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}lcc@{}}
+\begin{tabular}{@{}lrr@{}}
 \toprule
 Variant & Validation PQ & Test PQ \\
 \midrule
@@ -96,19 +96,23 @@ On PlanetScope B3, the ten countries contain 29,406 small, 20,884 medium, and 12
 
 \begin{table}[h]
 \centering
-\caption{The Gain Concentrates in the Smallest Fields}
+\caption{The gain concentrates in the smallest fields}
 \label{tab:supp_size}
 \footnotesize
 \setlength{\tabcolsep}{3.4pt}
-\begin{tabular}{@{}lcccccc@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
- & \multicolumn{3}{c}{PQ} & \multicolumn{3}{c}{RQ} \\
+ & \multicolumn{3}{c}{PQ $\uparrow$ (Area in ha)} & \multicolumn{3}{c}{RQ $\uparrow$ (Area in ha)} \\
 \cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Method & $<$0.5 ha & 0.5--2 & $>$2 & $<$0.5 ha & 0.5--2 & $>$2 \\
+Method & $<$0.5 & 0.5--2 & $>$2 & $<$0.5 & 0.5--2 & $>$2 \\
 \midrule
 \tablebody{tables/supp_size_rows.tex}
 \bottomrule
 \end{tabular}
+\smallskip
+
+\parbox{\columnwidth}{\footnotesize
+Bold marks the best unrounded score per column within each model.}
 \end{table}
 
 \section{Per-Country Scores}
@@ -117,11 +121,11 @@ Portugal has two test patches and Cambodia sixteen, so their scores use far fewe
 
 \begin{table}[h]
 \centering
-\caption{The Veto Leads in Almost Every Country and Model}
+\caption{The veto leads in almost every country and model}
 \label{tab:supp_country}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}lcccccccc@{}}
+\begin{tabular}{@{}lrrrrrrrr@{}}
 \toprule
  & \multicolumn{2}{c}{PS B3} & \multicolumn{2}{c}{PS B7} & \multicolumn{2}{c}{S2 B7} & \multicolumn{2}{c}{S2 B3} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
@@ -130,6 +134,11 @@ Country & FTP & Veto & FTP & Veto & FTP & Veto & FTP & Veto \\
 \tablebody{tables/supp_country_rows.tex}
 \bottomrule
 \end{tabular}
+\smallskip
+
+\parbox{\columnwidth}{\footnotesize
+Values are PQ, with the higher unrounded score bold within each pair.
+Both conversions use the same minimum-size step.}
 \end{table}
 
 \section{Timing by Parcel Density}
@@ -140,11 +149,11 @@ The ordering between methods is unchanged in the sparsest and densest bins, and 
 
 \begin{table}[h]
 \centering
-\caption{The Veto Costs About What the Watershed Costs}
+\caption{The veto costs about what the watershed costs}
 \label{tab:supp_timing}
 \footnotesize
 \setlength{\tabcolsep}{2.3pt}
-\begin{tabular}{@{}lcccccccc@{}}
+\begin{tabular}{@{}lrrrrrrrr@{}}
 \toprule
  & \multicolumn{4}{c}{PS B3} & \multicolumn{4}{c}{S2 B7} \\
 \cmidrule(lr){2-5}\cmidrule(lr){6-9}
@@ -153,6 +162,10 @@ Method & 1--9 & 10--29 & 30--99 & 100+ & 1--9 & 10--29 & 30--99 & 100+ \\
 \tablebody{tables/supp_timing_rows.tex}
 \bottomrule
 \end{tabular}
+\smallskip
+
+\parbox{\columnwidth}{\footnotesize
+Median time in ms per patch, grouped by reference field count.}
 \end{table}
 
 \section{Reproduction}

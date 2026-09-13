@@ -75,19 +75,20 @@ def main() -> None:
     )
     ax.set_yticks(y, [NAMES[c] for c in order])
     ax.set_ylim(-0.6, len(order) - 0.4)
-    ax.set_xlabel("PQ Change of the Boundary Veto vs. FTP + Min Size (Points)")
+    ax.set_xlabel("PQ Gain over FTP + Min Size (Points)")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", length=0)
-    ax.legend(
+    legend = ax.legend(
         loc="lower right",
         fontsize=6.5,
         frameon=True,
         framealpha=1.0,
-        edgecolor="black",
+        edgecolor="#AAAAAA",
         borderpad=0.4,
         handletextpad=0.3,
     )
+    legend.get_frame().set_linewidth(0.4)
     ax.margins(x=0.08)
     save(fig, str(ROOT / "figures" / "rev_percountry"))
     print(table.round(2).to_string())
