@@ -62,11 +62,11 @@ The global map~\cite{ftw_global} skips the watershed and takes connected compone
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\linewidth]{rev_gallery.pdf}
-\caption{\textbf{FTP conversion and the boundary veto on one test patch per country.}
-Each triple shows the image, the FTP conversion's parcels, and the boundary veto's.
-Black outlines mark reference parcels; numbers give full-patch panoptic quality (PQ).
-Rows 1--3 show PlanetScope B3 on nine countries, and rows 4--6 show Sentinel-2 B7 on eight countries and one failure case on PlanetScope.
-For each country we show the patch with the largest gain among those whose densest window holds at least eight reference parcels.}
+\caption{\textbf{The boundary veto returns the narrow and small parcels that a field mask drops, in every country and on both sensors.}
+Each triple shows the image, the FTP conversion's parcels, and the boundary veto's, with reference parcels outlined in black and the patch's panoptic quality printed on each map.
+The parcels that appear between the two maps are the strips along tracks and hedgerows and the small fields whose edges the boundary class had covered.
+Rows 1--3 are PlanetScope B3 and rows 4--6 Sentinel-2 B7, ending with a failure case in which a track inside one reference field is predicted as a boundary and splits it.
+Each panel is the largest-gain patch for its country among those whose densest window holds at least eight reference parcels.}
 \label{fig:gallery}
 \end{figure*}
 
@@ -114,12 +114,11 @@ It reads only the per-pixel class with the highest probability, the argmax, and 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{rev_method.pdf}
-\caption{\textbf{Every intermediate image on one PlanetScope crop.}
-Panels (a) and (b) show the image and the network's boundary probability.
-In the foreground (c), the FTP conversion keeps only green pixels, while we also keep orange boundary pixels.
-Panel (d) shows the distance to the predicted boundary with the $h$-maxima markers, and (e) shows watershed regions and their separating lines.
-In (f), each line is colored by its support $s(\ell)$, the fraction of its pixels where $p_{\mathrm{bnd}}\geq p_{\mathrm{field}}$.
-Blue lines ($s\geq\tau$) are kept and red lines are merged, giving the parcels in (g) with the reference outlined.}
+\caption{\textbf{Boundary pixels rejoin the parcels they border, and only the seams the network itself calls a boundary survive as splits.}
+The network's boundary probability (b) is what the FTP conversion removes from the foreground and the boundary veto keeps, shown in orange in (c).
+A watershed over the distance to the predicted boundary (d) proposes far more splits than the image contains (e), because it cuts at every narrow neck.
+Each proposed seam is then colored by its support (f), the share of its pixels where boundary beats field: the blue seams follow a predicted boundary and are kept, the red ones cut across a field and are vetoed.
+What remains (g) is one polygon per parcel, with the reference outlined in black.}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -197,11 +196,10 @@ SQ, RQ, and small-parcel PQ rise together, the merge rate moves by at most 1.5 p
 The gain therefore comes from parcels that re-enter the foreground, not from splitting the same mask differently.
 The gain lands in the smallest fields (Table~\ref{tab:main}), which is where smallholder mapping needs it~\cite{persello2023ai4smallfarms}: on PlanetScope B3 the bin below 0.5~ha rises from 15.7 to 20.5 PQ against 52.0 to 53.4 above 2~ha, with the same ordering on all four pairs (supplementary material).
 Cambodia, where parcels are smallest, gains most on average over the four pairs, and Portugal, with two test patches, is the only pair that decreases (Fig.~\ref{fig:percountry}).
-At the patch level the recovered parcels are thin ones the FTP conversion dropped or absorbed into a neighbor (Fig.~\ref{fig:gallery}).
 
 \begin{table}[t]
 \centering
-\caption{Polygon Accuracy on Ten Held-Out Countries}
+\caption{The Veto Leads on Every Encoder and Sensor, by the Widest Margin on Small Fields}
 \label{tab:main}
 \scriptsize
 \setlength{\tabcolsep}{2.2pt}
@@ -217,18 +215,18 @@ Model & Method & PQ$\uparrow$ & SQ$\uparrow$ & RQ$\uparrow$ & PQ$\uparrow$ & RQ$
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Macro averages against the vector parcels; bold marks the best of the three rows in each column.
-The two right-hand accuracy columns restrict both the predictions and the references to fields under 0.5~ha.
-The minimum-size step is the same 900~m$^2$ threshold in both rows that use it.}
+The boundary veto is the most accurate conversion on every encoder and sensor, and its margin is widest on the smallest fields.
+Macro averages against the vector parcels, with the best of the three rows bold in each column.
+The two right-hand accuracy columns restrict predictions and references to fields under 0.5~ha, and the minimum-size step is the same threshold in both rows that carry it.}
 \end{table}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{rev_percountry.pdf}
-\caption{\textbf{Per-country PQ change.}
-Changes over the FTP conversion with the same minimum-size step are shown for each model and sensor, sorted by the mean of the four.
-The bar marks that mean.
-\UpTotal{} of 40 pairs improve, and the one decrease is under half a point (Portugal, PlanetScope B3, two patches).}
+\caption{\textbf{The gain survives the change of country, encoder, and sensor, and grows as fields get smaller.}
+Each marker is one country under one model and sensor, measured against the FTP conversion carrying the same minimum-size step, and the bar is the mean of the four.
+Countries are ordered by that mean, which places the countries of smallest fields at the top.
+All but one of the forty pairs improve, and the exception is the country with only two test patches.}
 \label{fig:percountry}
 \end{figure}
 
@@ -238,9 +236,7 @@ The boundary veto is the only conversion that exceeds the FTP conversion on thes
 Thresholding the two probability maps is the strongest and cheapest prior conversion, but a parcel whose shared boundary is broken stays merged, which is the case the watershed exists to handle.
 Hierarchical merging is the closest in mechanism because it also scores borders by boundary probability.
 It ranks borders on an absolute scale and merges until a level is reached, while the veto compares two probabilities at the same pixel.
-Every row carries the minimum-size step of Sec.~\ref{sec:method}, which helps most for the methods that leave the most fragments and does not change the ordering.
 Selecting each country's best setting using its own test labels instead of the shared setting adds \OursTune{} points to the boundary veto and at most \PriorTuneMax{} to any prior method.
-The ordering therefore does not depend on per-region tuning.
 We measure cost on one core, on PlanetScope patches grouped by how many reference parcels they contain.
 On Sentinel-2, every method takes longer on the larger grid, and the ordering on dense patches is unchanged (supplementary material).
 The boundary veto adds \OursSlowdown{} over the FTP conversion on dense patches, while stochastic watershed, which repeats the flood for every marker draw, is \SwstSlowdown{} slower still.
@@ -248,7 +244,7 @@ Peak additional memory stays under \PeakMB{}~MB per patch for every method on ei
 
 \begin{table}[t]
 \centering
-\caption{Accuracy, Tuning Headroom, and Cost}
+\caption{Among Conversions That Need No Retraining, Only the Veto Improves on FTP}
 \label{tab:compare}
 \footnotesize
 \setlength{\tabcolsep}{2.6pt}
@@ -264,9 +260,10 @@ Method & Params & B3 & S2 & $\Delta$tune & 10--29 & 100+ \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-PQ on PlanetScope B3 and Sentinel-2 B7 and the free parameters of each method; every prior setting is chosen on the PlanetScope validation split, the FTP conversion keeps its default $h=2$, and every row carries the same 900~m$^2$ minimum-size step.
-$\Delta$tune is the macro PQ a per-country choice of that method's own parameters would add over the setting reported, using each country's test labels.
-Timings are the median over sampled patches with 10--29 and 100+ reference parcels, on one core.}
+Of the conversions that need no retraining, the boundary veto is the only one that improves on FTP, and it does so without per-region tuning and at a cost near the cheapest watershed method.
+$\Delta$tune is what a per-country choice of each method's own parameters would add, using that country's test labels, so a large value marks a method that only works when tuned per region.
+Every prior setting is chosen on the PlanetScope validation split, the FTP conversion keeps its default depth, and every row carries the same minimum-size step.
+Timings are medians over sampled patches in two density bins, on one core.}
 \end{table}
 
 \subsection{Ablation}
@@ -281,12 +278,11 @@ The alternatives we tried in place of the argmax, an Otsu threshold on the field
 Requiring a minimum kept-line length, widening the support test to a tolerance band, and merging slivers into a neighbor each lowered the validation score.
 Filling holes inside a parcel changed the validation score by less than a tenth of a point.
 Of the added steps, only the minimum parcel size helps, improving the FTP conversion by \BaseAreaGain{} points against \OursAreaGain{} for the boundary veto on PlanetScope B3.
-The ordering is the same with or without the minimum-size step.
 The released polygonization tool~\cite{kerner2024ftw} exposes such a threshold, although the published evaluation does not apply one.
 
 \begin{table}[t]
 \centering
-\caption{PQ Change Over the FTP Conversion}
+\caption{Neither Half of the Veto Works Without the Other}
 \label{tab:ablation}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -300,16 +296,11 @@ Variant & PlanetScope B3 & Sentinel-2 B7 \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Macro PQ difference in points; the boundary veto uses $\tau=0.7$, $h=2$.
-Watershed instances are scored without merging them into components.
-The supplementary material gives the full $\tau$ and $h$ sweeps on all four pairs.}
+Neither half of the boundary veto works alone: the wider foreground reconnects neighboring parcels and needs the veto to separate them again, while the veto has little to remove from a mask the boundary class has already broken apart.
+Green marks a change that helps and red one that hurts, against the FTP conversion at its default depth.
+The minimum-size step is the one added step that helps, and it helps both conversions.
+The supplementary material gives the full sweeps on all four pairs.}
 \end{table}
-
-\subsection{Qualitative Results}
-Fig.~\ref{fig:pipeline} follows one crop through the pipeline.
-The orange pixels in panel~(c) form narrow strips between fields and along the road, which the FTP mask discards and our method recovers as parcels in panel~(g).
-In panel~(f), a line following a predicted boundary has support near one and is kept, while one cutting across a field at a neck has support near zero and is merged.
-In the failure case in Fig.~\ref{fig:gallery} (last example), the network predicts a track inside a reference parcel as boundary, so the supported line along it splits the parcel.
 
 \section{Conclusion}
 The boundary class remains in our foreground and determines which watershed splits survive.
