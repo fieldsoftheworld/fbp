@@ -18,18 +18,16 @@
 \author{Aviskar~Giri and Isaac~Corley}
 \maketitle
 
-The supplementary material includes the full parameter sweeps, complete grids searched for each prior method, every alternative named in the ablation, scores by field size, per-country scores, and timings in every density bin.
-Every number comes from the same runs as the letter, scored against the released vector parcels.
+All results use the letter's prediction runs and released reference polygons.
 
 \section{Full Parameter Sweeps}
-Table~\ref{tab:supp_sweep} gives macro panoptic quality (PQ) for every setting of $\tau$ and $h$ on all four model and sensor pairs.
-It also reports each pair's foreground and split-rule comparison.
-The letter reports the PlanetScope B3 and Sentinel-2 B7 columns.
-Scores remain flat for support thresholds between 0.7 and 0.9 on every pair, while $h=8$ loses accuracy on every pair because the $h$-maxima of small parcels disappear.
+PQ remains flat for support thresholds between 0.7 and 0.9 on every model and sensor pair, while $h=8$ lowers accuracy because small fields lose their seeds.
+We report every setting of $\tau$ and $h$ and each pair's foreground and split-rule comparison in Table~\ref{tab:supp_sweep}, using the letter's macro average.
+The letter includes the PlanetScope B3 and Sentinel-2 B7 columns.
 
 \begin{table}[h]
 \centering
-\caption{The Veto Is Insensitive to Both of Its Thresholds}
+\caption{Accuracy Holds Near the Chosen Thresholds}
 \label{tab:supp_sweep}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -43,10 +41,10 @@ Setting & Planet B3 & Planet B7 & S2 B7 & S2 B3 \\
 \end{table}
 
 \section{Complete Grids for Prior Methods}
-Table~\ref{tab:supp_priors} lists every setting tried on PlanetScope B3, its validation score for selection, and its test score.
-The letter reports the row with the highest validation score in each family, with the 900~m$^2$ minimum-size step added afterward.
-For the thresholds, iterative depth, and stochastic watershed, the chosen setting lies at the edge of the search grid.
-Iterative depth and stochastic watershed remain more than nine points below the FTP conversion at every setting tried.
+We choose each prior method's parameters by validation PQ on PlanetScope B3, then apply the 900~m$^2$ minimum-size step for the letter's comparison.
+Table~\ref{tab:supp_priors} includes every setting we tried and its validation and test scores.
+The best settings for probability thresholds, iterative marker depth, and stochastic watershed lie at the search grid's edge.
+Iterative marker depth and stochastic watershed stay more than nine points below the FTP conversion across all settings tried.
 
 \begin{table}[h]
 \centering
@@ -71,9 +69,9 @@ Setting & Validation PQ & Test PQ \\
 \end{table}
 
 \section{Alternatives Named in the Ablation}
-Table~\ref{tab:supp_variants} gives PlanetScope B3 validation PQ, and test PQ where scored, for every alternative mentioned without a number in the letter's ablation.
-The foreground alternatives replace the argmax rule and use no split test.
-We applied the added steps to the boundary veto at $\tau=0.7$ and $h=2$ without the minimum-size step and scored them only on the validation split.
+We tested the foreground alternatives without splitting, replacing the assignment to the most probable class.
+For the added steps, we used the boundary veto at $\tau=0.7$ and $h=2$ without the minimum-size step and scored only the validation split.
+Table~\ref{tab:supp_variants} reports PlanetScope B3 validation PQ, and test PQ where scored, for every alternative mentioned without a number in the letter's ablation.
 Pixel counts refer to the 3~m PlanetScope grid.
 
 \begin{table}[h]
@@ -92,9 +90,9 @@ Variant & Validation PQ & Test PQ \\
 \end{table}
 
 \section{Scores by Field Size}
-Table~\ref{tab:supp_size} splits PQ and RQ by reference parcel area, using the hectare bins of the Fields of the Planet evaluation code: small below 0.5~ha, medium 0.5 to 2~ha, and large above 2~ha.
-On PlanetScope B3 the ten countries hold 29,406 small, 20,884 medium, and 12,173 large reference parcels, so the small bin is the largest of the three.
-The boundary veto gains most in the small bin on every run, between 3.5 and 4.8 PQ points, and least in the large bin, between 1.1 and 1.7.
+The boundary veto gains most on small fields in every run, between 3.5 and 4.8 PQ points, and least on large fields, between 1.1 and 1.7 (Table~\ref{tab:supp_size}).
+We group PQ and RQ by reference field area using the Fields of the Planet evaluation code's bins, with small fields below 0.5~ha, medium fields from 0.5 to 2~ha, and large fields above 2~ha.
+On PlanetScope B3, the ten countries contain 29,406 small, 20,884 medium, and 12,173 large reference fields, making the small bin the largest.
 
 \begin{table}[h]
 \centering
@@ -114,8 +112,8 @@ Method & $<$0.5 ha & 0.5--2 & $>$2 & $<$0.5 ha & 0.5--2 & $>$2 \\
 \end{table}
 
 \section{Per-Country Scores}
-Table~\ref{tab:supp_country} gives scores for the FTP conversion and the boundary veto for each country and model, as plotted in Fig.~3 of the letter.
-Portugal has two test patches and Cambodia sixteen, so their country scores use far fewer parcels than the others.
+We compare the FTP conversion and the boundary veto for each country and model in Table~\ref{tab:supp_country}, giving the scores plotted in Fig.~3 of the letter.
+Portugal has two test patches and Cambodia sixteen, so their scores use far fewer fields than the others.
 
 \begin{table}[h]
 \centering
@@ -135,9 +133,8 @@ Country & FTP & Veto & FTP & Veto & FTP & Veto & FTP & Veto \\
 \end{table}
 
 \section{Timing by Parcel Density}
-Table~\ref{tab:supp_timing} gives the median milliseconds per patch in four density bins on both sensors.
-We sampled thirty patches per bin with a fixed seed and timed them on one core with threads pinned.
-Timings use the fastest of three repeats after a warm-up call.
+We sampled thirty patches per bin with a fixed random seed and timed them on one core, restricting all threads to that core.
+We kept the fastest of three repeats after a warm-up call and report median milliseconds per patch in four field-count bins on both sensors (Table~\ref{tab:supp_timing}).
 Sentinel-2 patches contain more pixels, so every method takes longer there.
 The ordering between methods is unchanged in the sparsest and densest bins, and iterative marker depth is slower than the boundary veto in the two middle bins.
 
@@ -159,10 +156,8 @@ Method & 1--9 & 10--29 & 30--99 & 100+ & 1--9 & 10--29 & 30--99 & 100+ \\
 \end{table}
 
 \section{Reproduction}
-We cache predictions once per checkpoint with the released inference settings.
-Every post-processing method reads the same cache, so inference differences do not affect the comparison.
-To reproduce the results, cache each released checkpoint's softmax output and build the candidate polygon sets.
-Then score every method against the reference parcels and generate the tables and figures.
-Our implementation of the FTP conversion reproduces the published per-country panoptic quality for PlanetScope to within $10^{-3}$, and the same for Sentinel-2 at the 10~m grid that paper's evaluation rounds predictions to.
+We save each released model's class probabilities once with its released inference settings, then use those same predictions for every conversion.
+To reproduce the comparison, convert the saved probabilities to polygons with each method, score them against the reference polygons, and generate the tables and figures.
+Our FTP conversion implementation reproduces published per-country PQ to within $10^{-3}$ for PlanetScope and for Sentinel-2 on the 10~m grid used by that paper's evaluation.
 
 \end{document}
