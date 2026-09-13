@@ -5,7 +5,7 @@ Writes tables/supp_*.tex:
   supp_priors_rows   every prior-method setting, validation and test
   supp_variants_rows every alternative named in the ablation, validation and test
   supp_size_rows     PQ and RQ in FTP's hectare bins, all four runs
-  supp_country_rows  per-country PQ, FTP conversion and boundary veto, all four runs
+  supp_country_rows  per-country PQ, FTP pipeline and boundary veto, all four runs
   supp_timing_rows   median ms/patch in four density bins, both sensors
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_supp_tables.py
@@ -256,7 +256,7 @@ def timing_rows() -> list[str]:
         "ours": "Boundary Veto",
     }
     frames = {}
-    for run, label in (("planet_b3", "PS B3"), ("s2_b7", "S2 B7")):
+    for run, label in (("planet_b3", "PS"), ("s2_b7", "S2")):
         f = RES / "cost" / f"{run}_test.csv"
         if f.exists():
             df = pd.read_csv(f)

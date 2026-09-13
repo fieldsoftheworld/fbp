@@ -41,7 +41,7 @@ def f(x: float, nd: int = 1) -> str:
 
 COMPARE = [
     # label, knobs, transfer family, profile method, macro strategy on test
-    ("FTP Conversion", "$h$", "depth", "released", "raw:v:arg-ws2"),
+    ("FTP Pipeline", "$h$", "depth", "released", "raw:v:arg-ws2"),
     ("Thresholds~\\cite{waldner2020decode}", "$t_e$, $t_b$", "thr", "thr", None),
     (
         "Hierarchical Merging~\\cite{arbelaez2011hierarchical}",
@@ -242,7 +242,7 @@ def main() -> None:
         ("FTP, With Minimum Size", RELEASED_FILTER),
         ("Boundary Veto, Without Minimum Size", OURS_NOFILTER),
         # with the step as well, so the block shows what it is worth to each
-        # conversion rather than leaving the veto's half to be inferred
+        # pipeline rather than leaving the veto's half to be inferred
         ("Boundary Veto, With Minimum Size", OURS),
     ]
     lines = []

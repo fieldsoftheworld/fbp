@@ -41,8 +41,8 @@ On Fields of The World, discarding boundary-class pixels removes thin and small 
 Merging those regions back recovers the accuracy but throws away the correct splits with the wrong ones.
 We introduce the \emph{boundary veto}, which keeps every non-background pixel and rejects a proposed split unless boundary probability is at least equal to field probability along most of its line.
 The test compares two of the network's own probabilities at one pixel, so the veto needs three constants, no weight changes, and no reference polygons at inference.
-Across ten held-out countries, polygon-level panoptic quality (PQ), which combines field detection and shape accuracy, rises by \GainMin{} to \GainMax{} points over the conversion released with Fields of the Planet (FTP), with the same minimum-size step.
-The comparison covers two encoders, which extract image features, and two sensors, PlanetScope and Sentinel-2, with improvements in \UpTotal{} of 40 country and model pairs at \OursSlowdown{} the FTP conversion's runtime on the densest patches.
+Across ten held-out countries, polygon-level panoptic quality (PQ), which combines field detection and shape accuracy, rises by \GainMin{} to \GainMax{} points over the post-processing released with Fields of the Planet (FTP), with the same minimum-size step.
+The comparison covers two encoders, which extract image features, and two sensors, PlanetScope and Sentinel-2, with improvements in \UpTotal{} of 40 country and model pairs at \OursSlowdown{} the FTP pipeline's runtime on the densest patches.
 Most of the gain comes from fields under 0.5~ha, the ones a field-class foreground most often loses and the ones smallholder mapping depends on.
 \end{abstract}
 
@@ -54,7 +54,7 @@ Agricultural field delineation, instance segmentation, watershed transform, post
 \IEEEPARstart{F}{ield} polygons are the reporting unit for crop area, yield, and management practices, so a field boundary model is only useful once its pixel predictions become one polygon per field.
 Public benchmarks now cover this task at 10~m with Sentinel-2~\cite{kerner2024ftw,dandrimont2023ai4boundaries,persello2023ai4smallfarms} and at 3~m with PlanetScope~\cite{corley_ftp}.
 Models trained on them predict three classes, background, field interior, and boundary~\cite{waldner2020decode,waldner2020edge,kerner2024ftw,muhawenayo2026prue}, most recently for a global map at 10~m~\cite{ftw_global}.
-The FTP conversion~\cite{corley_ftp} uses only field-class pixels as its foreground, the pixels available to form polygons.
+The FTP pipeline~\cite{corley_ftp} uses only field-class pixels as its foreground, the pixels available to form polygons.
 Its watershed~\cite{soille2004morphological} starts at peaks in the distance to the nearest predicted boundary pixel~\cite{waldner2020decode,corley_ftp} and uses that distance to divide the foreground.
 Before extracting polygons, it merges adjacent regions into connected components, groups of touching pixels.
 The global map~\cite{ftw_global} skips the watershed and extracts connected components of the field class directly.
@@ -62,8 +62,8 @@ The global map~\cite{ftw_global} skips the watershed and extracts connected comp
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\linewidth]{rev_gallery.pdf}
-\caption{\textbf{The boundary veto recovers narrow and small fields discarded by the FTP conversion, across countries and both sensors.}
-Each triple shows the image and both conversions' polygons, with black reference outlines and full-patch PQ; bold marks the better conversion.
+\caption{\textbf{The boundary veto recovers narrow and small fields discarded by the FTP pipeline, across countries and both sensors.}
+Each triple shows the image and both pipelines' polygons, with black reference outlines and full-patch PQ; bold marks the better of the two.
 Fill colors distinguish instances, without matching them across panels.
 The recovered fields include strips along tracks and hedgerows and small fields covered by the boundary class.
 PS panels use the B3 model on PlanetScope and S2 panels the B7 model on Sentinel-2, ending with a PS failure in which a predicted boundary along a track splits one reference field.
@@ -71,18 +71,18 @@ Except for the failure case, each triple uses the largest-gain patch for its cou
 \label{fig:gallery}
 \end{figure*}
 
-Both conversions discard boundary-class pixels, so a narrow field or one with uncertain edges disappears when the boundary class covers it (Fig.~\ref{fig:gallery}).
-On PlanetScope with the B3 model, \BaseMiss\% of reference fields have no prediction covering half of their area, and the FTP conversion predicts fewer fields than the reference in all ten countries.
+Both pipelines discard boundary-class pixels, so a narrow field or one with uncertain edges disappears when the boundary class covers it (Fig.~\ref{fig:gallery}).
+On PlanetScope with the B3 model, \BaseMiss\% of reference fields have no prediction covering half of their area, and the FTP pipeline predicts fewer fields than the reference in all ten countries.
 The watershed introduces another error by placing lines at narrow points in the foreground without checking for a predicted boundary.
 Its regions score \RawInstPQ{} PQ against \CCPQ{} for connected components of the same foreground.
-Merging the regions back recovers that accuracy, but the FTP conversion then loses every correct split as well.
+Merging the regions back recovers that accuracy, but the FTP pipeline then loses every correct split as well.
 
 We keep boundary-class pixels so that thin and small fields can form polygons, then use the network's boundary probabilities to decide which watershed lines to keep.
 A line's \emph{support} is the fraction of its pixels where boundary probability is at least equal to field probability, and we keep it only when support reaches $\tau$.
 Otherwise, we veto the split and merge the two regions.
 The split test asks only which of the two classes scores higher at a pixel, so rescaling both probabilities the same way leaves every decision unchanged.
 We change no weights and add no training stage, so the boundary veto applies to any three-class field boundary model for tens of milliseconds of extra work per patch.
-We keep the released seed-selection depth of $h=2$ and remove the smallest polygons at the end, a minimum-size step any conversion can apply.
+We keep the released seed-selection depth of $h=2$ and remove the smallest polygons at the end, a minimum-size step any pipeline can apply.
 All three constants stay the same for every country and sensor.
 
 We evaluate on the ten densely annotated held-out countries of Fields of The World~\cite{kerner2024ftw} with the released EfficientNet~\cite{tan2019efficientnet} U-Nets~\cite{ronneberger2015unet} for PlanetScope~\cite{corley_ftp} and Sentinel-2~\cite{kerner2024ftw}, scored against the reference polygons.
@@ -95,7 +95,7 @@ Benchmark datasets now provide common annotations and evaluation procedures~\cit
 \emph{A Practical Recipe for Field Boundary Segmentation at Scale} (PRUE)~\cite{muhawenayo2026prue} compared encoders, decoders that turn features into pixel predictions, and training recipes on Fields of The World and found that a U-Net with an EfficientNet encoder remains the most accurate choice.
 Fields of the Planet~\cite{corley_ftp} reports that these three-class networks outperform the Delineate Anything instance models~\cite{lavreniuk2025delineateanything}, in both their first and second versions, on the same held-out countries.
 For buildings, polygon extraction uses frame fields, which encode edge directions, or graph networks, which connect predicted vertices~\cite{girard2021framefield,zorzi2022polyworld,zorzi2020regularization}.
-The released field models on these benchmarks still assign pixels to three classes before a watershed or connected components produce polygons, so improving that conversion benefits the current best models without retraining.
+The released field models on these benchmarks still assign pixels to three classes before a watershed or connected components produce polygons, so improving that post-processing benefits the current best models without retraining.
 
 Hierarchical merging combines regions in order of border strength until a threshold is reached~\cite{arbelaez2011hierarchical,maninis2018cob}, as Persello et al.~\cite{persello2019delineation} do for field boundaries.
 Stochastic watershed estimates boundary probability by repeating the watershed with randomly sampled seeds~\cite{angulo2007stochastic}, while iterative marker depth methods adjust seed selection for each region~\cite{koyuncu2016iterative}.
@@ -104,14 +104,14 @@ By checking each line against the network's boundary probability, we use evidenc
 
 \section{Method}
 \label{sec:method}
-To recover fields lost during conversion, we start from the network's class probabilities $p_{\mathrm{bg}}, p_{\mathrm{field}}, p_{\mathrm{bnd}}$ for one image (Fig.~\ref{fig:pipeline}).
+To recover the fields this post-processing loses, we start from the network's class probabilities $p_{\mathrm{bg}}, p_{\mathrm{field}}, p_{\mathrm{bnd}}$ for one image (Fig.~\ref{fig:pipeline}).
 The boundary veto uses only the most probable class at each pixel, written $\arg\max p$, and the field and boundary probabilities to produce field polygons.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\linewidth]{rev_method.pdf}
 \caption{\textbf{The boundary veto keeps boundary-class pixels and rejects splits without predicted boundaries.}
-The pixels the network assigns to the boundary class, orange in (c), are the ones the FTP conversion drops from the foreground and the boundary veto keeps.
+The pixels the network assigns to the boundary class, orange in (c), are the ones the FTP pipeline drops from the foreground and the boundary veto keeps.
 A watershed over the distance to the predicted boundary (d) proposes too many splits (e) because it cuts at every narrow point.
 Colors show support for each proposed line (f), with blue lines following predicted boundaries and red lines crossing fields.
 The veto keeps the blue lines and removes the red ones to produce one polygon per field (g), with the reference outlined in black.
@@ -126,7 +126,7 @@ Boundary pixels can then connect neighboring fields, so the watershed must separ
 \paragraph{Split Proposals}
 Let $D$ be the straight-line distance from each pixel to the nearest pixel with $\arg\max p = \mathrm{bnd}$, set to zero outside $F$.
 We place seeds at the $h$-maxima of $D$, peaks that stand at least $h=2$ pixels above their surroundings, and run a watershed of $-D$ within $F$~\cite{soille2004morphological}.
-Unlike the FTP conversion, we retain the one-pixel lines between regions.
+Unlike the FTP pipeline, we retain the one-pixel lines between regions.
 The watershed cuts at every narrow point in the foreground, leaving the veto to reject unnecessary splits.
 
 \paragraph{The Veto}
@@ -145,7 +145,7 @@ We use $\tau=0.7$, and values from 0.7 to 0.9 change the result by at most half 
 We trace each field's pixel boundary as a polygon without simplifying it.
 The one-pixel gaps keep neighbors distinct when the polygons are converted back to pixels on the same grid.
 We then drop fields smaller than 900~m$^2$.
-The threshold gives the FTP conversion its highest validation score, while the boundary veto's validation score varies by less than half a point between 450 and 1800~m$^2$ (supplementary material).
+The threshold gives the FTP pipeline its highest validation score, while the boundary veto's validation score varies by less than half a point between 450 and 1800~m$^2$ (supplementary material).
 We specify the threshold in ground area rather than pixels to give it the same meaning on either sensor.
 
 \section{Experiments}
@@ -165,11 +165,11 @@ The vector labels are not confined to the sensor's 10~m pixel grid, and the rele
 Following the released evaluation, we double the grid resolution and score on that finer grid without changing any weights.
 
 \paragraph{Baselines}
-We reproduce the FTP conversion using the field class, watershed depth $h=2$, and connected components of the combined regions.
+We reproduce the FTP pipeline using the field class, watershed depth $h=2$, and connected components of the combined regions.
 Our per-country PQ agrees with the reported scores to within $10^{-3}$ for PlanetScope~\cite{corley_ftp} and Sentinel-2~\cite{kerner2024ftw}.
 For Sentinel-2, we check that agreement on the 10~m grid used by that paper's evaluation.
 To measure what depth tuning can achieve, we also select each country's best depth in $\{0.5,\ldots,64\}$ using its test labels under the same procedure.
-Four prior conversions use the same predictions.
+Four prior post-processing methods use the same predictions.
 We test field and boundary probability thresholds~\cite{waldner2020decode} and hierarchical merging by mean boundary probability along shared borders~\cite{arbelaez2011hierarchical,maninis2018cob,persello2019delineation}, along with stochastic watershed~\cite{angulo2007stochastic} and iterative marker depth~\cite{koyuncu2016iterative}.
 For each, we search its parameter grid on PlanetScope B3 and report test results for the setting with the highest country-averaged score on the \emph{validation} split.
 We use the same selection rule for the boundary veto and reuse the chosen settings unchanged on Sentinel-2.
@@ -186,7 +186,7 @@ All values are on a 0--100 scale.
 
 \subsection{Results}
 \label{sec:results}
-The boundary veto raises PQ on all four model and sensor pairs with the same minimum-size step as the FTP conversion (Table~\ref{tab:main}).
+The boundary veto raises PQ on all four model and sensor pairs with the same minimum-size step as the FTP pipeline (Table~\ref{tab:main}).
 Even selecting each country's best watershed depth on its test labels produces a smaller gain (Table~\ref{tab:compare}, $\Delta$tune).
 SQ and RQ improve along with small-field PQ, while the miss rate falls on every pair and the merge rate changes by at most 1.5 points in either direction.
 The largest improvements occur in the smallest fields (Table~\ref{tab:main}), where smallholder mapping needs them~\cite{persello2023ai4smallfarms}.
@@ -220,7 +220,7 @@ The grouped small-field columns restrict predictions and references by area; bot
 \centering
 \includegraphics[width=\linewidth]{rev_percountry.pdf}
 \caption{\textbf{The boundary veto improves accuracy across countries and model settings, with larger gains where fields are smaller.}
-Each point shows one country's gain for one model and sensor against the FTP conversion with the same minimum-size step.
+Each point shows one country's gain for one model and sensor against the FTP pipeline with the same minimum-size step.
 Bars give the mean of the four settings, with countries ordered by that mean and those with the smallest fields at the top.
 All but one of the forty pairs improve, with the exception in the country that has only two test patches.}
 \label{fig:percountry}
@@ -228,18 +228,18 @@ All but one of the forty pairs improve, with the exception in the country that h
 
 \subsection{Comparison with Prior Post-Processing}
 \label{sec:compare}
-The boundary veto is the only conversion that exceeds the FTP conversion on these predictions (Table~\ref{tab:compare}).
-Thresholding the two probability maps gives the highest accuracy and lowest cost among prior conversions, but it leaves neighboring fields merged wherever a predicted boundary has a gap, which is what a watershed can separate.
+The boundary veto is the only one that improves on the FTP pipeline (Table~\ref{tab:compare}).
+Thresholding the two probability maps gives the highest accuracy and lowest cost among the prior methods, but it leaves neighboring fields merged wherever a predicted boundary has a gap, which is what a watershed can separate.
 Hierarchical merging resembles the boundary veto because both score borders by boundary probability, but it uses an absolute threshold while we compare probabilities at the same pixel.
 Selecting each country's best setting using its own test labels instead of the shared setting adds \OursTune{} points to the boundary veto and at most \PriorTuneMax{} to any prior method.
 We measure runtime on one core, grouping PlanetScope patches by the number of reference fields they contain.
 On Sentinel-2, every method takes longer on the larger grid, and the ordering on dense patches is unchanged (supplementary material).
-The boundary veto takes \OursSlowdown{} the FTP conversion's time on dense patches, while stochastic watershed is \SwstSlowdown{} slower still because it repeats the watershed for each set of seeds.
+The boundary veto takes \OursSlowdown{} the FTP pipeline's time on dense patches, while stochastic watershed is \SwstSlowdown{} slower still because it repeats the watershed for each set of seeds.
 Every method uses less than \PeakMB{}~MB of additional memory per patch on either sensor, so runtime determines the choice.
 
 \begin{table}[t]
 \centering
-\caption{Among conversions that need no retraining, only the veto improves on FTP}
+\caption{Among post-processing methods that need no retraining, only the veto improves on FTP}
 \label{tab:compare}
 \footnotesize
 \setlength{\tabcolsep}{2.4pt}
@@ -247,7 +247,7 @@ Every method uses less than \PeakMB{}~MB of additional memory per patch on eithe
 \toprule
  & & \multicolumn{2}{c}{PQ $\uparrow$} & & \multicolumn{2}{c}{ms/Patch} \\
 \cmidrule(lr){3-4}\cmidrule(lr){6-7}
-Method & Params & PS B3 & S2 B7 & $\Delta$Tune & 10--29 & 100+ \\
+Method & Params & PS & S2 & $\Delta$Tune & 10--29 & 100+ \\
 \midrule
 \tablebody{tables/rev_compare_rows.tex}
 \bottomrule
@@ -255,9 +255,9 @@ Method & Params & PS B3 & S2 B7 & $\Delta$Tune & 10--29 & 100+ \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Bold marks the highest PQ in each column.
+Bold marks the highest PQ in each column, with PS scored on the B3 model and S2 on B7.
 $\Delta$Tune is what a per-country choice of each method's own parameters would add, using that country's test labels.
-Every prior setting is chosen on the PlanetScope validation split, the FTP conversion keeps its default depth, and every row carries the same minimum-size step.
+Every prior setting is chosen on the PlanetScope validation split, the FTP pipeline keeps its default depth, and every row carries the same minimum-size step.
 Timings are medians on one core over PlanetScope B3 patches grouped by reference field count.}
 \end{table}
 
@@ -268,10 +268,10 @@ Conversely, the split rule adds nothing to the field-class foreground because ga
 The supplementary sweeps show at most half a point of variation for $\tau$ between 0.7 and 0.9.
 With $h=1$, PQ falls by about one point, with $h=4$ by one to two, and with $h=8$ it falls because small fields lose their seeds.
 Three alternatives to the most probable class also failed: Otsu thresholding, which separates low from high field probabilities automatically, morphological closing, which fills gaps in the boundary class, and a watershed driven by boundary probability in place of distance.
-All three score below the FTP conversion on both splits (supplementary material).
+All three score below the FTP pipeline on both splits (supplementary material).
 Requiring longer kept lines, testing support over a band around each line, or merging thin regions into a neighbor each lowered validation accuracy.
 Filling holes inside a field changed the validation score by less than a tenth of a point.
-Only the minimum-size step helps among the additions, improving the FTP conversion by \BaseAreaGain{} points against \OursAreaGain{} for the boundary veto on PlanetScope B3.
+Only the minimum-size step helps among the additions, improving the FTP pipeline by \BaseAreaGain{} points against \OursAreaGain{} for the boundary veto on PlanetScope B3.
 The released polygon extraction tool~\cite{kerner2024ftw} includes this threshold, although the published evaluation does not apply one.
 
 \begin{table}[t]
@@ -282,7 +282,7 @@ The released polygon extraction tool~\cite{kerner2024ftw} includes this threshol
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lrr@{}}
 \toprule
-Variant & PS B3 $\Delta$PQ & S2 B7 $\Delta$PQ \\
+Variant & PS $\Delta$PQ & S2 $\Delta$PQ \\
 \midrule
 \tablebody{tables/rev_ablation_rows.tex}
 \bottomrule
@@ -290,14 +290,14 @@ Variant & PS B3 $\Delta$PQ & S2 B7 $\Delta$PQ \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Values are PQ changes in points against the FTP conversion at its default depth.
+Values are PQ changes in points against the FTP pipeline at its default depth, with PS scored on the B3 model and S2 on B7.
 Green marks a gain, red a loss, and black a change that rounds to zero; signs retain the distinction in grayscale.
 The supplementary material gives the full sweeps on all four pairs.}
 \end{table}
 
 \section{Conclusion}
 The boundary veto uses boundary-class pixels to recover discarded fields and boundary probabilities to decide which watershed splits to keep.
-Together, those changes improve polygon accuracy over the FTP conversion on two encoders and two sensors without per-region tuning, with the largest gain in the small fields needed for smallholder mapping.
+Together, those changes improve polygon accuracy over the FTP pipeline on two encoders and two sensors without per-region tuning, with the largest gain in the small fields needed for smallholder mapping.
 The rule needs a predicted boundary class, so it does not apply to instance segmentation models that return only masks and scores, and we score Sentinel-2 on the finer grid the model and the vector labels resolve rather than on native 10~m pixels.
 Fields the network misses entirely cannot be recovered by reorganizing its predicted pixels.
 

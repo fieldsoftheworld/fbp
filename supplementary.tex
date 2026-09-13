@@ -44,11 +44,11 @@ Setting (PQ $\uparrow$) & PS B3 & PS B7 & S2 B7 & S2 B3 \\
 We choose each prior method's parameters by validation PQ on PlanetScope B3, then apply the 900~m$^2$ minimum-size step for the letter's comparison.
 Table~\ref{tab:supp_priors} includes every setting we tried and its validation and test scores.
 The best settings for probability thresholds, iterative marker depth, and stochastic watershed lie at the search grid's edge.
-Iterative marker depth and stochastic watershed stay more than nine points below the FTP conversion across all settings tried.
+Iterative marker depth and stochastic watershed stay more than nine points below the FTP pipeline across all settings tried.
 
 \begin{table}[h]
 \centering
-\caption{No setting of any prior conversion reaches FTP}
+\caption{No setting of any prior method reaches FTP}
 \label{tab:supp_priors}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
@@ -116,7 +116,7 @@ Bold marks the best unrounded score per column within each model.}
 \end{table}
 
 \section{Per-Country Scores}
-We compare the FTP conversion and the boundary veto for each country and model in Table~\ref{tab:supp_country}, giving the scores plotted in Fig.~3 of the letter.
+We compare the FTP pipeline and the boundary veto for each country and model in Table~\ref{tab:supp_country}, giving the scores plotted in Fig.~3 of the letter.
 Portugal has two test patches and Cambodia sixteen, so their scores use far fewer fields than the others.
 
 \begin{table}[h]
@@ -138,7 +138,7 @@ Country & FTP & Veto & FTP & Veto & FTP & Veto & FTP & Veto \\
 
 \parbox{\columnwidth}{\footnotesize
 Values are PQ, with the higher unrounded score bold within each pair.
-Both conversions use the same minimum-size step.}
+Both pipelines use the same minimum-size step.}
 \end{table}
 
 \section{Timing by Parcel Density}
@@ -155,7 +155,7 @@ The ordering between methods is unchanged in the sparsest and densest bins, and 
 \setlength{\tabcolsep}{2.3pt}
 \begin{tabular}{@{}lrrrrrrrr@{}}
 \toprule
- & \multicolumn{4}{c}{PS B3} & \multicolumn{4}{c}{S2 B7} \\
+ & \multicolumn{4}{c}{PS} & \multicolumn{4}{c}{S2} \\
 \cmidrule(lr){2-5}\cmidrule(lr){6-9}
 Method & 1--9 & 10--29 & 30--99 & 100+ & 1--9 & 10--29 & 30--99 & 100+ \\
 \midrule
@@ -165,12 +165,12 @@ Method & 1--9 & 10--29 & 30--99 & 100+ & 1--9 & 10--29 & 30--99 & 100+ \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Median time in ms per patch, grouped by reference field count.}
+Median time in ms per patch, grouped by reference field count, with PS scored on the B3 model and S2 on B7.}
 \end{table}
 
 \section{Reproduction}
-We save each released model's class probabilities once with its released inference settings, then use those same predictions for every conversion.
+We save each released model's class probabilities once with its released inference settings, then use those same predictions for every post-processing method.
 To reproduce the comparison, convert the saved probabilities to polygons with each method, score them against the reference polygons, and generate the tables and figures.
-Our FTP conversion implementation reproduces published per-country PQ to within $10^{-3}$ for PlanetScope and for Sentinel-2 on the 10~m grid used by that paper's evaluation.
+Our implementation of the FTP pipeline reproduces published per-country PQ to within $10^{-3}$ for PlanetScope and for Sentinel-2 on the 10~m grid used by that paper's evaluation.
 
 \end{document}

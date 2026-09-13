@@ -4,7 +4,7 @@ Columns, left to right: image; boundary probability; foreground with the pixels
 the field class would drop; distance surface with the seed points; watershed
 regions and lines; lines colored by their support s(l); final polygons with
 reference outlines. One row per crop, all three chosen for dense field layouts
-where the conversion has something to get wrong. Recomputed from the prediction
+where the post-processing has something to get wrong. Recomputed from the prediction
 cache with the same code that produced the tables.
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/method_fig.py
@@ -133,7 +133,7 @@ def build_row(run: str, country: str, pid: str, crop: float):
 
     fg_img = np.ones((*fg.shape, 3))
     fg_img[seg == 1] = mcolors.to_rgb(PALETTE["green"])
-    # the boundary-class pixels the FTP conversion drops from its foreground
+    # the boundary-class pixels the FTP pipeline drops from its foreground
     fg_img[seg == 2] = mcolors.to_rgb(PALETTE["orange"])
 
     ws_img = label_colors(ws, 4)

@@ -1,6 +1,6 @@
 """Cross-country gallery (Fig. 1): released pipeline vs. ours on one patch per country.
 
-Each example is a triple: image, released components, ours; reference parcels
+Each example is a triple: image, the FTP pipeline, the boundary veto; reference parcels
 are drawn as black outlines on both prediction panels; titles give crop field
 counts and badges give full-patch PQ. Rows cover all ten dense-label countries on
 PlanetScope B3 except Portugal (two test patches), eight countries on
