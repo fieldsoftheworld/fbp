@@ -2,6 +2,11 @@
 
 Audited 9 September 2026. Scope: all 25 original entries in `references.bib`, their publication metadata, and relevant omissions from `main_grsl.tex`. Seven verified entries were added; the GRSL paper now cites 18 works. The shared bibliography contains 32 entries because the expanded `main.tex` uses additional references.
 
+> Historical record. The corrections below are already applied to
+> `references.bib`. The two manuscripts it audits, `main_grsl.tex` and
+> `main.tex`, were superseded by `main_grsl_revised.tex` and removed, so the
+> citation counts quoted here describe those earlier drafts.
+
 ## Findings and corrections
 
 **No fabricated papers, invented authors, or identifiers pointing to unrelated works were found.** All original scholarly references were matched to publisher, conference, or arXiv records. One data-product citation needed correction, and several references needed better publication locators.

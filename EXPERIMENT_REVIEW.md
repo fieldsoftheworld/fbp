@@ -3,6 +3,11 @@
 Review date: September 8, 2026.
 Manuscript: `main_grsl.tex`, intended for IEEE Geoscience and Remote Sensing Letters.
 
+> Historical record. The controls this review asks for were built as the
+> `experiments/` rerun, and the manuscript it reviews was superseded by
+> `main_grsl_revised.tex` and removed. Kept because it documents why the current
+> experiments are designed the way they are.
+
 The current experiments need additional controls before submission.
 The reported arithmetic checks out, but the experiments do not yet establish how much of the improvement comes from voting rather than from discarding watershed instance divisions.
 Reproducing the Fields of the Planet (FTP) baseline and isolating this effect should take priority over expanding the figure gallery.
