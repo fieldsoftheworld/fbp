@@ -7,13 +7,13 @@ returns an int32 label image.
 * ``ucm``   Hierarchical merging on a boundary-strength map, the mechanism of
             ultrametric contour maps~(Arbelaez et al. 2011; Maninis et al. 2018)
             as applied to fields by Persello et al. (2019). Over-segment ``F``
-            with the released distance watershed at a small depth (h = 0.5),
+            with the FTP pipeline's distance watershed at a small depth (h = 0.5),
             weight each region adjacency by the mean boundary probability along
             the shared border, and greedily merge the weakest adjacency while
             it is below ``k``, re-weighting merged borders by pixel count.
 * ``swst``  Stochastic watershed~(Angulo & Jeulin 2007). Repeat ``m`` times:
             draw ``n`` uniform random markers inside ``F``, run the watershed
-            of the released distance surface with lines, and accumulate the
+            of the FTP pipeline's distance surface with lines, and accumulate the
             lines. The contour probability is the line frequency; pixels with
             frequency ``>= t`` are cut and the rest of ``F`` is labelled by
             connected components.

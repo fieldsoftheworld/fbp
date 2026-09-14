@@ -1,4 +1,4 @@
-"""Per-country PQ change of ours vs. the component baseline, four model/sensor runs.
+"""Per-country PQ change of the boundary veto over the FTP pipeline, four model/sensor runs.
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/per_country.py
 """

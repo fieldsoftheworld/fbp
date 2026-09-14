@@ -1,4 +1,4 @@
-"""FieldVote rerun: self-contained experiment code for the GRSL revision.
+"""Self-contained experiment code for the GRSL revision (the boundary veto).
 
 Every stage reads/writes under ``paths.out_root()`` and borrows the inference
 and metric primitives from the local ``ftw-planet`` checkout through

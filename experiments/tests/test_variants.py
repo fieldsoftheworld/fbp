@@ -198,8 +198,8 @@ def test_fill_holes_and_merge_small():
     assert (drop_small(touching, 10) > 0).sum() < (touching > 0).sum()
 
 
-def test_ws_rule_matches_released_pipeline():
-    """`arg-ws2` must reproduce the released watershed-then-components conversion."""
+def test_ws_rule_matches_ftp_pipeline():
+    """`arg-ws2` must reproduce the FTP pipeline's watershed-then-components step."""
     from fieldvote import ftp_compat as ftp
     from scipy.ndimage import distance_transform_edt, label
 

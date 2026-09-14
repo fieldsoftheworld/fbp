@@ -16,7 +16,7 @@ DENSE10 = (
     "sweden",
 )
 
-# Watershed depth sweep from main_grsl.tex eq. (depths). h is in pixels of the
+# Watershed depths the candidate stage sweeps. h is in pixels of the
 # EDT-of-boundary surface (see ftp_compat.watershed_instances).
 H_SWEEP = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 4.0, 8.0, 12.0, 16.0, 24.0, 32.0, 48.0, 64.0)
 

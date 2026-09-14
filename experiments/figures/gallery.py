@@ -1,11 +1,11 @@
-"""Cross-country gallery (Fig. 1): released pipeline vs. ours on one patch per country.
+"""Cross-country gallery (Fig. 1): FTP pipeline vs. boundary veto, one patch per country.
 
 Each example is a triple: image, the FTP pipeline, the boundary veto; reference parcels
 are drawn as black outlines on both prediction panels; titles give crop field
 counts and badges give full-patch PQ. Rows cover all ten dense-label countries on
 PlanetScope B3 except Portugal (two test patches), eight countries on
 Sentinel-2 B7, and one failure case. Patch choice per (model, country): the
-largest per-patch PQ gain (ours minus released) among test patches with 10-120
+largest per-patch PQ gain (boundary veto minus FTP pipeline) among test patches with 10-120
 reference parcels whose densest square window shows at least eight of them
 covering at least a quarter of the window;
 the full-patch PQ of each prediction panel is printed on it.

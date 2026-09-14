@@ -50,9 +50,9 @@ from gallery import label_colors, outlines, rgb_for  # noqa: E402
 TAU, H = 0.7, 2.0
 # height:width of each row; wider rows let three of them fit the page budget
 ASPECT = 0.62
-# (run, country, patch, label, crop height in px or None for the full height).
-# Rows are cropped to a 4:3 window: the full patch width, less height, so three
-# rows fit the page without shrinking the panels.
+# (run, country, patch, label, crop fraction of the patch's short side).
+# Each row is cropped to a window of aspect ASPECT, so three rows fit the page
+# without shrinking the panels.
 # All three hold many fields per patch, so the watershed has real decisions to
 # make. Two rows are PlanetScope and one Sentinel-2, and the Cambodia crop is
 # windowed so its smallholder fields stay legible.
@@ -234,7 +234,6 @@ def main() -> None:
                 )
             )
 
-    # column titles once, under the bottom row
     for j, title in enumerate(COLUMNS):
         axes[-1][j].text(
             0.5,

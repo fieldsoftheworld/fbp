@@ -1,10 +1,10 @@
 """Ways of turning the candidate depth sweep into one polygon set per patch.
 
 All functions take polygon lists in the eval-grid pixel frame and return the
-same. ``vote`` is FieldVote (main_grsl.tex eq. vote); ``roundtrip`` is the
-single-depth control that applies FieldVote's rasterize->polygonize conversion
-to one depth; ``nms_pool`` and ``elbow`` are the Table II alternatives, ported
-from the legacy ``multi_hmin_ensemble.py`` so the comparison stays like-for-like.
+same. ``vote`` is the per-pixel majority over the depth sweep; ``roundtrip`` is
+the single-depth control that applies the same rasterize->polygonize step to one
+depth; ``nms_pool`` and ``elbow`` are the alternatives ported from the legacy
+``multi_hmin_ensemble.py`` so the comparison stays like-for-like.
 """
 
 import math
@@ -44,7 +44,7 @@ def vote_map(candidates: list[list], shape: tuple[int, int]) -> np.ndarray:
 
 
 def vote(candidates: list[list], shape: tuple[int, int], tau: float = 0.5) -> list:
-    """FieldVote: keep pixels with >= ceil(K*tau) foreground votes; polygonize.
+    """Keep pixels with >= ceil(K*tau) foreground votes, then polygonize.
 
     Matches legacy ``strategy_c_pixel_vote``: ``k_min = max(1, ceil(K * tau))``,
     so even K at tau=0.5 assigns ties to foreground; a candidate with no

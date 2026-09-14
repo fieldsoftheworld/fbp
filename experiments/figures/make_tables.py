@@ -98,8 +98,8 @@ def compare_rows() -> list[str]:
             f(mb3.loc[s3].pq),
             f(ms2.loc[s2].pq) if s2 in ms2.index else "--",
         )
-        # The released row is reported at its default h=2, so its headroom is
-        # measured from h=2, not from the validation-best depth.
+        # The FTP pipeline row is reported at its default h=2, so its headroom
+        # is measured from h=2, not from the validation-best depth.
         gap_val = (
             tr.loc[fam].pq_per_country - 100 * mb3.loc[BASE].pq
             if fam == "depth"
@@ -264,7 +264,6 @@ def main() -> None:
         (OUT / "rev_compare_rows.tex").write_text("\n".join(cmp_lines) + "\n")
         vals.update(compare_macros())
 
-    # Ablation-derived macros.
     vals["ArgSupGain"] = delta(mb3, "raw:v:arg-sup-h2-t0.7")
     if RELEASED_FILTER in mb3.index:
         vals["BaseAreaGain"] = f"{100 * (mb3.loc[RELEASED_FILTER].pq - mb3.loc[BASE].pq):.1f}"
@@ -273,7 +272,6 @@ def main() -> None:
     vals["NbgNonePQ"] = f(mb3.loc["raw:v:nbg-none"].pq)
     vals["GainMin"] = f(min(gains.values()))
     vals["GainMax"] = f(max(gains.values()))
-    # countries improved across the four runs
     total_up = sum(int(vals[f"Up{t}"]) for t in gains)
     vals["UpTotal"] = str(total_up)
     vals["WorstAll"] = f"{min(float(vals[f'Worst{t}']) for t in gains):+.1f}"

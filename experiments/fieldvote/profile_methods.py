@@ -29,8 +29,9 @@ from .candidates import pixel_area_m2
 from .paths import DENSE10, cache_dir, out_root
 from .variants import foreground, run_variant
 
-# The released pipeline, ours, and the prior families at the setting each one
-# reaches its best validation score with.
+# The FTP pipeline, the boundary veto, and the prior families at the setting
+# each one reaches its best validation score with. The first element of each
+# pair is the ``method`` key written to the CSV, so it stays as it is.
 METHODS = [
     ("released", "arg-none-ws"),
     ("ours", "nbg-sup-h2-t0.7+A900"),
@@ -43,7 +44,7 @@ BINS = [(1, 10), (10, 30), (30, 100), (100, 10**9)]
 BIN_NAMES = ["1-9", "10-29", "30-99", "100+"]
 
 
-def released(seg: np.ndarray, prob: np.ndarray) -> np.ndarray:
+def ftp_pipeline(seg: np.ndarray, prob: np.ndarray) -> np.ndarray:
     """Field argmax, watershed at h=2, connected components of the union."""
     from scipy.ndimage import distance_transform_edt, label
 
@@ -59,7 +60,7 @@ def call(
     name: str, seg: np.ndarray, prob: np.ndarray, px_m2: float | None = None
 ) -> np.ndarray:
     if name == "arg-none-ws":
-        return released(seg, prob)
+        return ftp_pipeline(seg, prob)
     return run_variant(name, seg, prob, px_m2=px_m2)
 
 

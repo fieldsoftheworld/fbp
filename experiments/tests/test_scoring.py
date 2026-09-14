@@ -47,7 +47,8 @@ def test_pool_country_pq_is_sq_times_rq():
         [
             make_row("a", "p1", "s", tp=3, fp=1, fn=1, iou_sum=2.4),
             make_row("a", "p2", "s", tp=1, fp=1, fn=3, iou_sum=0.9),
-            make_row("a", "p3", "s", tp=0, fp=0, fn=0, iou_sum=0.0),  # empty/empty counts
+            # an empty/empty patch still counts
+            make_row("a", "p3", "s", tp=0, fp=0, fn=0, iou_sum=0.0),
         ]
     )
     c = pool_country(df).iloc[0]

@@ -12,7 +12,7 @@ Foreground rules (``FG``):
 
 Split rules:
 * ``none``            connected components of the foreground
-* ``ws{h}``           the released conversion: watershed at depth ``h`` on the field
+* ``ws{h}``           the FTP pipeline: watershed at depth ``h`` on the field
                       class, then connected components of the union of its instances
 * ``sup-h{h}-t{tau}`` EDT-of-boundary watershed with h-maxima markers at depth ``h``
                       and watershed lines; a line between two regions is kept only if
@@ -494,15 +494,19 @@ def run_variant(
     fg_mode, _, rest = name.partition("-")
     fg = foreground(seg, prob, fg_mode)
     if rest == "none":
-        return apply_post_steps(components(fg), min_area, hole_area, merge_area, seg, keep_tau)
+        return apply_post_steps(
+            components(fg), min_area, hole_area, merge_area, seg, keep_tau
+        )
     if rest.startswith("ws"):
-        # the released conversion: watershed at depth h, then components of the union
+        # the FTP pipeline: watershed at depth h, then components of the union
         from .ftp_compat import watershed_instances
 
         dist = distance_transform_edt(seg != 2).astype(np.float32)
         inst = watershed_instances(seg, dist, h_min=float(rest[2:]), field_class=1)
         comp, _ = label(inst > 0)
-        return apply_post_steps(comp.astype(np.int32), min_area, hole_area, merge_area, seg, keep_tau)
+        return apply_post_steps(
+            comp.astype(np.int32), min_area, hole_area, merge_area, seg, keep_tau
+        )
     if rest.startswith("close"):
         return apply_post_steps(
             gap_close(fg, seg, int(rest[5:])),
@@ -517,14 +521,24 @@ def run_variant(
 
         inst = run_prior(rest, fg, seg, prob)
         return apply_post_steps(
-            widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau
+            widen_gaps(inst, fg, width_px),
+            min_area,
+            hole_area,
+            merge_area,
+            seg,
+            keep_tau,
         )
     if rest.startswith("msup-t"):
         if markers is None:
             raise ValueError(f"{name} needs an instance marker image")
         inst = supported_split(fg, seg, prob, 0.0, float(rest[6:]), markers=markers)
         return apply_post_steps(
-            widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau
+            widen_gaps(inst, fg, width_px),
+            min_area,
+            hole_area,
+            merge_area,
+            seg,
+            keep_tau,
         )
     kind, h_s, t_s = rest.split("-")
     h = float(h_s[1:])
