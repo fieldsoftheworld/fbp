@@ -1,2 +1,2 @@
-# Default local build is the GRSL submission, not the expanded conference draft.
-@default_files = ('main_grsl.tex');
+# Default local build is the revised GRSL letter.
+@default_files = ('main_grsl_revised.tex', 'supplementary.tex');
