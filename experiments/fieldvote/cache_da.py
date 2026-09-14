@@ -22,12 +22,14 @@ import csv
 import json
 import platform
 import time
+from argparse import Namespace
 from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 import torch
 from scipy.ndimage import binary_dilation
+from torch._C import device
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -57,7 +59,7 @@ def paint_topk(
     ``confs (k, H, W) float32``. A pixel covered by m instances fills layers
     1..min(m, k) with the m most confident of them.
     """
-    n, h, w = masks.shape
+    _n, h, w = masks.shape
     ids = np.zeros((k, h, w), dtype=np.int32)
     out_conf = np.zeros((k, h, w), dtype=np.float32)
     order = np.argsort(-confs, kind="stable")
@@ -78,7 +80,9 @@ def paint_topk(
     return ids, out_conf
 
 
-def cache_country(yolo, device, args, country: str, out: Path) -> int:
+def cache_country(
+    yolo, device: device, args: Namespace, country: str, out: Path
+) -> int:
     ds = ftp.FTWPlanet(
         root=args.root,
         countries=[country],

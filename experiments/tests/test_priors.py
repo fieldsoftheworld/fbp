@@ -1,6 +1,7 @@
 """Prior post-processing baselines run and behave monotonically in their thresholds."""
 
 import numpy as np
+
 from fieldvote.priors import iterh, swst, thr, ucm
 from fieldvote.variants import foreground, run_variant
 
@@ -23,7 +24,7 @@ def two_field_scene():
     return seg, prob
 
 
-def test_ucm_threshold_monotone():
+def test_ucm_threshold_monotone() -> None:
     seg, prob = two_field_scene()
     fg = foreground(seg, prob, "nbg")
     low = ucm(fg, seg, prob, 0.2)
@@ -32,13 +33,13 @@ def test_ucm_threshold_monotone():
     assert low.max() >= 2  # the strong boundary survives a low threshold
 
 
-def test_thr_components():
-    seg, prob = two_field_scene()
+def test_thr_components() -> None:
+    _seg, prob = two_field_scene()
     lab = thr(prob, 0.5, 0.5)
     assert lab.max() == 2  # boundary column with p_bnd .9 splits the field
 
 
-def test_iterh_and_swst_run():
+def test_iterh_and_swst_run() -> None:
     seg, prob = two_field_scene()
     fg = foreground(seg, prob, "nbg")
     a = iterh(fg, seg, (8.0, 4.0, 2.0, 1.0), a_max=100)
@@ -48,7 +49,7 @@ def test_iterh_and_swst_run():
     assert s.dtype == np.int32 and s.max() >= 1
 
 
-def test_run_variant_dispatch():
+def test_run_variant_dispatch() -> None:
     seg, prob = two_field_scene()
     for name in (
         "nbg-ucm-k0.3",

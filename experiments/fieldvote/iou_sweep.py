@@ -15,9 +15,7 @@ Run: python -m fieldvote.iou_sweep --run planet_b3 --split val \
 
 import argparse
 from multiprocessing import Pool
-from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from . import references as refs

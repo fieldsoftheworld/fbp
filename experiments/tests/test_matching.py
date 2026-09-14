@@ -2,12 +2,14 @@
 
 import numpy as np
 import shapely.geometry
+from numpy.random._generator import Generator
+
 from fieldvote import ftp_compat as ftp
 from fieldvote.matching import THRESHOLDS, diagnostics, match
 from fieldvote.strategies import elbow, nms_pool, roundtrip, vote
 
 
-def random_boxes(rng, n, size=100):
+def random_boxes(rng: Generator, n: int, size=100):
     out = []
     for _ in range(n):
         x, y = rng.uniform(0, size, 2)
@@ -16,7 +18,7 @@ def random_boxes(rng, n, size=100):
     return out
 
 
-def test_match_equals_ftp():
+def test_match_equals_ftp() -> None:
     rng = np.random.default_rng(3)
     for _ in range(20):
         gt = random_boxes(rng, int(rng.integers(0, 30)))
@@ -30,7 +32,7 @@ def test_match_equals_ftp():
         ]
 
 
-def test_diagnostics_split_merge():
+def test_diagnostics_split_merge() -> None:
     big = shapely.geometry.box(0, 0, 10, 10)
     left = shapely.geometry.box(0, 0, 5, 10)
     right = shapely.geometry.box(5, 0, 10, 10)
@@ -43,7 +45,7 @@ def test_diagnostics_split_merge():
     assert d["gt_missed"] == 1 and d["pred_spurious"] == 1
 
 
-def test_vote_majority_and_ties():
+def test_vote_majority_and_ties() -> None:
     shape = (20, 20)
     a = [shapely.geometry.box(0, 0, 10, 10)]
     b = [shapely.geometry.box(0, 0, 10, 10), shapely.geometry.box(12, 12, 18, 18)]
@@ -55,14 +57,14 @@ def test_vote_majority_and_ties():
     assert len(out) == 1 and out[0].area == 100
 
 
-def test_roundtrip_merges_touching_polygons():
+def test_roundtrip_merges_touching_polygons() -> None:
     shape = (20, 20)
     left = shapely.geometry.box(0, 0, 5, 10)
     right = shapely.geometry.box(5, 0, 10, 10)
     assert len(roundtrip([left, right], shape)) == 1
 
 
-def test_nms_and_elbow_smoke():
+def test_nms_and_elbow_smoke() -> None:
     a = shapely.geometry.box(0, 0, 10, 10)
     b = shapely.geometry.box(0, 0, 10, 9)  # IoU 0.9 with a
     c = shapely.geometry.box(20, 20, 25, 25)

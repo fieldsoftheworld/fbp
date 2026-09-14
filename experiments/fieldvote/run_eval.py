@@ -19,6 +19,7 @@ Example:
 
 import argparse
 import time
+from argparse import Namespace
 from multiprocessing import Pool
 from pathlib import Path
 
@@ -198,7 +199,7 @@ def load_candidates(run: str, split: str, country: str) -> dict[str, dict[str, l
     return out
 
 
-def run_country(args, country: str) -> pd.DataFrame:
+def run_country(args: Namespace, country: str) -> pd.DataFrame:
     global _CANDS, _OPTS
     src = cache_dir(f"{args.run}/{args.split}") / country
     npzs = sorted(src.glob("*.npz"))

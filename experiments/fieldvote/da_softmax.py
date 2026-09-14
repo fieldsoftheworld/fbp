@@ -47,8 +47,7 @@ def pseudo_softmax(confs: np.ndarray, rule: str) -> np.ndarray:
         r = np.zeros_like(c1)
         np.divide(c2, c1, out=r, where=present)
         r = np.clip(r, 0.0, 1.0)
-        prob = np.stack([~present, present * (1.0 - r), present * r]).astype(np.float32)
-        return prob
+        return np.stack([~present, present * (1.0 - r), present * r]).astype(np.float32)
     raise ValueError(rule)
 
 

@@ -24,13 +24,25 @@ import pandas as pd
 import rasterio
 import rasterio.features
 from matplotlib import colors as mcolors
+from matplotlib.axes._axes import Axes
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from numpy import ndarray
 from scipy.ndimage import binary_dilation, distance_transform_edt, label
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "experiments"))
 os.environ.setdefault("FTW_PLANET_REPO", str(Path.home() / "github" / "ftw-planet"))
+
+from figstyle import (  # noqa: E402
+    LABEL_BBOX,
+    PALETTE,
+    PANEL_EDGE,
+    PANEL_LINEWIDTH,
+    WIDE,
+    save,
+    use_style,
+)
 
 from fieldvote import ftp_compat as ftp  # noqa: E402
 from fieldvote import references as refs  # noqa: E402
@@ -42,15 +54,6 @@ from fieldvote.paths import (  # noqa: E402
     scores_dir,
 )
 from fieldvote.variants import run_variant  # noqa: E402
-from figstyle import (  # noqa: E402
-    LABEL_BBOX,
-    PALETTE,
-    PANEL_EDGE,
-    PANEL_LINEWIDTH,
-    WIDE,
-    save,
-    use_style,
-)
 
 TAU, H = 0.7, 2.0
 VARIANT = "nbg-sup-h2-t0.7+A900"
@@ -219,7 +222,9 @@ def best_window(gt: np.ndarray) -> tuple[slice, slice]:
     return best
 
 
-def draw_pred(ax, inst, gt, seed, pq: float, bold: bool = False):
+def draw_pred(
+    ax: Axes, inst: ndarray, gt, seed: int, pq: float, bold: bool = False
+) -> None:
     img = label_colors(inst, seed)
     img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
     ax.imshow(img, interpolation="nearest")

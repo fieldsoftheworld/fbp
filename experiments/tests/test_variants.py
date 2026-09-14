@@ -1,6 +1,7 @@
 """Boundary-supported splitting keeps supported lines and merges unsupported ones."""
 
 import numpy as np
+
 from fieldvote.variants import (
     default_variants,
     drop_small,
@@ -14,7 +15,8 @@ from fieldvote.variants import (
 def two_fields(gap_boundary: bool, boundary_pb: float):
     """Two 20x20 blocks side by side. If gap_boundary, the model paints a boundary
     column between them (with p_boundary = boundary_pb there); otherwise the blocks
-    touch and only a geometric neck (thin bridge) separates them."""
+    touch and only a geometric neck (thin bridge) separates them.
+    """
     H, W = 24, 48
     seg = np.zeros((H, W), dtype=np.uint8)
     prob = np.zeros((3, H, W), dtype=np.float32)
@@ -39,14 +41,14 @@ def two_fields(gap_boundary: bool, boundary_pb: float):
     return seg, prob
 
 
-def test_unsupported_neck_is_merged():
+def test_unsupported_neck_is_merged() -> None:
     seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
     fg = foreground(seg, prob, "arg")
     inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
     assert inst.max() == 1  # the geometric neck split is not supported -> one field
 
 
-def test_supported_gap_is_kept():
+def test_supported_gap_is_kept() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
     inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
@@ -55,7 +57,7 @@ def test_supported_gap_is_kept():
     assert (inst[10:14, 22:26] == 0).any()
 
 
-def test_foreground_modes_and_close():
+def test_foreground_modes_and_close() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     assert foreground(seg, prob, "nbg").sum() > foreground(seg, prob, "arg").sum()
     assert foreground(seg, prob, "pf50").sum() == (prob[1] > 0.5).sum()
@@ -63,7 +65,7 @@ def test_foreground_modes_and_close():
     assert inst.max() == 2
 
 
-def test_all_default_variants_run():
+def test_all_default_variants_run() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     out = run_variants(seg, prob, default_variants())
     assert len(out) == len(default_variants())
@@ -79,7 +81,7 @@ def touching_pairs(inst: np.ndarray) -> int:
     return n + int(((a != b) & (a > 0) & (b > 0)).sum())
 
 
-def test_kept_splits_are_gaps_on_real_patch():
+def test_kept_splits_are_gaps_on_real_patch() -> None:
     from fieldvote.paths import cache_dir
 
     src = cache_dir("smoke_b3/test") / "portugal"
@@ -99,7 +101,7 @@ def test_kept_splits_are_gaps_on_real_patch():
             assert touching_pairs(inst) == 0, name
 
 
-def test_widen_gaps_keeps_two_fields_and_grows_gap():
+def test_widen_gaps_keeps_two_fields_and_grows_gap() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     one = run_variants(seg, prob, ["nbg-sup-h1-t0.5"])["nbg-sup-h1-t0.5"]
     two = run_variants(seg, prob, ["nbg-sup-h1-t0.5+w2"])["nbg-sup-h1-t0.5+w2"]
@@ -113,7 +115,7 @@ def test_widen_gaps_keeps_two_fields_and_grows_gap():
     assert touching_pairs(two) == 0
 
 
-def test_empty_patch():
+def test_empty_patch() -> None:
     seg = np.zeros((8, 8), dtype=np.uint8)
     prob = np.zeros((3, 8, 8), dtype=np.float32)
     prob[0] = 1.0
@@ -121,7 +123,7 @@ def test_empty_patch():
         assert v.max() == 0, name
 
 
-def test_no_adjacent_labels_on_many_real_patches():
+def test_no_adjacent_labels_on_many_real_patches() -> None:
     """The kept-split invariant on a spread of real patches, not just one country."""
     import itertools
 
@@ -149,7 +151,7 @@ def test_no_adjacent_labels_on_many_real_patches():
     assert checked >= 20
 
 
-def test_min_line_and_min_area_and_band():
+def test_min_line_and_min_area_and_band() -> None:
     from fieldvote.variants import drop_small
 
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
@@ -168,7 +170,7 @@ def test_min_line_and_min_area_and_band():
     assert set(np.unique(filtered)) <= {0, 1}
 
 
-def test_fill_holes_and_merge_small():
+def test_fill_holes_and_merge_small() -> None:
     from fieldvote.variants import fill_holes, merge_small
 
     inst = np.zeros((20, 20), dtype=np.int32)
@@ -198,10 +200,11 @@ def test_fill_holes_and_merge_small():
     assert (drop_small(touching, 10) > 0).sum() < (touching > 0).sum()
 
 
-def test_ws_rule_matches_ftp_pipeline():
+def test_ws_rule_matches_ftp_pipeline() -> None:
     """`arg-ws2` must reproduce the FTP pipeline's watershed-then-components step."""
-    from fieldvote import ftp_compat as ftp
     from scipy.ndimage import distance_transform_edt, label
+
+    from fieldvote import ftp_compat as ftp
 
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     got = run_variants(seg, prob, ["arg-ws2"])["arg-ws2"]

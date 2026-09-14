@@ -65,7 +65,8 @@ def iou(a, b) -> float:
 
 def nms_pool(candidates: list[list], iou_thresh: float = 0.5) -> list:
     """Legacy strategy A: pool every candidate polygon, rank by how many other
-    candidates contain an IoU>=thresh match, then greedy NMS at the same IoU."""
+    candidates contain an IoU>=thresh match, then greedy NMS at the same IoU.
+    """
     pool = [p for polys in candidates for p in polys if not p.is_empty]
     if not pool:
         return []
@@ -90,7 +91,8 @@ def nms_pool(candidates: list[list], iou_thresh: float = 0.5) -> list:
 
 def elbow(candidates: list[list]) -> list:
     """Legacy strategy D: pick the depth whose relative change in polygon count
-    to the next depth is smallest (candidates ordered by increasing depth)."""
+    to the next depth is smallest (candidates ordered by increasing depth).
+    """
     counts = [len(p) for p in candidates]
     if len(counts) == 1:
         return candidates[0]

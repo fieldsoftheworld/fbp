@@ -28,13 +28,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "experiments"))
 os.environ.setdefault("FTW_PLANET_REPO", str(Path.home() / "github" / "ftw-planet"))
 
-from fieldvote import references as refs  # noqa: E402
-from fieldvote.paths import cache_dir  # noqa: E402
-from fieldvote.variants import (  # noqa: E402
-    pairs_at_lines,
-    foreground,
-    supported_split,
-)
 from figstyle import (  # noqa: E402
     LABEL_BBOX,
     LOSS,
@@ -46,6 +39,14 @@ from figstyle import (  # noqa: E402
     use_style,
 )
 from gallery import label_colors, outlines, rgb_for  # noqa: E402
+
+from fieldvote import references as refs  # noqa: E402
+from fieldvote.paths import cache_dir  # noqa: E402
+from fieldvote.variants import (  # noqa: E402
+    foreground,
+    pairs_at_lines,
+    supported_split,
+)
 
 TAU, H = 0.7, 2.0
 # height:width of each row; wider rows let three of them fit the page budget

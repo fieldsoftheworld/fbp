@@ -2,12 +2,13 @@
 
 import geopandas as gpd
 import shapely.geometry
+
 from fieldvote import paths
 from fieldvote.candidates import tag_to_file
 from fieldvote.run_eval import load_candidates
 
 
-def test_missing_tag_filled_with_empty_list(tmp_path, monkeypatch):
+def test_missing_tag_filled_with_empty_list(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("FIELDVOTE_OUT", str(tmp_path))
     cdir = paths.candidates_dir("r/test") / "xx"
     cdir.mkdir(parents=True)

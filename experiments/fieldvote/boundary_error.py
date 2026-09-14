@@ -24,7 +24,6 @@ Run: python -m fieldvote.boundary_error --run planet_b3 --split test \
 
 import argparse
 from multiprocessing import Pool
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -36,7 +35,7 @@ from .matching import match
 from .paths import DENSE10, cache_dir, candidates_dir, out_root
 
 
-def outline_mask(shape, geom):
+def outline_mask(shape: tuple[int, int], geom):
     """Boundary pixels of one polygon. Shapes are already in pixel coordinates."""
     filled = rasterio.features.rasterize(
         [(geom, 1)], out_shape=shape, dtype="uint8"
@@ -112,9 +111,16 @@ def report(df: pd.DataFrame, variants: list[str]) -> None:
     counts = df[df.gt_id < 0]
     common = None
     for v in variants:
-        keys = set(map(tuple, pairs[pairs.variant == v][["country", "patch_id", "gt_id"]].to_numpy()))
+        keys = set(
+            map(
+                tuple,
+                pairs[pairs.variant == v][["country", "patch_id", "gt_id"]].to_numpy(),
+            )
+        )
         common = keys if common is None else (common & keys)
-    print(f"{'variant':26s} {'bnd err m':>10s} {'on common':>10s} {'|dN|':>7s} {'dN/N':>8s}")
+    print(
+        f"{'variant':26s} {'bnd err m':>10s} {'on common':>10s} {'|dN|':>7s} {'dN/N':>8s}"
+    )
     for v in variants:
         p = pairs[pairs.variant == v]
         own = p.chamfer_m.mean()

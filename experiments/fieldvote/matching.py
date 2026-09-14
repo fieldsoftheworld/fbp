@@ -42,7 +42,7 @@ def iou_matrix(gt: list, pred: list) -> np.ndarray:
 
 def greedy(ious: np.ndarray, t: float) -> list[tuple[int, int, float]]:
     """FTP's greedy rule on a precomputed IoU matrix."""
-    n_gt, n_pred = ious.shape
+    n_gt, _n_pred = ious.shape
     matched_j: set[int] = set()
     pairs = []
     for i in range(n_gt):

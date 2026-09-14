@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+
 from fieldvote.cache_da import paint_topk
 from fieldvote.da_softmax import RULES, pseudo_softmax
 
@@ -15,7 +16,7 @@ def overlapping_instances():
     return masks, confs
 
 
-def test_paint_topk_orders_by_confidence():
+def test_paint_topk_orders_by_confidence() -> None:
     masks, confs = overlapping_instances()
     ids, c = paint_topk(masks, confs, 3)
     assert ids[0, 0, 0] == 1 and c[0, 0, 0] == pytest.approx(0.9)
@@ -29,7 +30,7 @@ def test_paint_topk_orders_by_confidence():
     assert (ids[0] > 0).sum() == (masks.any(axis=0)).sum()
 
 
-def test_pseudo_softmax_rules_sum_to_one_and_mark_contest():
+def test_pseudo_softmax_rules_sum_to_one_and_mark_contest() -> None:
     masks, confs = overlapping_instances()
     _, c = paint_topk(masks, confs, 3)
     for rule in RULES:
@@ -51,7 +52,7 @@ def test_pseudo_softmax_rules_sum_to_one_and_mark_contest():
     assert hard[2, 0, 0] == 1.0  # duplicate counts as contest under the hard rule
 
 
-def test_marker_supported_split_keeps_strong_seams_merges_weak():
+def test_marker_supported_split_keeps_strong_seams_merges_weak() -> None:
     from fieldvote.variants import run_variant
 
     # A (.9) | B (.8) touch along column 5; C (.2) is a weak duplicate inside A.

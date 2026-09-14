@@ -28,24 +28,47 @@ from ftw_planet.datasets import (  # type: ignore[import-not-found]
     PLANET_SR_SCALE,
     FTWPlanet,
 )
+
 # Upstream spells these with a leading underscore; they are re-exported under
 # public names so nothing in this package has to reach for a private symbol.
 from polygon_metrics_eval import (  # type: ignore[import-not-found]
     AP_IOU_THRESHOLDS,
     GSD_M,
+)
+from polygon_metrics_eval import (
     _area_bin as area_bin,
+)
+from polygon_metrics_eval import (
     _cap_pred_to_gsd as cap_pred_to_gsd,
+)
+from polygon_metrics_eval import (
     _eval_grid as eval_grid,
+)
+from polygon_metrics_eval import (
     _extract_shapes as extract_shapes,
+)
+from polygon_metrics_eval import (
     _match_shapes as match_shapes,
+)
+from polygon_metrics_eval import (
     _symmetric_chamfer as symmetric_chamfer,
+)
+from polygon_metrics_eval import (
     _true_gt_shapes as true_gt_shapes,
+)
+from polygon_metrics_eval import (
     _true_gt_utm as true_gt_utm,
 )
 from postprocess_eval import (  # type: ignore[import-not-found]
     _pad_min32 as pad_min32,
+)
+from postprocess_eval import (
     _predict as predict,
+)
+from postprocess_eval import (
     _predict_tta as predict_tta,
+)
+from postprocess_eval import (
     watershed_instances,
 )
 

@@ -164,7 +164,9 @@ def main() -> None:
                 # Equal numeric widths align decimals in centered metric columns.
                 if len(v.partition(".")[0]) == 1:
                     v = rf"\phantom{{0}}{v}"
-                shown = [m.loc[t][col] for t in (BASE, RELEASED_FILTER, OURS) if t in m.index]
+                shown = [
+                    m.loc[t][col] for t in (BASE, RELEASED_FILTER, OURS) if t in m.index
+                ]
                 best = max(shown) if hi else min(shown)
                 if r[col] == best:
                     v = f"\\textbf{{{v}}}"
@@ -217,7 +219,7 @@ def main() -> None:
     ms2 = macro_vec("s2_b7", "test/pixel")
 
     def delta(m: pd.DataFrame, s: str) -> str:
-        """Signed PQ change, colored green when it helps and red when it hurts.
+        r"""Signed PQ change, colored green when it helps and red when it hurts.
 
         \\gainc and \\lossc are defined in the preamble of the letter, so the
         two colors are set in one place rather than per cell.
@@ -266,9 +268,13 @@ def main() -> None:
 
     vals["ArgSupGain"] = delta(mb3, "raw:v:arg-sup-h2-t0.7")
     if RELEASED_FILTER in mb3.index:
-        vals["BaseAreaGain"] = f"{100 * (mb3.loc[RELEASED_FILTER].pq - mb3.loc[BASE].pq):.1f}"
+        vals["BaseAreaGain"] = (
+            f"{100 * (mb3.loc[RELEASED_FILTER].pq - mb3.loc[BASE].pq):.1f}"
+        )
     if OURS in mb3.index and OURS_NOFILTER in mb3.index:
-        vals["OursAreaGain"] = f"{100 * (mb3.loc[OURS].pq - mb3.loc[OURS_NOFILTER].pq):.1f}"
+        vals["OursAreaGain"] = (
+            f"{100 * (mb3.loc[OURS].pq - mb3.loc[OURS_NOFILTER].pq):.1f}"
+        )
     vals["NbgNonePQ"] = f(mb3.loc["raw:v:nbg-none"].pq)
     vals["GainMin"] = f(min(gains.values()))
     vals["GainMax"] = f(max(gains.values()))

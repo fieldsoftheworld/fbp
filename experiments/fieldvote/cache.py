@@ -26,11 +26,13 @@ import csv
 import json
 import platform
 import time
+from argparse import Namespace
 from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 import torch
+from torch._C import device
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -75,7 +77,9 @@ def label_path(ds, idx: int, backend: str) -> str:
     return ds.records[idx]["label"]
 
 
-def cache_country(task, model, device, args, country: str, out: Path) -> int:
+def cache_country(
+    task, model, device: device, args: Namespace, country: str, out: Path
+) -> int:
     ds = build_dataset(args.backend, args.root, country, args.split)
     dl = DataLoader(
         ds, batch_size=1, shuffle=False, num_workers=args.num_workers, pin_memory=True

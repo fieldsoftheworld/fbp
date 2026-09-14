@@ -19,6 +19,7 @@ import warnings
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import ndarray
 
 # Final printed widths in inches. Build every figure at the size it will be
 # printed at: rescaling in LaTeX rescales the text with it.
@@ -111,7 +112,7 @@ SERIF = [
 _resolved_font: str | None = None
 
 
-def available_font(stack) -> str | None:
+def available_font(stack: list[str]) -> str | None:
     """The first font in `stack` this machine actually has."""
     import matplotlib.font_manager as fm
 
@@ -196,7 +197,7 @@ def figure_grid(
     return fig, axes
 
 
-def panel_labels(axes, labels=None, weight: str = "bold", pad: float = 2.0):
+def panel_labels(axes, labels=None, weight: str = "bold", pad: float = 2.0) -> None:
     """Label panels (a), (b), ... above each axes' top-left corner.
 
     Panel letters are how prose names a part of a figure ("as Fig. 2b shows").
@@ -261,9 +262,7 @@ def audit(fig) -> list[str]:
         # An image panel has pixel coordinates on both axes and no ticks; an
         # axis title over it would name the pixel grid, which is not a quantity
         # the reader reads off the figure.
-        if ax.images and not (
-            ax.xaxis.get_ticklabels() or ax.yaxis.get_ticklabels()
-        ):
+        if ax.images and not (ax.xaxis.get_ticklabels() or ax.yaxis.get_ticklabels()):
             continue
         for axis, name, shared in (
             (ax.xaxis, "x", ax.get_shared_x_axes()),
@@ -387,8 +386,10 @@ def text_collisions(fig) -> list[str]:
     return problems
 
 
-def save(fig, stem: str, formats=("pdf", "svg"), close: bool = True) -> list[str]:
-    """Write `stem.pdf` (for \\includegraphics) and `stem.svg` (for preview).
+def save(
+    fig, stem: str, formats: tuple[str, str] = ("pdf", "svg"), close: bool = True
+) -> list[str]:
+    r"""Write `stem.pdf` (for \\includegraphics) and `stem.svg` (for preview).
 
     No `bbox_inches="tight"`: trimming to content changes the physical width
     and defeats building at the final size.
@@ -458,7 +459,7 @@ def family(name: str, n: int, lightest: float = 0.55) -> list[str]:
     return [mpl.colors.to_hex(base + (1.0 - base) * step) for step in steps]
 
 
-def pareto_front(x, y, minimize_x: bool = True, maximize_y: bool = True):
+def pareto_front(x, y, minimize_x: bool = True, maximize_y: bool = True) -> ndarray:
     """Indices of the non-dominated points, ordered along the frontier.
 
     A point is on the frontier when no other point is at least as good on both
@@ -520,7 +521,9 @@ def band(ax, x, runs, label=None, color=None, **kwargs):
     return line
 
 
-def label_ends(ax, lines, labels, pad: float = 3.0, min_gap: float = 7.0, **kwargs):
+def label_ends(
+    ax, lines, labels, pad: float = 3.0, min_gap: float = 7.0, **kwargs
+) -> None:
     """Label each line at its right end, in the line's own color.
 
     Direct labels beat a legend up to ~5 series: the reader never has to match
@@ -590,7 +593,7 @@ def si_ticks(ax, which: str = "x") -> None:
     otherwise matplotlib prints them as `1.85 x 10^0`.
     """
 
-    def fmt(value, _pos):
+    def fmt(value, _pos) -> str:
         for scale, suffix in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "k")):
             if abs(value) >= scale:
                 trimmed = f"{value / scale:.1f}".rstrip("0").rstrip(".")
@@ -609,7 +612,8 @@ def annotate_matrix(
     ax, values, fmt: str = "{:.2f}", image=None, threshold: float = 0.6
 ) -> None:
     """Write each cell's value on a heatmap, in whichever of black or white
-    stays legible against that cell."""
+    stays legible against that cell.
+    """
     values = np.asarray(values, dtype=float)
     image = ax.images[-1] if image is None else image
     norm, cmap = image.norm, image.cmap

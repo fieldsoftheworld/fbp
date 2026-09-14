@@ -142,7 +142,7 @@ def select_depth(
     sel_keys = [k for k in KEYS if k != "strategy"]
     cand = by[by.strategy.str.startswith(prefix + ":h")]
     best = cand.loc[
-        cand.groupby(sel_keys, sort=False).pq.idxmax(), sel_keys + ["strategy"]
+        cand.groupby(sel_keys, sort=False).pq.idxmax(), [*sel_keys, "strategy"]
     ]
     best = best.rename(columns={"strategy": "selected_depth"})
     merge_on = [k for k in sel_keys if k in country_df.columns and k != "split"]

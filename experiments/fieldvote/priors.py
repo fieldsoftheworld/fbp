@@ -25,6 +25,8 @@ returns an int32 label image.
 """
 
 import numpy as np
+from numpy import signedinteger
+from numpy._typing._nbit_base import _32Bit
 from scipy.ndimage import distance_transform_edt, label
 from skimage import graph
 from skimage.morphology import h_maxima
@@ -51,7 +53,7 @@ def relabel_dense(lab: np.ndarray) -> np.ndarray:
     return dense
 
 
-def weight_boundary(g, src, dst, n):
+def weight_boundary(g: type[signedinteger[_32Bit]], src, dst, n):
     """Count-weighted mean boundary probability after merging src into dst."""
     default = {"weight": 0.0, "count": 0}
     cs, cd = g[src].get(n, default)["count"], g[dst].get(n, default)["count"]
@@ -60,7 +62,7 @@ def weight_boundary(g, src, dst, n):
     return {"count": count, "weight": (cs * ws + cd * wd) / count}
 
 
-def merge_boundary(g, src, dst):
+def merge_boundary(g: type[signedinteger[_32Bit]], src, dst) -> None:
     return None
 
 

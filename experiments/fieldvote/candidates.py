@@ -190,7 +190,7 @@ def process_patch(
     return polys, rows
 
 
-def run_patch_job(args):
+def run_patch_job(args: tuple[Path, tuple[float, ...], tuple[str, ...], float | None]):
     return process_patch(*args)
 
 

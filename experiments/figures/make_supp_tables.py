@@ -157,10 +157,19 @@ def variants_rows() -> list[str]:
                 ("Field Probability at Least 0.5", "raw:v:pf50-none"),
                 ("Boundary Class Closed, Radius 1 px", "raw:v:arg-close1"),
                 ("Boundary Class Closed, Radius 2 px", "raw:v:arg-close2"),
-                ("Watershed on Boundary Probability, $h=0.1$", "raw:v:arg-pb-h0.1-t0.5"),
-                ("Watershed on Boundary Probability, $h=0.2$", "raw:v:arg-pb-h0.2-t0.5"),
+                (
+                    "Watershed on Boundary Probability, $h=0.1$",
+                    "raw:v:arg-pb-h0.1-t0.5",
+                ),
+                (
+                    "Watershed on Boundary Probability, $h=0.2$",
+                    "raw:v:arg-pb-h0.2-t0.5",
+                ),
                 ("Not-Background, Boundary Closed, Radius 1 px", "raw:v:nbg-close1"),
-                ("Not-Background, Boundary-Probability Watershed", "raw:v:nbg-pb-h0.2-t0.5"),
+                (
+                    "Not-Background, Boundary-Probability Watershed",
+                    "raw:v:nbg-pb-h0.2-t0.5",
+                ),
             ],
         ),
         (
@@ -182,7 +191,10 @@ def variants_rows() -> list[str]:
         (
             "Minimum Parcel Size",
             [(f"FTP, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
-            + [(f"Boundary Veto, {a} m$^2$", f"{ours}+A{a}") for a in (450, 900, 1800, 3600)],
+            + [
+                (f"Boundary Veto, {a} m$^2$", f"{ours}+A{a}")
+                for a in (450, 900, 1800, 3600)
+            ],
         ),
     ]
     rows = []

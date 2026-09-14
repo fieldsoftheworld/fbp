@@ -59,6 +59,10 @@ ignore = [
     # `.unstack()` is exactly what the results tables want; `pivot_table` would
     # silently average duplicate rows instead of surfacing them.
     "PD010",
+    # `int(round(x))` is not redundant here: `round()` on a numpy scalar returns
+    # a numpy scalar, which then blows up the `:02d` format used to build the
+    # threshold keys. The explicit cast is the guard.
+    "RUF046",
 ]
 # Nothing is auto-added on `--fix`; in particular no future import.
 extend-safe-fixes = []

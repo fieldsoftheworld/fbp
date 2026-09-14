@@ -20,6 +20,7 @@ import gc
 import threading
 import time
 from pathlib import Path
+from typing import Self
 
 import numpy as np
 import pandas as pd
@@ -75,7 +76,7 @@ class RSSSampler:
         with open("/proc/self/statm") as f:
             return int(f.read().split()[1]) * 4096  # pages -> bytes
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         gc.collect()
         self.base = self.read_rss()
         self.peak = self.base

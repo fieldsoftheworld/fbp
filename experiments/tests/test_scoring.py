@@ -2,6 +2,7 @@
 
 import pandas as pd
 import pytest
+
 from fieldvote.matching import THRESHOLDS
 from fieldvote.run_eval import BINS
 from fieldvote.scoring import (
@@ -12,7 +13,17 @@ from fieldvote.scoring import (
 )
 
 
-def make_row(country, patch, strategy, tp, fp, fn, iou_sum, split="test", ref="vector"):
+def make_row(
+    country: str,
+    patch: str,
+    strategy: str,
+    tp: int,
+    fp: int,
+    fn: int,
+    iou_sum: float,
+    split="test",
+    ref="vector",
+):
     r = {
         "run": "r",
         "split": split,
@@ -42,7 +53,7 @@ def make_row(country, patch, strategy, tp, fp, fn, iou_sum, split="test", ref="v
     return r
 
 
-def test_pool_country_pq_is_sq_times_rq():
+def test_pool_country_pq_is_sq_times_rq() -> None:
     df = pd.DataFrame(
         [
             make_row("a", "p1", "s", tp=3, fp=1, fn=1, iou_sum=2.4),
@@ -64,7 +75,7 @@ def test_pool_country_pq_is_sq_times_rq():
     assert c.pq_large == pytest.approx(c.pq) and c.pq_small == 0.0
 
 
-def test_macro_requires_all_countries():
+def test_macro_requires_all_countries() -> None:
     df = pd.DataFrame(
         [make_row("a", "p", "s", 1, 0, 0, 0.8), make_row("b", "p", "s", 1, 1, 0, 0.7)]
     )
@@ -75,7 +86,9 @@ def test_macro_requires_all_countries():
         macro(c, ("a", "b", "z"))
 
 
-def country_scores(split, pq_by):
+def country_scores(
+    split: str, pq_by: dict[str, dict[str, tuple[int, int, int, float]]]
+):
     """pq_by: {country: {strategy: (tp, fp, fn, iou_sum)}} -> pooled country frame."""
     rows = []
     for c, d in pq_by.items():
@@ -84,7 +97,7 @@ def country_scores(split, pq_by):
     return pool_country(pd.DataFrame(rows))
 
 
-def test_select_depth_test_and_val():
+def test_select_depth_test_and_val() -> None:
     test = country_scores(
         "test",
         {
@@ -111,7 +124,7 @@ def test_select_depth_test_and_val():
     )
 
 
-def test_select_depth_global_loco():
+def test_select_depth_global_loco() -> None:
     test = country_scores(
         "test",
         {

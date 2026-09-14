@@ -2,10 +2,11 @@
 
 import numpy as np
 import pytest
+from scipy.ndimage import distance_transform_edt
+
 from fieldvote import ftp_compat as ftp
 from fieldvote.candidates import instance_polygons, watershed_with_meta
 from fieldvote.paths import H_SWEEP, cache_dir
-from scipy.ndimage import distance_transform_edt
 
 
 def synthetic_seg(rng: np.random.Generator) -> np.ndarray:

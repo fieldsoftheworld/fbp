@@ -36,6 +36,7 @@ under ``A`` px into the neighbour they share the longest border with.
 from collections.abc import Iterable
 
 import numpy as np
+from numpy import ndarray
 from scipy.ndimage import (
     binary_closing,
     binary_dilation,
@@ -68,7 +69,8 @@ def pairs_at_lines(
     inst: np.ndarray, lines: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """For every line pixel return (rows, cols, (n_px, 2) sorted label pairs) of the
-    two largest distinct positive neighbour labels; pixels touching < 2 labels get (0, 0)."""
+    two largest distinct positive neighbour labels; pixels touching < 2 labels get (0, 0).
+    """
     p = np.pad(inst, 1)
     r, c = np.nonzero(lines)
     nb = np.stack([p[r, c + 1], p[r + 2, c + 1], p[r + 1, c], p[r + 1, c + 2]], axis=1)
@@ -100,7 +102,7 @@ class UnionFind:
             self.parent[max(ra, rb)] = min(ra, rb)
 
 
-def link_weak_lines(strong, eligible, inv, rr, cc, shape):
+def link_weak_lines(strong, eligible, inv, rr: ndarray, cc: ndarray, shape):
     """Hysteresis over the watershed lines.
 
     ``strong`` lines are kept outright. An ``eligible`` line is kept when a chain
@@ -125,7 +127,9 @@ def link_weak_lines(strong, eligible, inv, rr, cc, shape):
                 uf.union(int(a), int(b))
     roots = np.array([uf.find(i) for i in range(len(eligible))], dtype=np.int64)
     seeded = set(roots[strong & eligible].tolist())
-    linked = eligible & np.isin(roots, list(seeded)) if seeded else np.zeros_like(strong)
+    linked = (
+        eligible & np.isin(roots, list(seeded)) if seeded else np.zeros_like(strong)
+    )
     return strong | linked
 
 
@@ -157,7 +161,8 @@ def supported_split(
     ``tau_lo`` turns the single threshold into hysteresis, as in edge linking: a
     line at or above ``tau`` is kept outright, and a line at or above ``tau_lo``
     is kept when it connects to one that was. Field boundaries form connected
-    networks, so a weak segment between two strong ones is usually real."""
+    networks, so a weak segment between two strong ones is usually real.
+    """
     if not fg.any():
         z = np.zeros(fg.shape, dtype=np.int32)
         return (z, np.zeros_like(fg), np.zeros_like(fg)) if return_lines else z
@@ -199,7 +204,9 @@ def supported_split(
         support = is_bnd[r, c].astype(np.float64)
     elif score == "soft":
         pb, pf = prob[2][r, c].astype(np.float64), prob[1][r, c].astype(np.float64)
-        support = np.divide(pb, pb + pf, out=np.full(pb.shape, 0.5), where=(pb + pf) > 0)
+        support = np.divide(
+            pb, pb + pf, out=np.full(pb.shape, 0.5), where=(pb + pf) > 0
+        )
         if band > 0:  # the band is a spatial rule; fall back to the hard test
             support = is_bnd[r, c].astype(np.float64)
     else:
@@ -212,7 +219,11 @@ def supported_split(
     keep_line = (s_line >= tau) & (n_px >= min_line)
     if tau_lo is not None and tau_lo < tau:
         keep_line = link_weak_lines(
-            keep_line, (s_line >= tau_lo) & (n_px >= min_line), inv, r[valid], c[valid],
+            keep_line,
+            (s_line >= tau_lo) & (n_px >= min_line),
+            inv,
+            r[valid],
+            c[valid],
             fg.shape,
         )
     uf = UnionFind(int(inst.max()))
@@ -304,7 +315,14 @@ def widen_gaps(inst: np.ndarray, fg: np.ndarray, width_px: int) -> np.ndarray:
     return out
 
 
-def apply_post_steps(inst, min_area, hole_area, merge_area, seg=None, keep_tau=None):
+def apply_post_steps(
+    inst: ndarray,
+    min_area: int,
+    hole_area: int,
+    merge_area: int,
+    seg: ndarray | None = None,
+    keep_tau: float | None = None,
+) -> ndarray:
     """Post-steps in a fixed order: fill holes, merge slivers, drop what is left.
 
     With ``keep_tau`` the last step spares small parcels whose outline the
@@ -461,7 +479,8 @@ def run_variant(
     ``+H45`` is 0.45), and ``+K{t}`` the outline-support bar that spares a small
     parcel from the minimum-size step. Rule kind ``ssup`` scores a line by the
     average probability share instead of a pixel count. They never collide with
-    a rule's own parameters."""
+    a rule's own parameters.
+    """
     width_px, min_line, band, min_area, hole_area, merge_area = 1, 0, 0, 0, 0, 0
     tau_lo, keep_tau = None, None
     name, *mods = name.split("+")
