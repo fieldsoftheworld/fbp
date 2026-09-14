@@ -10,11 +10,14 @@
 \usepackage{amssymb}
 \usepackage{cite}
 \usepackage[hidelinks]{hyperref}
+\usepackage[table]{xcolor}
+% Fill for our method's row in every table; same value as the letter.
+\definecolor{oursbg}{HTML}{EAF6EC}
 \makeatletter\newcommand{\tablebody}[1]{\@@input #1 }\makeatother
 
 \begin{document}
 
-\title{Supplementary Material\\Boundary Veto: Model-Free Post-Processing for Agricultural Field Boundary Delineation}
+\title{Supplementary Material\\BoundaryVote: Model-Free Post-Processing for Agricultural Field Boundary Delineation}
 \author{Aviskar~Giri and Isaac~Corley}
 \maketitle
 
@@ -71,7 +74,7 @@ $n$ markers are drawn $m$ times, and a line is cut where its frequency reaches $
 
 \section{Alternatives Named in the Ablation}
 We tested the foreground alternatives without splitting, replacing the assignment to the most probable class.
-For the added steps, we used the boundary veto at $\tau=0.7$ and $h=2$ without the minimum-size step and scored only the validation split.
+For the added steps, we used BoundaryVote at $\tau=0.7$ and $h=2$ without the minimum-size step and scored only the validation split.
 Table~\ref{tab:supp_variants} reports PlanetScope B3 validation PQ, and test PQ where scored, for every alternative mentioned without a number in the letter's ablation.
 Pixel counts refer to the 3~m PlanetScope grid.
 
@@ -91,7 +94,7 @@ Variant & Val PQ & Test PQ \\
 \end{table}
 
 \section{Scores by Field Size}
-The boundary veto gains most on small fields in every run, between 3.5 and 4.8 PQ points, and least on large fields, between 1.1 and 1.7 (Table~\ref{tab:supp_size}).
+BoundaryVote gains most on small fields in every run, between 3.5 and 4.8 PQ points, and least on large fields, between 1.1 and 1.7 (Table~\ref{tab:supp_size}).
 We group PQ and RQ by reference field area using the Fields of the Planet evaluation code's bins, with small fields below 0.5~ha, medium fields from 0.5 to 2~ha, and large fields above 2~ha.
 On PlanetScope B3, the ten countries contain 29,406 small, 20,884 medium, and 12,173 large reference fields, making the small bin the largest.
 
@@ -117,7 +120,7 @@ Bold marks the best unrounded score per column within each model.}
 \end{table}
 
 \section{Per-Country Scores}
-We compare the FTP pipeline and the boundary veto for each country and model in Table~\ref{tab:supp_country}, giving the scores plotted in Fig.~3 of the letter.
+We compare the FTP pipeline and BoundaryVote for each country and model in Table~\ref{tab:supp_country}, giving the scores plotted in Fig.~3 of the letter.
 Portugal has two test patches and Cambodia sixteen, so their scores use far fewer fields than the others.
 
 \begin{table}[h]
@@ -130,7 +133,7 @@ Portugal has two test patches and Cambodia sixteen, so their scores use far fewe
 \toprule
  & \multicolumn{2}{c}{PS B3} & \multicolumn{2}{c}{PS B7} & \multicolumn{2}{c}{S2 B7} & \multicolumn{2}{c}{S2 B3} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
-Country & FTP & Veto & FTP & Veto & FTP & Veto & FTP & Veto \\
+Country & FTP & Ours & FTP & Ours & FTP & Ours & FTP & Ours \\
 \midrule
 \tablebody{tables/supp_country_rows.tex}
 \bottomrule
@@ -138,7 +141,7 @@ Country & FTP & Veto & FTP & Veto & FTP & Veto & FTP & Veto \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Values are PQ, with the higher unrounded score bold within each pair.
+Values are PQ, with the higher unrounded score bold within each pair, and Ours is BoundaryVote.
 Both pipelines use the same minimum-size step.}
 \end{table}
 
@@ -146,7 +149,7 @@ Both pipelines use the same minimum-size step.}
 We sampled thirty patches per bin with a fixed random seed and timed them on one core, restricting all threads to that core.
 We kept the fastest of three repeats after a warm-up call and report median milliseconds per patch in four field-count bins on both sensors (Table~\ref{tab:supp_timing}).
 Sentinel-2 patches contain more pixels, so every method takes longer there.
-The ordering between methods is unchanged in the sparsest and densest bins, and iterative marker depth is slower than the boundary veto in the two middle bins.
+The ordering between methods is unchanged in the sparsest and densest bins, and iterative marker depth is slower than BoundaryVote in the two middle bins.
 
 \begin{table}[h]
 \centering

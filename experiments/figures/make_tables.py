@@ -23,6 +23,9 @@ OURS_NOFILTER = "raw:v:nbg-sup-h2-t0.7"
 RELEASED_FILTER = "raw:v:arg-ws2+A900"
 BASE = "rt:h2"
 ORACLE = "rt_test"
+# The shipped method's row: bold label, light green fill (oursbg in the preamble).
+OURS_LABEL = r"\textbf{BoundaryVote (Ours)}"
+OURS_ROW = r"\rowcolor{oursbg}"
 
 
 def macro_vec(run: str, sub: str) -> pd.DataFrame:
@@ -64,7 +67,7 @@ COMPARE = [
         "swst",
         None,
     ),
-    ("Boundary Veto", "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
+    (OURS_LABEL, "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
 ]
 
 
@@ -116,7 +119,8 @@ def compare_rows() -> list[str]:
             cells = [f"\\textbf{{{c}}}" for c in cells[:2]] + cells[
                 2:
             ]  # plain numbers, not math
-        lines.append(f"{label} & {knobs} & " + " & ".join(cells) + r" \\")
+        lead = OURS_ROW if fam == "ours" else ""
+        lines.append(f"{lead}{label} & {knobs} & " + " & ".join(cells) + r" \\")
     return lines
 
 
@@ -155,7 +159,7 @@ def main() -> None:
         for name, strat in (
             ("FTP, $h{=}2$", BASE),
             ("FTP + Min Size", RELEASED_FILTER),
-            ("Boundary Veto", OURS),
+            (OURS_LABEL, OURS),
         ):
             r = m.loc[strat]
             cells = []
@@ -172,12 +176,15 @@ def main() -> None:
                     v = f"\\textbf{{{v}}}"
                 cells.append(v)
             rows.append((name, cells))
-        first = True
-        for name, cells in rows:
-            sensor_short = {"PlanetScope": "PS", "Sentinel-2": "S2"}[sensor]
-            lead = f"\\multirow{{3}}{{*}}{{{sensor_short} {enc}}}" if first else ""
-            first = False
-            main_rows.append(f"{lead} & {name} & " + " & ".join(cells) + r" \\")
+        sensor_short = {"PlanetScope": "PS", "Sentinel-2": "S2"}[sensor]
+        for i, (name, cells) in enumerate(rows):
+            # The model label sits in the last (shaded) row with a negative
+            # span, since a later row's fill would paint over text that
+            # multirow hangs down from the first row.
+            last = i == len(rows) - 1
+            lead = f"\\multirow{{-3}}{{*}}{{{sensor_short} {enc}}}" if last else ""
+            fill = OURS_ROW if name == OURS_LABEL else ""
+            main_rows.append(f"{fill}{lead} & {name} & " + " & ".join(cells) + r" \\")
         main_rows.append(r"\midrule" if run != RUNS[-1][0] else "")
         # like-for-like: both with the minimum-size step, so the split rule is
         # what the headline gain measures
@@ -242,10 +249,10 @@ def main() -> None:
         ("Not-Background, Supported Splits", OURS_NOFILTER),
         (r"\multicolumn{3}{@{}l}{\emph{Minimum Parcel Size of 900~m$^2$}} \\", None),
         ("FTP, With Minimum Size", RELEASED_FILTER),
-        ("Boundary Veto, Without Minimum Size", OURS_NOFILTER),
+        ("BoundaryVote, Without Minimum Size", OURS_NOFILTER),
         # with the step as well, so the block shows what it is worth to each
-        # pipeline rather than leaving the veto's half to be inferred
-        ("Boundary Veto, With Minimum Size", OURS),
+        # pipeline rather than leaving our half to be inferred
+        (f"{OURS_LABEL}, With Minimum Size", OURS),
     ]
     lines = []
     for name, strat in abl:
@@ -255,10 +262,12 @@ def main() -> None:
             lines.append(name)
             continue
         a, b = delta(mb3, strat), delta(ms2, strat)
+        fill = ""
         if strat == OURS:
             # bold inside math needs \mathbf; \textbf around $...$ does nothing
             a, b = (x.replace("{$", "{$\\mathbf{").replace("$}", "}$}") for x in (a, b))
-        lines.append(f"{name} & {a} & {b} \\\\")
+            fill = OURS_ROW
+        lines.append(f"{fill}{name} & {a} & {b} \\\\")
     (OUT / "rev_ablation_rows.tex").write_text("\n".join(lines) + "\n")
 
     cmp_lines = compare_rows()

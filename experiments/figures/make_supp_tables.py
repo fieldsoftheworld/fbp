@@ -5,7 +5,7 @@ Writes tables/supp_*.tex:
   supp_priors_rows   every prior-method setting, validation and test
   supp_variants_rows every alternative named in the ablation, validation and test
   supp_size_rows     PQ and RQ in FTP's hectare bins, all four runs
-  supp_country_rows  per-country PQ, FTP pipeline and boundary veto, all four runs
+  supp_country_rows  per-country PQ, FTP pipeline and BoundaryVote, all four runs
   supp_timing_rows   median ms/patch in four density bins, both sensors
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_supp_tables.py
@@ -26,8 +26,11 @@ RUNS = [
     ("s2_b3", "test/pixel", "S2 B3"),
 ]
 OURS, BASE = "raw:v:nbg-sup-h2-t0.7+A900", "rt:h2"
-# Fig. 3 of the letter (experiments/figures/per_country.py) compares the
-# boundary veto against the FTP pipeline WITH the minimum-size step, since that
+# The shipped method's row: bold label, light green fill (oursbg in the preamble).
+OURS_LABEL = r"\textbf{BoundaryVote (Ours)}"
+OURS_ROW = r"\rowcolor{oursbg}"
+# Fig. 3 of the letter (experiments/figures/per_country.py) compares
+# BoundaryVote against the FTP pipeline WITH the minimum-size step, since that
 # is the like-for-like comparison the letter reports; the per-country table
 # below is captioned as reproducing that figure, so it must use the same
 # baseline.
@@ -56,6 +59,11 @@ def pq(m: pd.DataFrame, strat: str) -> str:
     return f"{100 * m.loc[strat].pq:.1f}" if strat in m.index else "--"
 
 
+def fill(strat: str) -> str:
+    """Row color prefix for the shipped method, empty otherwise."""
+    return OURS_ROW if strat == OURS else ""
+
+
 def sweep_rows() -> list[str]:
     ms = {label: macro(r, s) for r, s, label in RUNS}
     rows = []
@@ -80,7 +88,7 @@ def sweep_rows() -> list[str]:
                 ("Field, Supported Splits", "raw:v:arg-sup-h2-t0.7"),
                 ("Not-Background, Components", "raw:v:nbg-none"),
                 ("Not-Background, Supported Splits", OURS_NOFILTER),
-                ("Boundary Veto + Min Size", OURS),
+                (OURS_LABEL, OURS),
             ],
         ),
     ]
@@ -90,7 +98,7 @@ def sweep_rows() -> list[str]:
         rows.append(f"\\multicolumn{{5}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for label, strat in items:
             rows.append(
-                f"{label} & "
+                f"{fill(strat)}{label} & "
                 + " & ".join(pq(ms[lbl], strat) for _, _, lbl in RUNS)
                 + r" \\"
             )
@@ -177,8 +185,8 @@ def variants_rows() -> list[str]:
     rel = "raw:v:arg-ws2"
     blocks = [
         (
-            "FTP Pipeline and Boundary Veto, No Minimum Size",
-            [("FTP Pipeline", BASE), ("Boundary Veto", ours)],
+            "FTP Pipeline and BoundaryVote, No Minimum Size",
+            [("FTP Pipeline", BASE), ("BoundaryVote", ours)],
         ),
         (
             "Alternatives to the Argmax Foreground",
@@ -203,7 +211,7 @@ def variants_rows() -> list[str]:
             ],
         ),
         (
-            "Steps Added to the Boundary Veto",
+            "Steps Added to BoundaryVote",
             [
                 ("Kept Line at Least 3 px", f"{ours}+l3"),
                 ("Kept Line at Least 5 px", f"{ours}+l5"),
@@ -222,7 +230,10 @@ def variants_rows() -> list[str]:
             "Minimum Parcel Size",
             [(f"FTP, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
             + [
-                (f"Boundary Veto, {a} m$^2$", f"{ours}+A{a}")
+                (
+                    f"{OURS_LABEL if a == 900 else 'BoundaryVote'}, {a} m$^2$",
+                    f"{ours}+A{a}",
+                )
                 for a in (450, 900, 1800, 3600)
             ],
         ),
@@ -233,7 +244,7 @@ def variants_rows() -> list[str]:
             rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for label, k in items:
-            rows.append(f"{label} & {pq(val, k)} & {pq(test, k)} \\\\")
+            rows.append(f"{fill(k)}{label} & {pq(val, k)} & {pq(test, k)} \\\\")
     return rows
 
 
@@ -243,7 +254,7 @@ def size_rows() -> list[str]:
     methods = [
         ("FTP, $h{=}2$", BASE),
         ("FTP + Min Size", "raw:v:arg-ws2+A900"),
-        ("Boundary Veto", OURS),
+        (OURS_LABEL, OURS),
     ]
     rows = []
     for run, sub, label in RUNS:
@@ -262,7 +273,7 @@ def size_rows() -> list[str]:
                 if r[c] == best:
                     cell = f"\\textbf{{{cell}}}"
                 cells.append(cell)
-            rows.append(f"{name} & " + " & ".join(cells) + r" \\")
+            rows.append(f"{fill(strat)}{name} & " + " & ".join(cells) + r" \\")
     return rows
 
 
@@ -296,7 +307,7 @@ def timing_rows() -> list[str]:
         "ucm": "Hierarchical Merging",
         "iterh": "Iterative Marker Depth",
         "swst": "Stochastic Watershed",
-        "ours": "Boundary Veto",
+        "ours": OURS_LABEL,
     }
     frames = {}
     for run, label in (("planet_b3", "PS"), ("s2_b7", "S2")):
@@ -309,7 +320,8 @@ def timing_rows() -> list[str]:
         cells: list[str] = []
         for _, fr in frames.items():
             cells += [f"{fr.loc[meth, b]:.0f}" for b in order]
-        rows.append(f"{label} & " + " & ".join(cells) + r" \\")
+        lead = OURS_ROW if meth == "ours" else ""
+        rows.append(f"{lead}{label} & " + " & ".join(cells) + r" \\")
     return rows
 
 
