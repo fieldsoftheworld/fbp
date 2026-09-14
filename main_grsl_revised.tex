@@ -197,25 +197,26 @@ Cambodia has the smallest fields and gains most on average over the four pairs, 
 
 \begin{table}[t]
 \centering
-\caption{Macro and small-field scores for four model and sensor pairs}
-\label{tab:main}
+\caption{Post-processing methods that need no retraining}
+\label{tab:compare}
 \footnotesize
-\setlength{\tabcolsep}{1.2pt}
-\begin{tabular}{@{}llccccccc@{}}
+\setlength{\tabcolsep}{2.4pt}
+\begin{tabular}{@{}llrrrrr@{}}
 \toprule
- & & \multicolumn{3}{c}{Macro} & \multicolumn{2}{c}{Fields $<$0.5~ha} & & \\
-\cmidrule(lr){3-5}\cmidrule(lr){6-7}
-Model & Method & PQ$\uparrow$ & SQ$\uparrow$ & RQ$\uparrow$ & PQ$\uparrow$ & RQ$\uparrow$ & Miss$\downarrow$ & Merge$\downarrow$ \\
+ & & \multicolumn{2}{c}{PQ $\uparrow$} & & \multicolumn{2}{c}{ms/Patch} \\
+\cmidrule(lr){3-4}\cmidrule(lr){6-7}
+Method & Params & PS & S2 & $\Delta$Tune & 10--29 & 100+ \\
 \midrule
-\tablebody{tables/rev_main_rows.tex}
+\tablebody{tables/rev_compare_rows.tex}
 \bottomrule
 \end{tabular}
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Scores use vector reference polygons, with the best unrounded score bold in each column within each model and our method's row shaded.
-PS denotes PlanetScope and S2 Sentinel-2.
-The grouped small-field columns restrict predictions and references by area; both rows with a minimum-size step use the same threshold.}
+Bold marks the highest PQ in each column, with PS scored on the B3 model and S2 on B7, and the shaded row is our method.
+$\Delta$Tune is what a per-country choice of each method's own parameters would add, using that country's test labels.
+Every prior setting is chosen on the PlanetScope validation split, the FTP pipeline keeps its default depth, and every row carries the same minimum-size step.
+Timings are medians on one core over PlanetScope B3 patches grouped by reference field count.}
 \end{table}
 
 \begin{figure}[t]
@@ -241,26 +242,25 @@ Every method uses less than \PeakMB{}~MB of additional memory per patch on eithe
 
 \begin{table}[t]
 \centering
-\caption{Post-processing methods that need no retraining}
-\label{tab:compare}
+\caption{Macro and small-field scores for four model and sensor pairs}
+\label{tab:main}
 \footnotesize
-\setlength{\tabcolsep}{2.4pt}
-\begin{tabular}{@{}llrrrrr@{}}
+\setlength{\tabcolsep}{1.2pt}
+\begin{tabular}{@{}llccccccc@{}}
 \toprule
- & & \multicolumn{2}{c}{PQ $\uparrow$} & & \multicolumn{2}{c}{ms/Patch} \\
-\cmidrule(lr){3-4}\cmidrule(lr){6-7}
-Method & Params & PS & S2 & $\Delta$Tune & 10--29 & 100+ \\
+ & & \multicolumn{3}{c}{Macro} & \multicolumn{2}{c}{Fields $<$0.5~ha} & & \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-7}
+Model & Method & PQ$\uparrow$ & SQ$\uparrow$ & RQ$\uparrow$ & PQ$\uparrow$ & RQ$\uparrow$ & Miss$\downarrow$ & Merge$\downarrow$ \\
 \midrule
-\tablebody{tables/rev_compare_rows.tex}
+\tablebody{tables/rev_main_rows.tex}
 \bottomrule
 \end{tabular}
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-Bold marks the highest PQ in each column, with PS scored on the B3 model and S2 on B7, and the shaded row is our method.
-$\Delta$Tune is what a per-country choice of each method's own parameters would add, using that country's test labels.
-Every prior setting is chosen on the PlanetScope validation split, the FTP pipeline keeps its default depth, and every row carries the same minimum-size step.
-Timings are medians on one core over PlanetScope B3 patches grouped by reference field count.}
+Scores use vector reference polygons, with the best unrounded score bold in each column within each model and our method's row shaded.
+PS denotes PlanetScope and S2 Sentinel-2.
+The grouped small-field columns restrict predictions and references by area; both rows with a minimum-size step use the same threshold.}
 \end{table}
 
 \subsection{Ablation}

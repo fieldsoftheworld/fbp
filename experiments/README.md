@@ -195,7 +195,7 @@ experiments/run.sh boundaryvote.transfer --run planet_b3              # out/tran
 experiments/rebuild_paper.sh                                       # every table, figure, both PDFs
 ```
 
-Copies of the cost and transfer CSVs behind Table II live in `results/cost/`.
+Copies of the cost and transfer CSVs behind Table I live in `results/cost/`.
 
 `profile_methods` times each method on one core (threads pinned to 1, minimum
 of three repeats) and samples peak RSS in a background thread, on patches
