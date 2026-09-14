@@ -2,7 +2,7 @@
 
 Every variant returns an int32 instance image on the eval grid; instances are
 separated by 1-px background lines where a split is kept, so per-instance
-polygons and their rasterize->polygonize round trip agree.
+polygons still agree after they are rasterized and extracted again.
 
 Foreground rules (``FG``):
 * ``arg``   field argmax (FTP default)

@@ -35,7 +35,7 @@ The year-bearing citation keys were preserved. For example, `kerner2024ftw` corr
 
 ## What this literature changes about the experiments
 
-These are recommendations for subsequent work, not experiments performed by this revision. They supplement `EXPERIMENT_REVIEW.md`.
+These are recommendations for subsequent work, not experiments performed by this revision.
 
 1. **Compare with stochastic watershed before making a broad novelty claim about watershed consensus.** Use the same frozen prediction surface, raster grid, evaluation patches, and candidate-generation budget. Random-marker runs would require a new experiment; they cannot be reconstructed faithfully by relabeling the existing depth exports. Report both accuracy and total postprocessing time. The defensible current contribution is the specific foreground aggregation rule and its field-delineation evaluation, not the general idea of combining watershed runs.
 2. **Add a reliability-weighted fusion control if the fusion rule is meant to be the central contribution.** STAPLE on the same binary candidate masks is one interpretable option. It would test whether equal weighting is adequate. Neither fusion method recovers instance identities discarded by binary rasterization, so report merge/split behavior as well as PQ. Do not treat repeated depths from one model as independent evidence without examining that assumption.

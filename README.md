@@ -37,6 +37,5 @@ experiments/rebuild_paper.sh
 It needs the sibling `~/github/ftw-planet` checkout and its venv. See
 `experiments/README.md` for the stages, the SLURM jobs, and the results.
 
-See `REVISION_NOTES.md` for revision details, `EXPERIMENT_REVIEW.md` for the
-experimental audit, and `BIBLIOGRAPHY_AUDIT.md` for verified reference metadata
-and the comparisons motivated by that literature.
+See `REVISION_NOTES.md` for revision details and `BIBLIOGRAPHY_AUDIT.md` for
+verified reference metadata and the comparisons motivated by that literature.

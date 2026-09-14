@@ -1,7 +1,7 @@
 # FieldVote rerun
 
 Self-contained rebuild of the experiments behind `main_grsl_revised.tex` and
-`supplementary.tex`, addressing `EXPERIMENT_REVIEW.md`.
+`supplementary.tex`.
 
 Everything here runs inside the sibling `~/github/ftw-planet` checkout's venv
 (`experiments/run.sh` sets `PYTHONPATH` and `cd`s there) and imports FTP's own
@@ -68,18 +68,19 @@ Dense-10 macro PQ, true-vector reference:
 |---|---:|---:|---:|---:|
 | `ws_test` legacy baseline (per-instance polygons, test-selected depth) | 32.1 | 32.9 | 25.0 | 21.9 |
 | `vote:t0.5` FieldVote, 14 depths | 35.4 | 35.3 | 24.3 | 21.2 |
-| `rt:h2` FTP default single depth, round-tripped | 35.5 | 35.4 | 24.2 | 21.0 |
+| `rt:h2` FTP default single depth, rasterized and re-extracted | 35.5 | 35.4 | 24.2 | 21.0 |
 | `rt_val` / `rt_loco` single depth chosen on val / other countries' val | 35.8 / 35.8 | 35.7 / 35.7 | 24.9 / 24.8 | 21.9 / 20.8 |
-| `rt_test` single depth, round-tripped, test-selected | 35.9 | 35.7 | 25.0 | 21.9 |
+| `rt_test` single depth, rasterized and re-extracted, test-selected | 35.9 | 35.7 | 25.0 | 21.9 |
 | `nms` / `elbow` | 17.0 / 23.6 | 17.5 / 23.2 | 24.1 / 23.7 | 20.9 / 20.5 |
 
 Gate for s2_b3: 20.99 vs FTP 21.00.
 
-FieldVote beats the best round-tripped single depth in 0/10 countries on every
+FieldVote beats the best rasterized-and-re-extracted single depth in 0/10
+countries on every
 run. Pixel check (Belgium, Croatia, Latvia): the vote mask never differs from
 every single-depth mask and equals `rt:h2` exactly in 63–93% of patches. The
-letter's reported gain is the rasterize→polygonize round trip (discarding
-instance labels), not the vote. The legacy country-selected depth was `h=64`
+letter's reported gain comes from rasterizing the polygons and extracting them
+again, which discards instance labels, not from the vote. The legacy country-selected depth was `h=64`
 in 4/10 countries, where the connected-component fallback fires on 64% of
 patches. Under the S2 protocol `raw == rt` by construction (`_cap_pred_to_gsd`
 rasterizes).
