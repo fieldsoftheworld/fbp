@@ -34,6 +34,7 @@ under ``A`` px into the neighbour they share the longest border with.
 """
 
 from collections.abc import Iterable
+from typing import Literal, overload
 
 import numpy as np
 from numpy import ndarray
@@ -146,6 +147,41 @@ def link_weak_lines(
         eligible & np.isin(roots, list(seeded)) if seeded else np.zeros_like(strong)
     )
     return strong | linked
+
+
+@overload
+def supported_split(
+    fg: np.ndarray,
+    seg: np.ndarray,
+    prob: np.ndarray,
+    h: float,
+    tau: float,
+    surface: str = ...,
+    markers: np.ndarray | None = ...,
+    return_lines: Literal[False] = ...,
+    min_line: int = ...,
+    band: int = ...,
+    tau_lo: float | None = ...,
+    score: str = ...,
+) -> np.ndarray: ...
+
+
+@overload
+def supported_split(
+    fg: np.ndarray,
+    seg: np.ndarray,
+    prob: np.ndarray,
+    h: float,
+    tau: float,
+    surface: str = ...,
+    markers: np.ndarray | None = ...,
+    *,
+    return_lines: Literal[True],
+    min_line: int = ...,
+    band: int = ...,
+    tau_lo: float | None = ...,
+    score: str = ...,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
 
 def supported_split(

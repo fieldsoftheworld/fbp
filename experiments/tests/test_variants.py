@@ -1,7 +1,5 @@
 """Boundary-supported splitting keeps supported lines and merges unsupported ones."""
 
-from typing import cast
-
 import numpy as np
 import pytest
 
@@ -51,14 +49,14 @@ def test_unsupported_neck_is_merged() -> None:
     # return_lines defaults to False, so this is always an array; ty cannot see
     # that from the union return type, since the function has no @overload split
     # on return_lines, so the result is cast rather than narrowed.
-    inst = cast(np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5))
+    inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
     assert inst.max() == 1  # the geometric neck split is not supported -> one field
 
 
 def test_supported_gap_is_kept() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
-    inst = cast(np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5))
+    inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
     assert inst.max() == 2
     # instances are separated by a gap of zeros somewhere on the bridge
     assert (inst[10:14, 22:26] == 0).any()
@@ -280,7 +278,7 @@ def test_supported_split_falls_back_when_no_markers_found() -> None:
     """`h` bigger than the EDT surface leaves no h-maxima -> one component."""
     seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
     fg = foreground(seg, prob, "nbg")
-    inst = cast(np.ndarray, supported_split(fg, seg, prob, h=100.0, tau=0.5))
+    inst = supported_split(fg, seg, prob, h=100.0, tau=0.5)
     assert inst.max() == 1
 
 
@@ -294,9 +292,8 @@ def test_supported_split_no_lines_short_circuits() -> None:
     prob[0][seg == 1] = 0.05
     prob[2][seg == 1] = 0.05
     fg = foreground(seg, prob, "nbg")
-    inst, lines, kept = cast(
-        tuple[np.ndarray, np.ndarray, np.ndarray],
-        supported_split(fg, seg, prob, h=1.0, tau=0.5, return_lines=True),
+    inst, lines, kept = supported_split(
+        fg, seg, prob, h=1.0, tau=0.5, return_lines=True
     )
     assert inst.max() == 1 and not lines.any() and not kept.any()
 
@@ -304,9 +301,8 @@ def test_supported_split_no_lines_short_circuits() -> None:
 def test_supported_split_return_lines_reports_kept_gap() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
-    inst, lines_all, lines_kept = cast(
-        tuple[np.ndarray, np.ndarray, np.ndarray],
-        supported_split(fg, seg, prob, h=1.0, tau=0.5, return_lines=True),
+    inst, lines_all, lines_kept = supported_split(
+        fg, seg, prob, h=1.0, tau=0.5, return_lines=True
     )
     assert inst.max() == 2
     assert lines_all.any() and lines_kept.any()
@@ -318,12 +314,8 @@ def test_soft_score_falls_back_to_hard_test_under_band() -> None:
     """With `band>0` the soft score is documented to fall back to the hard rule."""
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
-    soft = cast(
-        np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5, score="soft", band=1)
-    )
-    frac = cast(
-        np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5, score="frac", band=1)
-    )
+    soft = supported_split(fg, seg, prob, h=1.0, tau=0.5, score="soft", band=1)
+    frac = supported_split(fg, seg, prob, h=1.0, tau=0.5, score="frac", band=1)
     np.testing.assert_array_equal(soft, frac)
 
 
@@ -332,7 +324,7 @@ def test_hysteresis_modifier_matches_direct_call() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
     wired = run_variant("nbg-sup-h1-t0.9+H50", seg, prob)
-    split = cast(np.ndarray, supported_split(fg, seg, prob, 1.0, 0.9, tau_lo=0.5))
+    split = supported_split(fg, seg, prob, 1.0, 0.9, tau_lo=0.5)
     direct = apply_post_steps(
         widen_gaps(split, fg, 1),
         0,
