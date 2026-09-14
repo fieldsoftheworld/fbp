@@ -7,6 +7,7 @@ contributes zeros); ``n_scored`` reports how many had any object.
 """
 
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -50,7 +51,9 @@ def pool_country(df: pd.DataFrame) -> pd.DataFrame:
     """One row per KEYS with pooled PQ/SQ/RQ/F1, bins, counts, diagnostics."""
     rows = []
     for key, g in df.groupby(KEYS, sort=False):
-        r = dict(zip(KEYS, key, strict=True))
+        # pandas types a group key as Hashable; grouping on several columns
+        # always yields the tuple that zip needs.
+        r = dict(zip(KEYS, cast(tuple, key), strict=True))
         tp, fp, fn = g["tp_50"].sum(), g["fp_50"].sum(), g["fn_50"].sum()
         r["n_patches"] = len(g)
         r["n_scored"] = int(((g.n_gt + g.n_pred) > 0).sum())

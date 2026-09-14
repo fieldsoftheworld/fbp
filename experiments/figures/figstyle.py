@@ -16,6 +16,7 @@ import sys
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -184,7 +185,9 @@ def use_style(family: str = "sans") -> None:
     )
 
 
-def figure(width: float = COLUMN, ratio: float = 0.68, **kwargs) -> tuple[Figure, Axes]:
+def figure(
+    width: float = COLUMN, ratio: float = 0.68, **kwargs: Any
+) -> tuple[Figure, Axes]:
     """One axes at a final printed size. `ratio` is height/width."""
     fig, ax = plt.subplots(
         figsize=(width, width * ratio), layout="constrained", **kwargs
@@ -193,7 +196,11 @@ def figure(width: float = COLUMN, ratio: float = 0.68, **kwargs) -> tuple[Figure
 
 
 def figure_grid(
-    nrows: int = 1, ncols: int = 2, width: float = TEXT, ratio: float = 0.4, **kwargs
+    nrows: int = 1,
+    ncols: int = 2,
+    width: float = TEXT,
+    ratio: float = 0.4,
+    **kwargs: Any,
 ) -> tuple[Figure, Axes | ndarray]:
     """A panel grid at a final printed size, sharing one constrained layout."""
     fig, axes = plt.subplots(
@@ -540,7 +547,7 @@ def band(
     runs: ndarray,
     label: str | None = None,
     color: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Line2D:
     """Plot the seed mean as a line with its 95% interval as a matching band."""
     mean, lo, hi = mean_ci(runs)
@@ -555,7 +562,7 @@ def label_ends(
     labels: Sequence[str],
     pad: float = 3.0,
     min_gap: float = 7.0,
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """Label each line at its right end, in the line's own color.
 

@@ -70,17 +70,44 @@ unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
 # Test bodies are their own documentation, and fixtures/monkeypatch arguments
-# are routinely accepted and not read.
-"experiments/tests/**" = ["D100", "D103", "ARG001", "ARG002", "ARG005"]
+# are routinely accepted and not read. D101/D102/D107 cover stub classes that
+# stand in for a real dependency; their method names are the documentation.
+"experiments/tests/**" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D107",
+    "ARG001",
+    "ARG002",
+    "ARG005",
+]
 # Figure/table scripts are top-level executables: module-level constants, long
 # literal LaTeX table rows, and one long linear `main()` per script are the point.
 "experiments/figures/**" = ["D100", "D103", "E501", "PLR0912", "PLR0915"]
+# `_resolved_font` is a module-level cache: `use_style()` resolves the serif
+# family once and `audit()` reads it back. The alternative is making the module
+# a class, and this file is vendored from a shared figure-style skill.
+"experiments/figures/figstyle.py" = ["PLW0603"]
+# `_CANDS`/`_OPTS` are set in the Pool initializer so forked workers inherit the
+# candidate set without re-reading it per patch. That is what a global is for.
+"experiments/fieldvote/run_eval.py" = ["PLW0603"]
+# `supported_split` is the method the letter proposes and `run_variant` is its
+# name dispatcher. Both are wide and branchy because the algorithm is; splitting
+# them would scatter one contiguous procedure across call sites.
+"experiments/fieldvote/variants.py" = ["PLR0912", "PLR0913", "PLR0915"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["fieldvote"]
 # Explicitly empty: this is what would otherwise inject
 # `from __future__ import annotations` into every module.
 required-imports = []
+
+[tool.ruff.lint.flake8-annotations]
+# `**kwargs: Any` is the honest annotation for the thin wrappers that forward
+# straight into matplotlib's own untyped `**kwargs`. Narrower than ignoring
+# ANN401 outright: `Any` is still flagged on ordinary parameters.
+allow-star-arg-any = true
 
 [tool.ruff.lint.pydocstyle]
 # The docstrings here are prose summaries, not Args:/Returns: blocks.

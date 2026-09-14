@@ -114,15 +114,16 @@ def report(df: pd.DataFrame, variants: list[str]) -> None:
     """Print boundary error and count delta per variant, own matches and common."""
     pairs = df[df.gt_id >= 0]
     counts = df[df.gt_id < 0]
-    common = None
-    for v in variants:
-        keys = set(
+    per_variant = [
+        set(
             map(
                 tuple,
                 pairs[pairs.variant == v][["country", "patch_id", "gt_id"]].to_numpy(),
             )
         )
-        common = keys if common is None else (common & keys)
+        for v in variants
+    ]
+    common: set[tuple] = set.intersection(*per_variant) if per_variant else set()
     print(
         f"{'variant':26s} {'bnd err m':>10s} {'on common':>10s} "
         f"{'|dN|':>7s} {'dN/N':>8s}"

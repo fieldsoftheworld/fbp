@@ -331,7 +331,7 @@ def components(fg: np.ndarray) -> np.ndarray:
 
 def default_variants() -> list[str]:
     """The variant names scored by default (see ``candidates.py --variants``)."""
-    v = [f"{f}-none" for f in FG]
+    v: list[str] = [f"{f}-none" for f in FG]
     for f in ("arg", "nbg"):
         for h in (1.0, 2.0, 4.0):
             v.append(f"{f}-sup-h{h:g}-t0.5")
