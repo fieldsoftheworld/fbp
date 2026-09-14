@@ -1,19 +1,25 @@
-main.pdf
-main.log
+# LaTeX build artifacts
 *.aux
 *.bbl
 *.blg
-*.out
-*.synctex.gz
 *.fdb_latexmk
 *.fls
-.DS_Store
-main_grsl.pdf
-main_grsl.log
-__pycache__/
-experiments/out/
-main_grsl_revised.pdf
-main_grsl_revised.log
+*.log
+*.out
+*.pdf
+*.synctex.gz
+!figures/*.pdf
+
+# Figure previews (regenerated next to the tracked PDFs)
+figures/*.svg
 experiments/figures/*.png
-supplementary.pdf
-supplementary.log
+
+# Python
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Experiment scratch (tracked copies live in experiments/results/)
+experiments/out/
+
+.DS_Store
