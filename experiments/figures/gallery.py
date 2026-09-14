@@ -13,7 +13,6 @@ the full-patch PQ of each prediction panel is printed on it.
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/gallery.py
 """
 
-import glob
 import os
 import sys
 from pathlib import Path
@@ -85,7 +84,7 @@ FAILURE = ("planet_b3", "latvia", "g26_00052_7")
 
 
 def per_patch_delta(run: str, proto: str) -> pd.DataFrame:
-    fs = glob.glob(str(scores_dir(f"{run}/test/{proto}") / "patches_*.parquet"))
+    fs = scores_dir(f"{run}/test/{proto}").glob("patches_*.parquet")
     df = pd.concat([pd.read_parquet(f) for f in fs])
     df = df[(df.reference == "vector") & df.strategy.isin([BASE, OURS])].copy()
     tp, fp, fn = df.tp_50, df.fp_50, df.fn_50
@@ -182,7 +181,9 @@ def outlines(inst: np.ndarray) -> np.ndarray:
     return fg & ~same
 
 
-def example(run: str, country: str, pid: str):
+def example(
+    run: str, country: str, pid: str
+) -> tuple[ndarray, ndarray, ndarray, ndarray]:
     npz = cache_dir(f"{run}/test") / country / f"{pid}.npz"
     grid = refs.load_grid(npz, country)
     with np.load(npz) as d:
@@ -223,7 +224,7 @@ def best_window(gt: np.ndarray) -> tuple[slice, slice]:
 
 
 def draw_pred(
-    ax: Axes, inst: ndarray, gt, seed: int, pq: float, bold: bool = False
+    ax: Axes, inst: ndarray, gt: ndarray, seed: int, pq: float, bold: bool = False
 ) -> None:
     img = label_colors(inst, seed)
     img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
