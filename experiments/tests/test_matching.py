@@ -7,7 +7,7 @@ from fieldvote.matching import THRESHOLDS, diagnostics, match
 from fieldvote.strategies import elbow, nms_pool, roundtrip, vote
 
 
-def _random_boxes(rng, n, size=100):
+def random_boxes(rng, n, size=100):
     out = []
     for _ in range(n):
         x, y = rng.uniform(0, size, 2)
@@ -19,8 +19,8 @@ def _random_boxes(rng, n, size=100):
 def test_match_equals_ftp():
     rng = np.random.default_rng(3)
     for _ in range(20):
-        gt = _random_boxes(rng, int(rng.integers(0, 30)))
-        pred = _random_boxes(rng, int(rng.integers(0, 30)))
+        gt = random_boxes(rng, int(rng.integers(0, 30)))
+        pred = random_boxes(rng, int(rng.integers(0, 30)))
         ours = match(gt, pred)
         ref = ftp.match_shapes(gt, pred, list(THRESHOLDS))
         for t in THRESHOLDS:

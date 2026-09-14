@@ -111,7 +111,7 @@ SERIF = [
 _resolved_font: str | None = None
 
 
-def _available_font(stack) -> str | None:
+def available_font(stack) -> str | None:
     """The first font in `stack` this machine actually has."""
     import matplotlib.font_manager as fm
 
@@ -131,7 +131,7 @@ def use_style(family: str = "sans") -> None:
     # exists; picking Agg up front avoids a backend failure at import.
     mpl.use("Agg")
     global _resolved_font
-    _resolved_font = _available_font(SERIF if family == "serif" else SANS)
+    _resolved_font = available_font(SERIF if family == "serif" else SANS)
     mpl.rcParams.update(
         {
             "font.family": "serif" if family == "serif" else "sans-serif",
@@ -219,7 +219,7 @@ def panel_labels(axes, labels=None, weight: str = "bold", pad: float = 2.0):
         )
 
 
-def _looks_numeric(label: str) -> bool:
+def looks_numeric(label: str) -> bool:
     try:
         float(label.replace("\u2212", "-").replace("%", "").rstrip("kMBT"))
         return True
@@ -227,7 +227,7 @@ def _looks_numeric(label: str) -> bool:
         return False
 
 
-def _audit(fig) -> list[str]:
+def audit(fig) -> list[str]:
     """Check a figure against the rules the references make non-negotiable."""
     problems = []
     if mpl.rcParams["pdf.fonttype"] != 42:
@@ -289,7 +289,7 @@ def _audit(fig) -> list[str]:
             if (
                 axis.get_scale() == "linear"
                 and ticks
-                and not all(_looks_numeric(t) for t in ticks)
+                and not all(looks_numeric(t) for t in ticks)
             ):
                 continue
             problems.append(f"an axes has no {name} label")
@@ -303,11 +303,11 @@ def _audit(fig) -> list[str]:
     if tiny:
         problems.append(f"text below the 5pt floor: sizes {sorted(tiny)}")
 
-    problems.extend(_text_collisions(fig))
+    problems.extend(text_collisions(fig))
     return problems
 
 
-def _text_collisions(fig) -> list[str]:
+def text_collisions(fig) -> list[str]:
     """Report text that overlaps other text or runs off the canvas.
 
     A label sitting on the axis or through a tick label is the most common way
@@ -404,7 +404,7 @@ def save(fig, stem: str, formats=("pdf", "svg"), close: bool = True) -> list[str
         fig.savefig(path, format=ext)
         paths.append(path)
     try:
-        problems = _audit(fig)
+        problems = audit(fig)
     finally:
         if close:
             plt.close(fig)
@@ -441,7 +441,7 @@ def mean_ci(runs, confidence: float = 0.95):
         )
         return mean, mean, mean
     sem = runs.std(axis=0, ddof=1) / math.sqrt(n)
-    crit = _t95(n - 1)
+    crit = t95(n - 1)
     return mean, mean - crit * sem, mean + crit * sem
 
 
@@ -477,7 +477,7 @@ def pareto_front(x, y, minimize_x: bool = True, maximize_y: bool = True):
     return np.array(front, dtype=int)
 
 
-def _t95(df: int) -> float:
+def t95(df: int) -> float:
     # Round the degrees of freedom down, never to the nearest key: a smaller df
     # gives a larger t, so the interval errs wide rather than overstating how
     # well a handful of seeds resolves the mean.
@@ -508,7 +508,7 @@ def diff_ci(treatment, baseline):
     if sem == 0:
         return delta, delta, delta  # every seed identical: the interval is a point
     df = (var_t + var_b) ** 2 / (var_t**2 / (n_t - 1) + var_b**2 / (n_b - 1))
-    half = _t95(int(df)) * sem
+    half = t95(int(df)) * sem
     return delta, delta - half, delta + half
 
 

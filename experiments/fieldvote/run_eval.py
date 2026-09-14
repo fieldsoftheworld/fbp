@@ -92,11 +92,11 @@ def build_strategies(
     return out
 
 
-def _bin_of(area_ha: float) -> str:
+def area_bin_of(area_ha: float) -> str:
     return ftp.area_bin(area_ha, AREA_EDGES)
 
 
-def _tally(
+def tally(
     gt: list, gt_areas: list[float], pred: list, pred_area_ha: float | None
 ) -> dict:
     m = match(gt, pred)
@@ -109,11 +109,11 @@ def _tally(
     row["iou_sum_50"] = float(sum(iou for _, _, iou in m.pairs_50))
     row.update(diagnostics(gt, pred))
     # size bins at IoU 0.5
-    gt_bins = [_bin_of(a) for a in gt_areas]
+    gt_bins = [area_bin_of(a) for a in gt_areas]
     if pred_area_ha is None:  # UTM m^2 -> ha
-        pred_bins = [_bin_of(p.area * 1e-4) for p in pred]
+        pred_bins = [area_bin_of(p.area * 1e-4) for p in pred]
     else:
-        pred_bins = [_bin_of(p.area * pred_area_ha) for p in pred]
+        pred_bins = [area_bin_of(p.area * pred_area_ha) for p in pred]
     matched_gt = {i: iou for i, _, iou in m.pairs_50}
     matched_pred = {j for _, j, _ in m.pairs_50}
     for b in BINS:
@@ -163,9 +163,9 @@ def score_patch(job: tuple[str, str, str]) -> list[dict]:
                 pred_s = ftp.cap_pred_to_gsd(
                     pred, grid.transform, grid.crs, utm, opts["gsd_m"]
                 )
-                row = _tally(gt, areas, pred_s, None)
+                row = tally(gt, areas, pred_s, None)
             else:
-                row = _tally(gt, areas, pred, px_ha)
+                row = tally(gt, areas, pred, px_ha)
             row.update(
                 country=country,
                 patch_id=pid,

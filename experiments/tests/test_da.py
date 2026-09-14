@@ -6,7 +6,7 @@ from fieldvote.cache_da import paint_topk
 from fieldvote.da_softmax import RULES, pseudo_softmax
 
 
-def _instances():
+def overlapping_instances():
     masks = np.zeros((3, 10, 10), dtype=np.uint8)
     masks[0, 0:6, 0:6] = 1  # A, conf .9
     masks[1, 4:10, 4:10] = 1  # B, conf .6, overlaps A on [4:6, 4:6]
@@ -16,7 +16,7 @@ def _instances():
 
 
 def test_paint_topk_orders_by_confidence():
-    masks, confs = _instances()
+    masks, confs = overlapping_instances()
     ids, c = paint_topk(masks, confs, 3)
     assert ids[0, 0, 0] == 1 and c[0, 0, 0] == pytest.approx(0.9)
     assert ids[1, 0, 0] == 3 and c[1, 0, 0] == pytest.approx(
@@ -30,7 +30,7 @@ def test_paint_topk_orders_by_confidence():
 
 
 def test_pseudo_softmax_rules_sum_to_one_and_mark_contest():
-    masks, confs = _instances()
+    masks, confs = overlapping_instances()
     _, c = paint_topk(masks, confs, 3)
     for rule in RULES:
         prob = pseudo_softmax(c, rule)

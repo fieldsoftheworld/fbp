@@ -190,7 +190,7 @@ def process_patch(
     return polys, rows
 
 
-def _worker(args):
+def run_patch_job(args):
     return process_patch(*args)
 
 
@@ -222,14 +222,14 @@ def process_country(
     ]
     if workers > 1:
         with Pool(workers) as pool:
-            results = pool.imap_unordered(_worker, jobs, chunksize=4)
+            results = pool.imap_unordered(run_patch_job, jobs, chunksize=4)
             for polys, rows in results:
                 for tag, lst in polys.items():
                     per_tag[tag].extend(lst)
                 manifest.extend(rows)
     else:
         for job in jobs:
-            polys, rows = _worker(job)
+            polys, rows = run_patch_job(job)
             for tag, lst in polys.items():
                 per_tag[tag].extend(lst)
             manifest.extend(rows)

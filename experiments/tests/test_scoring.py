@@ -12,7 +12,7 @@ from fieldvote.scoring import (
 )
 
 
-def _row(country, patch, strategy, tp, fp, fn, iou_sum, split="test", ref="vector"):
+def make_row(country, patch, strategy, tp, fp, fn, iou_sum, split="test", ref="vector"):
     r = {
         "run": "r",
         "split": split,
@@ -45,9 +45,9 @@ def _row(country, patch, strategy, tp, fp, fn, iou_sum, split="test", ref="vecto
 def test_pool_country_pq_is_sq_times_rq():
     df = pd.DataFrame(
         [
-            _row("a", "p1", "s", tp=3, fp=1, fn=1, iou_sum=2.4),
-            _row("a", "p2", "s", tp=1, fp=1, fn=3, iou_sum=0.9),
-            _row("a", "p3", "s", tp=0, fp=0, fn=0, iou_sum=0.0),  # empty/empty counts
+            make_row("a", "p1", "s", tp=3, fp=1, fn=1, iou_sum=2.4),
+            make_row("a", "p2", "s", tp=1, fp=1, fn=3, iou_sum=0.9),
+            make_row("a", "p3", "s", tp=0, fp=0, fn=0, iou_sum=0.0),  # empty/empty counts
         ]
     )
     c = pool_country(df).iloc[0]
@@ -65,7 +65,7 @@ def test_pool_country_pq_is_sq_times_rq():
 
 def test_macro_requires_all_countries():
     df = pd.DataFrame(
-        [_row("a", "p", "s", 1, 0, 0, 0.8), _row("b", "p", "s", 1, 1, 0, 0.7)]
+        [make_row("a", "p", "s", 1, 0, 0, 0.8), make_row("b", "p", "s", 1, 1, 0, 0.7)]
     )
     c = pool_country(df)
     m = macro(c, ("a", "b"))
@@ -74,24 +74,24 @@ def test_macro_requires_all_countries():
         macro(c, ("a", "b", "z"))
 
 
-def _country_scores(split, pq_by):
+def country_scores(split, pq_by):
     """pq_by: {country: {strategy: (tp, fp, fn, iou_sum)}} -> pooled country frame."""
     rows = []
     for c, d in pq_by.items():
         for s, (tp, fp, fn, iou) in d.items():
-            rows.append(_row(c, "p", s, tp, fp, fn, iou, split=split))
+            rows.append(make_row(c, "p", s, tp, fp, fn, iou, split=split))
     return pool_country(pd.DataFrame(rows))
 
 
 def test_select_depth_test_and_val():
-    test = _country_scores(
+    test = country_scores(
         "test",
         {
             "a": {"raw:h2": (2, 0, 0, 1.8), "raw:h8": (1, 1, 1, 0.9)},
             "b": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},
         },
     )
-    val = _country_scores(
+    val = country_scores(
         "val",
         {
             "a": {"raw:h2": (1, 2, 2, 0.5), "raw:h8": (2, 0, 0, 1.9)},
@@ -111,7 +111,7 @@ def test_select_depth_test_and_val():
 
 
 def test_select_depth_global_loco():
-    test = _country_scores(
+    test = country_scores(
         "test",
         {
             c: {"raw:h2": (2, 0, 0, 1.8), "raw:h8": (1, 1, 1, 0.9)}
@@ -119,7 +119,7 @@ def test_select_depth_global_loco():
         },
     )
     # val: h8 wins in a and b, h2 wins in c by a landslide
-    val = _country_scores(
+    val = country_scores(
         "val",
         {
             "a": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},

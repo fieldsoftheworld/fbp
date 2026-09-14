@@ -17,11 +17,11 @@ from .run_eval import BINS
 KEYS = ["run", "split", "protocol", "reference", "strategy", "country"]
 
 
-def _k(t: float) -> str:
+def threshold_key(t: float) -> str:
     return f"{int(round(t * 100)):02d}"
 
 
-def _f1(tp: float, fp: float, fn: float) -> float:
+def f1(tp: float, fp: float, fn: float) -> float:
     p = tp / max(tp + fp, 1)
     r = tp / max(tp + fn, 1)
     return 2 * p * r / (p + r) if (p + r) else 0.0
@@ -54,16 +54,16 @@ def pool_country(df: pd.DataFrame) -> pd.DataFrame:
         r["n_scored"] = int(((g.n_gt + g.n_pred) > 0).sum())
         r["n_gt"] = int(g.n_gt.sum())
         r["n_pred"] = int(g.n_pred.sum())
-        r["rq"] = _f1(tp, fp, fn)
+        r["rq"] = f1(tp, fp, fn)
         r["sq"] = float(g.iou_sum_50.sum() / tp) if tp else 0.0
         r["pq"] = r["sq"] * r["rq"]
         r["f1_5_95"] = float(
             np.mean(
                 [
-                    _f1(
-                        g[f"tp_{_k(t)}"].sum(),
-                        g[f"fp_{_k(t)}"].sum(),
-                        g[f"fn_{_k(t)}"].sum(),
+                    f1(
+                        g[f"tp_{threshold_key(t)}"].sum(),
+                        g[f"fp_{threshold_key(t)}"].sum(),
+                        g[f"fn_{threshold_key(t)}"].sum(),
                     )
                     for t in THRESHOLDS
                 ]
@@ -85,7 +85,7 @@ def pool_country(df: pd.DataFrame) -> pd.DataFrame:
                 g[f"fp_50_{b}"].sum(),
                 g[f"fn_50_{b}"].sum(),
             )
-            rqb = _f1(tpb, fpb, fnb)
+            rqb = f1(tpb, fpb, fnb)
             sqb = float(g[f"iou_sum_50_{b}"].sum() / tpb) if tpb else 0.0
             r[f"pq_{b}"] = sqb * rqb
             r[f"rq_{b}"] = rqb

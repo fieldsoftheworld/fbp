@@ -64,7 +64,7 @@ def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
     raise ValueError(mode)
 
 
-def _pairs_at_lines(
+def pairs_at_lines(
     inst: np.ndarray, lines: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """For every line pixel return (rows, cols, (n_px, 2) sorted label pairs) of the
@@ -84,7 +84,7 @@ def _pairs_at_lines(
     return r, c, top2
 
 
-class _UnionFind:
+class UnionFind:
     def __init__(self, n: int) -> None:
         self.parent = np.arange(n + 1)
 
@@ -100,7 +100,7 @@ class _UnionFind:
             self.parent[max(ra, rb)] = min(ra, rb)
 
 
-def _link_weak_lines(strong, eligible, inv, rr, cc, shape):
+def link_weak_lines(strong, eligible, inv, rr, cc, shape):
     """Hysteresis over the watershed lines.
 
     ``strong`` lines are kept outright. An ``eligible`` line is kept when a chain
@@ -114,7 +114,7 @@ def _link_weak_lines(strong, eligible, inv, rr, cc, shape):
     ids = np.full(shape, -1, dtype=np.int64)
     ok = eligible[inv]
     ids[rr[ok], cc[ok]] = inv[ok]
-    uf = _UnionFind(int(inv.max()) + 1)
+    uf = UnionFind(int(inv.max()) + 1)
     pad = np.pad(ids, 1, constant_values=-1)
     here = ids[rr[ok], cc[ok]]
     for dr, dc in ((0, 1), (1, 0), (1, 1), (1, -1)):  # 8-neighbourhood, once each
@@ -186,7 +186,7 @@ def supported_split(
     lines = fg & (inst == 0)
     if not lines.any():
         return (inst, lines, lines) if return_lines else inst
-    r, c, pairs = _pairs_at_lines(inst, lines)
+    r, c, pairs = pairs_at_lines(inst, lines)
     valid = pairs[:, 0] > 0
     is_bnd = prob[2] >= prob[1]
     if band > 0:
@@ -211,11 +211,11 @@ def supported_split(
     s_line = n_sup / n_px
     keep_line = (s_line >= tau) & (n_px >= min_line)
     if tau_lo is not None and tau_lo < tau:
-        keep_line = _link_weak_lines(
+        keep_line = link_weak_lines(
             keep_line, (s_line >= tau_lo) & (n_px >= min_line), inv, r[valid], c[valid],
             fg.shape,
         )
-    uf = _UnionFind(int(inst.max()))
+    uf = UnionFind(int(inst.max()))
     base = inst.max() + 1
     for k, keep in zip(uniq, keep_line, strict=True):
         if not keep:
@@ -304,7 +304,7 @@ def widen_gaps(inst: np.ndarray, fg: np.ndarray, width_px: int) -> np.ndarray:
     return out
 
 
-def _finish(inst, min_area, hole_area, merge_area, seg=None, keep_tau=None):
+def apply_post_steps(inst, min_area, hole_area, merge_area, seg=None, keep_tau=None):
     """Post-steps in a fixed order: fill holes, merge slivers, drop what is left.
 
     With ``keep_tau`` the last step spares small parcels whose outline the
@@ -494,7 +494,7 @@ def run_variant(
     fg_mode, _, rest = name.partition("-")
     fg = foreground(seg, prob, fg_mode)
     if rest == "none":
-        return _finish(components(fg), min_area, hole_area, merge_area, seg, keep_tau)
+        return apply_post_steps(components(fg), min_area, hole_area, merge_area, seg, keep_tau)
     if rest.startswith("ws"):
         # the released conversion: watershed at depth h, then components of the union
         from .ftp_compat import watershed_instances
@@ -502,9 +502,9 @@ def run_variant(
         dist = distance_transform_edt(seg != 2).astype(np.float32)
         inst = watershed_instances(seg, dist, h_min=float(rest[2:]), field_class=1)
         comp, _ = label(inst > 0)
-        return _finish(comp.astype(np.int32), min_area, hole_area, merge_area, seg, keep_tau)
+        return apply_post_steps(comp.astype(np.int32), min_area, hole_area, merge_area, seg, keep_tau)
     if rest.startswith("close"):
-        return _finish(
+        return apply_post_steps(
             gap_close(fg, seg, int(rest[5:])),
             min_area,
             hole_area,
@@ -516,14 +516,14 @@ def run_variant(
         from .priors import run_prior
 
         inst = run_prior(rest, fg, seg, prob)
-        return _finish(
+        return apply_post_steps(
             widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau
         )
     if rest.startswith("msup-t"):
         if markers is None:
             raise ValueError(f"{name} needs an instance marker image")
         inst = supported_split(fg, seg, prob, 0.0, float(rest[6:]), markers=markers)
-        return _finish(
+        return apply_post_steps(
             widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau
         )
     kind, h_s, t_s = rest.split("-")
@@ -541,7 +541,7 @@ def run_variant(
         tau_lo=tau_lo,
         score="soft" if kind == "ssup" else "frac",
     )
-    return _finish(
+    return apply_post_steps(
         widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau
     )
 

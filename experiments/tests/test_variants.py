@@ -11,7 +11,7 @@ from fieldvote.variants import (
 )
 
 
-def _two_fields(gap_boundary: bool, boundary_pb: float):
+def two_fields(gap_boundary: bool, boundary_pb: float):
     """Two 20x20 blocks side by side. If gap_boundary, the model paints a boundary
     column between them (with p_boundary = boundary_pb there); otherwise the blocks
     touch and only a geometric neck (thin bridge) separates them."""
@@ -40,14 +40,14 @@ def _two_fields(gap_boundary: bool, boundary_pb: float):
 
 
 def test_unsupported_neck_is_merged():
-    seg, prob = _two_fields(gap_boundary=False, boundary_pb=0.0)
+    seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
     fg = foreground(seg, prob, "arg")
     inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
     assert inst.max() == 1  # the geometric neck split is not supported -> one field
 
 
 def test_supported_gap_is_kept():
-    seg, prob = _two_fields(gap_boundary=True, boundary_pb=0.8)
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
     inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
     assert inst.max() == 2
@@ -56,7 +56,7 @@ def test_supported_gap_is_kept():
 
 
 def test_foreground_modes_and_close():
-    seg, prob = _two_fields(gap_boundary=True, boundary_pb=0.8)
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     assert foreground(seg, prob, "nbg").sum() > foreground(seg, prob, "arg").sum()
     assert foreground(seg, prob, "pf50").sum() == (prob[1] > 0.5).sum()
     inst = gap_close(foreground(seg, prob, "arg"), seg, 1)
@@ -64,14 +64,14 @@ def test_foreground_modes_and_close():
 
 
 def test_all_default_variants_run():
-    seg, prob = _two_fields(gap_boundary=True, boundary_pb=0.8)
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     out = run_variants(seg, prob, default_variants())
     assert len(out) == len(default_variants())
     for v in out.values():
         assert v.dtype == np.int32 and v.shape == seg.shape and v.min() >= 0
 
 
-def _touching_pairs(inst: np.ndarray) -> int:
+def touching_pairs(inst: np.ndarray) -> int:
     """Number of 4-adjacent pixel pairs carrying two different non-zero labels."""
     a, b = inst[:, :-1], inst[:, 1:]
     n = int(((a != b) & (a > 0) & (b > 0)).sum())
@@ -96,11 +96,11 @@ def test_kept_splits_are_gaps_on_real_patch():
             )
         for name in ("nbg-sup-h2-t0.7", "arg-sup-h2-t0.5", "nbg-sup-h1-t0.3"):
             inst = run_variants(seg.astype(np.uint8), prob, [name])[name]
-            assert _touching_pairs(inst) == 0, name
+            assert touching_pairs(inst) == 0, name
 
 
 def test_widen_gaps_keeps_two_fields_and_grows_gap():
-    seg, prob = _two_fields(gap_boundary=True, boundary_pb=0.8)
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     one = run_variants(seg, prob, ["nbg-sup-h1-t0.5"])["nbg-sup-h1-t0.5"]
     two = run_variants(seg, prob, ["nbg-sup-h1-t0.5+w2"])["nbg-sup-h1-t0.5+w2"]
     assert one.max() == two.max() == 2
@@ -110,7 +110,7 @@ def test_widen_gaps_keeps_two_fields_and_grows_gap():
     assert ((one > 0) & (two == 0)).sum() == (fg & (two == 0)).sum() - (
         fg & (one == 0)
     ).sum()
-    assert _touching_pairs(two) == 0
+    assert touching_pairs(two) == 0
 
 
 def test_empty_patch():
@@ -137,7 +137,7 @@ def test_no_adjacent_labels_on_many_real_patches():
                 seg, prob = d["seg"].astype(np.uint8), d["prob"].astype(np.float32)
             for name in ("nbg-sup-h2-t0.7", "nbg-sup-h2-t0.9"):
                 inst = run_variants(seg, prob, [name])[name]
-                assert _touching_pairs(inst) == 0, f"{country}/{npz.stem} {name}"
+                assert touching_pairs(inst) == 0, f"{country}/{npz.stem} {name}"
                 n_poly = len(instance_polygons(inst))
                 n_rt = len(
                     polygonize(
@@ -152,7 +152,7 @@ def test_no_adjacent_labels_on_many_real_patches():
 def test_min_line_and_min_area_and_band():
     from fieldvote.variants import drop_small
 
-    seg, prob = _two_fields(gap_boundary=True, boundary_pb=0.8)
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     base = run_variants(seg, prob, ["nbg-sup-h1-t0.5"])["nbg-sup-h1-t0.5"]
     assert base.max() == 2
     # a minimum line length longer than the seam merges the two fields
@@ -203,7 +203,7 @@ def test_ws_rule_matches_released_pipeline():
     from fieldvote import ftp_compat as ftp
     from scipy.ndimage import distance_transform_edt, label
 
-    seg, prob = _two_fields(gap_boundary=True, boundary_pb=0.8)
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     got = run_variants(seg, prob, ["arg-ws2"])["arg-ws2"]
     dist = distance_transform_edt(seg != 2).astype(np.float32)
     want, _ = label(ftp.watershed_instances(seg, dist, h_min=2.0) > 0)

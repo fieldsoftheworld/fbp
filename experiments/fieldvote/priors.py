@@ -31,7 +31,7 @@ from skimage.morphology import h_maxima
 from skimage.segmentation import watershed
 
 
-def _lines_from_labels(lab: np.ndarray, fg: np.ndarray) -> np.ndarray:
+def lines_from_labels(lab: np.ndarray, fg: np.ndarray) -> np.ndarray:
     """1-px lines between different labels so adjacent regions never touch."""
     p = np.pad(lab, 1)
     c = p[1:-1, 1:-1]
@@ -43,7 +43,7 @@ def _lines_from_labels(lab: np.ndarray, fg: np.ndarray) -> np.ndarray:
     return out
 
 
-def _relabel(lab: np.ndarray) -> np.ndarray:
+def relabel_dense(lab: np.ndarray) -> np.ndarray:
     _, dense = np.unique(lab, return_inverse=True)
     dense = dense.reshape(lab.shape).astype(np.int32)
     if lab.min() != 0:
@@ -51,7 +51,7 @@ def _relabel(lab: np.ndarray) -> np.ndarray:
     return dense
 
 
-def _weight_boundary(g, src, dst, n):
+def weight_boundary(g, src, dst, n):
     """Count-weighted mean boundary probability after merging src into dst."""
     default = {"weight": 0.0, "count": 0}
     cs, cd = g[src].get(n, default)["count"], g[dst].get(n, default)["count"]
@@ -60,7 +60,7 @@ def _weight_boundary(g, src, dst, n):
     return {"count": count, "weight": (cs * ws + cd * wd) / count}
 
 
-def _merge_boundary(g, src, dst):
+def merge_boundary(g, src, dst):
     return None
 
 
@@ -85,12 +85,12 @@ def ucm(fg: np.ndarray, seg: np.ndarray, prob: np.ndarray, k: float) -> np.ndarr
         thresh=k,
         rag_copy=False,
         in_place_merge=True,
-        merge_func=_merge_boundary,
-        weight_func=_weight_boundary,
+        merge_func=merge_boundary,
+        weight_func=weight_boundary,
     ).astype(np.int32)
     merged[~fg] = 0
     merged[fg] += 1  # merge_hierarchical may hand out label 0
-    return _relabel(_lines_from_labels(merged, fg))
+    return relabel_dense(lines_from_labels(merged, fg))
 
 
 def swst(
@@ -146,7 +146,7 @@ def iterh(
             nxt[part > 0] = part[part > 0] + cur
             cur += int(part.max())
         lab = nxt
-    return _relabel(lab)
+    return relabel_dense(lab)
 
 
 def thr(prob: np.ndarray, te: float, tb: float) -> np.ndarray:

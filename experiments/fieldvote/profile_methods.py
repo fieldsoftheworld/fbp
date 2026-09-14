@@ -70,22 +70,22 @@ class RSSSampler:
         self.interval = 1.0 / hz
         self.peak = 0
 
-    def _read(self) -> int:
+    def read_rss(self) -> int:
         with open("/proc/self/statm") as f:
             return int(f.read().split()[1]) * 4096  # pages -> bytes
 
     def __enter__(self):
         gc.collect()
-        self.base = self._read()
+        self.base = self.read_rss()
         self.peak = self.base
         self._stop = threading.Event()
-        self._t = threading.Thread(target=self._loop, daemon=True)
+        self._t = threading.Thread(target=self.sample_loop, daemon=True)
         self._t.start()
         return self
 
-    def _loop(self) -> None:
+    def sample_loop(self) -> None:
         while not self._stop.is_set():
-            self.peak = max(self.peak, self._read())
+            self.peak = max(self.peak, self.read_rss())
             time.sleep(self.interval)
 
     def __exit__(self, *exc) -> None:

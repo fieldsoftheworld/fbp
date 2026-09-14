@@ -48,7 +48,7 @@ INDEX_COLS = (
 )
 
 
-def _dataset(backend: str, root: str, country: str, split: str):
+def build_dataset(backend: str, root: str, country: str, split: str):
     if backend == "s2":
         from ftw_tools.training.datasets import FTW
 
@@ -69,14 +69,14 @@ def _dataset(backend: str, root: str, country: str, split: str):
     )
 
 
-def _label_path(ds, idx: int, backend: str) -> str:
+def label_path(ds, idx: int, backend: str) -> str:
     if backend == "s2":
         return str(ds.filenames[idx]["mask"]) if "mask" in ds.filenames[idx] else ""
     return ds.records[idx]["label"]
 
 
 def cache_country(task, model, device, args, country: str, out: Path) -> int:
-    ds = _dataset(args.backend, args.root, country, args.split)
+    ds = build_dataset(args.backend, args.root, country, args.split)
     dl = DataLoader(
         ds, batch_size=1, shuffle=False, num_workers=args.num_workers, pin_memory=True
     )
@@ -148,7 +148,7 @@ def cache_country(task, model, device, args, country: str, out: Path) -> int:
                 W,
                 str(crs),
                 json.dumps(list(tr)[:6]),
-                _label_path(ds, idx, args.backend),
+                label_path(ds, idx, args.backend),
             )
         )
         n += 1

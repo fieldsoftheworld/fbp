@@ -31,7 +31,7 @@ os.environ.setdefault("FTW_PLANET_REPO", str(Path.home() / "github" / "ftw-plane
 from fieldvote import references as refs  # noqa: E402
 from fieldvote.paths import cache_dir  # noqa: E402
 from fieldvote.variants import (  # noqa: E402
-    _pairs_at_lines,
+    pairs_at_lines,
     foreground,
     supported_split,
 )
@@ -78,7 +78,7 @@ SUPPORT_NORM = mcolors.TwoSlopeNorm(vmin=0, vcenter=TAU, vmax=1)
 
 def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.ndarray:
     """Per-pixel map of s(l) for the line each pixel belongs to (NaN elsewhere)."""
-    r, c, pairs = _pairs_at_lines(inst, lines)
+    r, c, pairs = pairs_at_lines(inst, lines)
     valid = pairs[:, 0] > 0
     support = (prob[2] >= prob[1])[r, c]
     base = inst.max() + 1

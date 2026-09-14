@@ -56,7 +56,7 @@ def vote(candidates: list[list], shape: tuple[int, int], tau: float = 0.5) -> li
     return polygonize((votes >= k_min).astype(np.uint8))
 
 
-def _iou(a, b) -> float:
+def iou(a, b) -> float:
     inter = a.intersection(b).area
     if inter <= 0:
         return 0.0
@@ -73,7 +73,7 @@ def nms_pool(candidates: list[list], iou_thresh: float = 0.5) -> list:
     support = np.zeros(len(pool), dtype=np.int32)
     for i, p in enumerate(pool):
         for j in tree.query(p, predicate="intersects"):
-            if j != i and _iou(p, pool[j]) >= iou_thresh:
+            if j != i and iou(p, pool[j]) >= iou_thresh:
                 support[i] += 1
     order = np.argsort(-support, kind="stable")
     keep: list[int] = []
@@ -83,7 +83,7 @@ def nms_pool(candidates: list[list], iou_thresh: float = 0.5) -> list:
             continue
         keep.append(int(i))
         for j in tree.query(pool[i], predicate="intersects"):
-            if j != i and not suppressed[j] and _iou(pool[i], pool[j]) >= iou_thresh:
+            if j != i and not suppressed[j] and iou(pool[i], pool[j]) >= iou_thresh:
                 suppressed[j] = True
     return [pool[i] for i in keep]
 
