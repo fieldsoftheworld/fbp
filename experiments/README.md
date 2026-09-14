@@ -1,8 +1,7 @@
 # FieldVote rerun
 
-Self-contained rebuild of the experiments behind `main_grsl.tex`, addressing
-`EXPERIMENT_REVIEW.md`. The legacy `scripts/` tree is kept as a historical
-record; it depended on exports in a co-author's home directory that are gone.
+Self-contained rebuild of the experiments behind `main_grsl_revised.tex` and
+`supplementary.tex`, addressing `EXPERIMENT_REVIEW.md`.
 
 Everything here runs inside the sibling `~/github/ftw-planet` checkout's venv
 (`experiments/run.sh` sets `PYTHONPATH` and `cd`s there) and imports FTP's own
@@ -150,12 +149,13 @@ DA-v2 enters the letter as a baseline row.
 ## Revised letter (`main_grsl_revised.tex`)
 
 Written from the rebuilt results only; FieldVote does not appear. Build with
-`latexmk -pdf main_grsl_revised.tex` (4 pages incl. references). Regenerate its
+`latexmk -pdf main_grsl_revised.tex` (5 pages incl. references). Regenerate its
 inputs from `experiments/results/`:
 
 ```sh
 V=~/github/ftw-planet/.venv/bin/python
-$V experiments/figures/make_tables.py     # tables/rev_{main_rows,ablation_rows,values}.tex
+$V experiments/figures/make_tables.py      # tables/rev_{main_rows,compare_rows,ablation_rows,values}.tex
+$V experiments/figures/make_supp_tables.py # tables/supp_*_rows.tex
 $V experiments/figures/per_country.py     # figures/rev_percountry.pdf
 $V experiments/figures/gallery.py         # figures/rev_gallery.pdf: one patch per country, released vs ours, patch PQ printed
 $V experiments/figures/method_fig.py      # figures/rev_method.pdf: every intermediate image on one crop
@@ -234,35 +234,34 @@ means different parcel sizes on the two sensors (Planet 9.0 m^2/px, the
 upsampled S2 grid 5.5 m^2/px here). Headline gains compare against the
 released pipeline given the same minimum-size step (`arg-ws2+A900`).
 
-## Global run (`fieldvote/global_*.py`, `fieldvote/cache_global.py`)
+## Analysis tools
 
-The global FTW map (arXiv:2605.11055) is a PRUE B7 U-Net run at 10 m whose
-polygons are connected components of the field argmax with a 4-px minimum, no
-watershed. Its 3-class float32 softmax is a Zarr v3 store
-(`https://data.source.coop/ftw/global-data/predictions/zarr/alpha/global.zarr`,
-`(time, band, y, x)`, EPSG:4326, 8.98e-5 deg/px, time 0 = 2024 and 1 = 2025,
-8192^2 shards with 2048^2 inner chunks). Two uses:
+Console reports over `out/scores` and `out/candidates`; none of them writes a
+paper input, so they are not part of `rebuild_paper.sh`.
 
-* **Diffs and cost at scale.** `global_tiles` lists the 270,684 inner chunks
-  with mean 2025 field probability > 0.01 from the 2048x overview (one overview
-  pixel per chunk) and tags them with Natural Earth countries;
-  `hpc/global.sbatch` runs one 300-tile shard per array task
-  (`--array=0-899%150`, plus `OFFSET=900` for the last three). Each chunk is
-  read once (1.8 s) and processed as 16 sub-tiles of 512^2, the letter's patch
-  size, so the validated settings of the prior methods mean what they meant in
-  Table II. Per (tile, method): parcel count, area, parcel-area histogram, wall
-  ms, peak RSS. Stochastic watershed runs on every 20th tile. About 8 s per
-  tile, ~600 CPU-h for one year. `global_report` aggregates to `summary.csv`,
-  `by_country.csv`, `area_hist.csv` under `out/global/`.
-* **A third model with labels.** `cache_global` reads the store window under
-  every FTW test patch (labels are EPSG:4326 too) into the standard cache
-  layout as run `global_s2`; `hpc/global_labeled.sbatch` then runs candidates,
-  scoring on the store grid, and the report, so the production model's
-  predictions get the same PQ table as the four released runs. Imagery year
-  (2025) differs from the label years, which affects every method equally.
+```sh
+experiments/run.sh fieldvote.ablation --runs planet_b3 planet_b7 planet_b37 --protocol pixel
+experiments/run.sh fieldvote.iou_sweep --run planet_b3 --split val \
+    --variants nbg-sup-h2-t0.7 nbg-sup-h2-t0.7+H40          # out/iou_sweep/<run>_<split>.csv
+experiments/run.sh fieldvote.boundary_error --run planet_b3 --split test \
+    --variants arg-ws2+A900 nbg-sup-h2-t0.7+A900            # out/boundary/<run>_<split>.csv
+```
+
+`ablation` is the cross-run variant ranking behind `results/ablation/cross_*.csv`
+and the variant table above. `iou_sweep` rescores from IoU 0.2 upward, because a
+rule that adds splits can be punished by the 0.5 threshold itself rather than by
+its polygons; `boundary_error` reports FTP's symmetric chamfer and the polygon
+count delta over matched pairs. Neither number is in the letter yet.
+
+## Withdrawn: the global-scale run
+
+`results/global_s2/` and the third-model row it fed are kept for provenance but
+must not be reported. The public FTW global Zarr store is rasterized at 10 m
+while the model predicts near 5 m, so those scores are resolution-floored rather
+than a clean third-model result. The modules that produced them
+(`global_*.py`, `cache_global.py`, `hpc/global*.sbatch`) were removed; recover
+them from history if the store is ever republished at native resolution.
 
 ## TODO
 
 * Runtime breakdown per stage (review item 14).
-* Redraw the qualitative figure from `experiments/out/candidates` polygons with
-  the verified comparator (`rt:h2`) and `nbg-sup-h2-t0.8`.
