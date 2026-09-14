@@ -6,7 +6,7 @@ from fieldvote.priors import iterh, swst, thr, ucm
 from fieldvote.variants import foreground, run_variant
 
 
-def two_field_scene():
+def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
     """Two fields separated by a confident boundary line, plus a faint internal line."""
     H, W = 40, 60
     prob = np.zeros((3, H, W), dtype=np.float32)

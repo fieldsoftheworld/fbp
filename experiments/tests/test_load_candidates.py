@@ -1,6 +1,9 @@
 """Every patch must carry every tag after loading, even if it is empty in some files."""
 
+from pathlib import Path
+
 import geopandas as gpd
+import pytest
 import shapely.geometry
 
 from fieldvote import paths
@@ -8,7 +11,9 @@ from fieldvote.candidates import tag_to_file
 from fieldvote.run_eval import load_candidates
 
 
-def test_missing_tag_filled_with_empty_list(tmp_path, monkeypatch) -> None:
+def test_missing_tag_filled_with_empty_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("FIELDVOTE_OUT", str(tmp_path))
     cdir = paths.candidates_dir("r/test") / "xx"
     cdir.mkdir(parents=True)

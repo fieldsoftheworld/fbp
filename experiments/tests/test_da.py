@@ -7,7 +7,7 @@ from fieldvote.cache_da import paint_topk
 from fieldvote.da_softmax import RULES, pseudo_softmax
 
 
-def overlapping_instances():
+def overlapping_instances() -> tuple[np.ndarray, np.ndarray]:
     masks = np.zeros((3, 10, 10), dtype=np.uint8)
     masks[0, 0:6, 0:6] = 1  # A, conf .9
     masks[1, 4:10, 4:10] = 1  # B, conf .6, overlaps A on [4:6, 4:6]
