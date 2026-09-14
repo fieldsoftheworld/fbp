@@ -98,7 +98,8 @@ class RSSSampler:
 
 def sample_patches(
     run: str, split: str, per_bin: int, seed: int
-) -> list[tuple[str, str, int, str]]:
+) -> list[tuple[str, str, int, str, str]]:
+    """One row per sampled patch: (country, patch_id, n_gt, npz path, bin name)."""
     rows = []
     for country in DENSE10:
         src = cache_dir(f"{run}/{split}") / country
@@ -130,6 +131,8 @@ def main() -> int:
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
+    if args.repeats < 1:
+        raise ValueError("--repeats must be >= 1")
 
     patches = sample_patches(args.run, args.split, args.per_bin, args.seed)
     print(f"{len(patches)} patches sampled", flush=True)
@@ -144,10 +147,13 @@ def main() -> int:
                 method, seg, prob, px_m2
             )  # warm-up: first call pays import and cache costs
             times = []
+            out = None
             for _ in range(args.repeats):
                 t0 = time.perf_counter()
                 out = call(method, seg, prob, px_m2)
                 times.append(time.perf_counter() - t0)
+            if out is None:
+                raise RuntimeError("no timed calls ran; --repeats must be >= 1")
             with RSSSampler() as s:
                 call(method, seg, prob, px_m2)
             rows.append(

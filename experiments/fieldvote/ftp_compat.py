@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import torch
+
 from .paths import ftw_planet_repo
 
 _REPO = ftw_planet_repo()
@@ -95,12 +97,15 @@ __all__ = [
 ]
 
 
-def load_task(ckpt: Path, device):
+def load_task(
+    ckpt: Path, device: torch.device
+) -> tuple[torch.nn.Module, torch.nn.Module, str]:
     """Same task-class fallback chain as ``polygon_metrics_eval.main``."""
     from ftw_tools.training.trainers import CustomSemanticSegmentationTask
 
     errors = (RuntimeError, KeyError, TypeError, argparse.ArgumentError)
     task = None
+    kind = None
     try:
         from ftw_planet.trainers import FrameFieldSegTask
 
@@ -119,6 +124,8 @@ def load_task(ckpt: Path, device):
                 str(ckpt), map_location="cpu"
             )
             kind = "CustomSemanticSegmentationTask"
+    if task is None or kind is None:
+        raise RuntimeError(f"no trainer task class could load {ckpt}")
     task = task.eval().to(device)
     return task, task.model, kind
 

@@ -28,6 +28,8 @@ def main() -> int:
     args = p.parse_args()
 
     srcs = [cache_dir(f"{r}/{args.split}") for r in args.runs]
+    if not srcs:
+        raise ValueError("--runs requires at least one run")
     dst = cache_dir(f"{args.out}/{args.split}")
     counts = {}
     for c in args.countries:
@@ -35,11 +37,14 @@ def main() -> int:
         files = sorted((srcs[0] / c).glob("*.npz"))
         for f in files:
             probs = []
+            gt = tr = crs = None
             for s in srcs:
                 with np.load(s / c / f.name) as d:
                     probs.append(d["prob"].astype(np.float32))
                     if s == srcs[0]:
                         gt, tr, crs = d["gt"], d["transform"], d["crs"]
+            if gt is None or tr is None or crs is None:
+                raise RuntimeError(f"{srcs[0]} missing from its own source list")
             avg = np.mean(probs, axis=0)
             np.savez_compressed(
                 dst / c / f.name,
