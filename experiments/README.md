@@ -78,7 +78,7 @@ Gate for s2_b3: 20.99 vs FTP 21.00.
 FieldVote beats the best round-tripped single depth in 0/10 countries on every
 run. Pixel check (Belgium, Croatia, Latvia): the vote mask never differs from
 every single-depth mask and equals `rt:h2` exactly in 63–93% of patches. The
-letter's reported gain is the rasterize→polygonize conversion (discarding
+letter's reported gain is the rasterize→polygonize round trip (discarding
 instance labels), not the vote. The legacy country-selected depth was `h=64`
 in 4/10 countries, where the connected-component fallback fires on 64% of
 patches. Under the S2 protocol `raw == rt` by construction (`_cap_pred_to_gsd`
@@ -170,7 +170,8 @@ default is `nbg-sup-h2-t0.7`; "best depth" rows are `rt_test` restricted to
 
 ## Prior post-processing baselines (`fieldvote/priors.py`)
 
-Four label-free conversions re-implemented on the same cached predictions, so
+Four label-free post-processing pipelines re-implemented on the same cached
+predictions, so
 the comparison isolates the split/merge rule:
 
 | name | method | knobs |
@@ -182,7 +183,7 @@ the comparison isolates the split/merge rule:
 
 Each grid is swept until its optimum is interior, its setting is chosen on the
 **validation** split, and the same setting is reported on test for every run.
-`arg-ws{h}` is the released conversion expressed as a variant, so post-steps
+`arg-ws{h}` is the FTP pipeline expressed as a variant, so post-steps
 (`+a`, `+f`, `+m`) can be applied to it on equal terms.
 
 ## Cost and transfer
@@ -232,7 +233,7 @@ boundary-supported splits at h=2 with tau=0.7, and a 900 m^2 minimum parcel
 area. The threshold is in ground area, not pixels, because a pixel threshold
 means different parcel sizes on the two sensors (Planet 9.0 m^2/px, the
 upsampled S2 grid 5.5 m^2/px here). Headline gains compare against the
-released pipeline given the same minimum-size step (`arg-ws2+A900`).
+FTP pipeline given the same minimum-size step (`arg-ws2+A900`).
 
 ## Analysis tools
 
