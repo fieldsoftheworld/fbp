@@ -11,6 +11,7 @@ Writes tables/supp_*.tex:
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_supp_tables.py
 """
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -96,6 +97,37 @@ def sweep_rows() -> list[str]:
     return rows
 
 
+FOREGROUND = {"arg": "field", "nbg": "not-background"}
+
+
+def natural_key(s: str) -> list[object]:
+    """Split digits out so numbers in a strategy id sort by value."""
+    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", s)]
+
+
+def thousands(x: str) -> str:
+    """20000 -> 20{,}000, for use inside math mode."""
+    return f"{int(x):,}".replace(",", "{,}")
+
+
+def prior_label(key: str) -> str:
+    """A prior method's setting in the letter's notation, not its strategy id."""
+    s = key.replace("raw:v:", "")
+    m = re.fullmatch(r"(?:arg|nbg)-thr-te([\d.]+)-tb([\d.]+)", s)
+    if m:
+        return f"$t_e{{=}}{m[1]}$, $t_b{{=}}{m[2]}$"
+    m = re.fullmatch(r"(?:arg|nbg)-ucm-k([\d.]+)", s)
+    if m:
+        return f"$k{{=}}{m[1]}$"
+    m = re.fullmatch(r"(arg|nbg)-iterh-a(\d+)", s)
+    if m:
+        return f"$a{{=}}{thousands(m[2])}$, {FOREGROUND[m[1]]}"
+    m = re.fullmatch(r"(?:arg|nbg)-swst-n(\d+)-m(\d+)-t([\d.]+)", s)
+    if m:
+        return f"$n{{=}}{m[1]}$, $m{{=}}{m[2]}$, $t{{=}}{m[3]}$"
+    return f"\\texttt{{{s}}}"
+
+
 def priors_rows() -> list[str]:
     val = (
         macro("planet_b3", "val")
@@ -120,22 +152,20 @@ def priors_rows() -> list[str]:
             and "+A" not in k
             and ("iterh" in k if "Iterative" in title else True)
         ]
-        keys = sorted(keys)
+        # Natural order, so a=5000 sorts before a=20000 rather than after it.
+        keys = sorted(keys, key=natural_key)
         if not keys:
             continue
         if rows:
             rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for k in keys:
-            short = k.replace("raw:v:", "")
-            if "iterh" not in k:  # only the iterative family varies its foreground
-                short = short.replace("nbg-", "").replace("arg-", "")
             v = (
                 f"{100 * val.loc[k].pq:.1f}"
                 if val is not None and k in val.index
                 else "--"
             )
-            rows.append(f"\\texttt{{{short}}} & {v} & {100 * test.loc[k].pq:.1f} \\\\")
+            rows.append(f"{prior_label(k)} & {v} & {100 * test.loc[k].pq:.1f} \\\\")
     return rows
 
 
@@ -147,8 +177,8 @@ def variants_rows() -> list[str]:
     rel = "raw:v:arg-ws2"
     blocks = [
         (
-            "FTP Conversion and Boundary Veto, No Minimum Size",
-            [("FTP Conversion", BASE), ("Boundary Veto", ours)],
+            "FTP Pipeline and Boundary Veto, No Minimum Size",
+            [("FTP Pipeline", BASE), ("Boundary Veto", ours)],
         ),
         (
             "Alternatives to the Argmax Foreground",
@@ -261,7 +291,7 @@ def country_rows() -> list[str]:
 def timing_rows() -> list[str]:
     order = ["1-9", "10-29", "30-99", "100+"]
     labels = {
-        "released": "FTP Conversion",
+        "released": "FTP Pipeline",
         "thr": "Thresholds",
         "ucm": "Hierarchical Merging",
         "iterh": "Iterative Marker Depth",

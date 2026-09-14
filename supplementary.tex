@@ -27,7 +27,7 @@ The letter includes the PlanetScope B3 and Sentinel-2 B7 columns.
 
 \begin{table}[h]
 \centering
-\caption{Accuracy holds near the chosen thresholds}
+\caption{Full sweeps over the support threshold and marker depth}
 \label{tab:supp_sweep}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -48,13 +48,13 @@ Iterative marker depth and stochastic watershed stay more than nine points below
 
 \begin{table}[h]
 \centering
-\caption{No setting of any prior method reaches FTP}
+\caption{Complete parameter grids for the prior methods}
 \label{tab:supp_priors}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
 \begin{tabular}{@{}lrr@{}}
 \toprule
-Setting & Validation PQ & Test PQ \\
+Setting & Val PQ & Test PQ \\
 \midrule
 \tablebody{tables/supp_priors_rows.tex}
 \bottomrule
@@ -62,10 +62,11 @@ Setting & Validation PQ & Test PQ \\
 \smallskip
 
 \parbox{\columnwidth}{\footnotesize
-\texttt{thr-te$x$-tb$y$}: field probability at least $x$, boundary probability below $y$.
-\texttt{ucm-k$x$}: merge borders whose mean boundary probability is below $x$.
-\texttt{iterh-a$x$}: re-segment regions over $x$ pixels, on the field (\texttt{arg}) or not-background (\texttt{nbg}) foreground.
-\texttt{swst-n$x$-m$y$-t$z$}: $y$ draws of $x$ markers, cut where the line frequency reaches $z$.}
+Parameter names match Table~II of the letter.
+$t_e$ is the field probability a pixel must reach and $t_b$ the boundary probability it must stay below.
+$k$ merges borders whose mean boundary probability falls below it.
+$a$ re-segments regions larger than that many pixels, on either the field or the not-background foreground.
+$n$ markers are drawn $m$ times, and a line is cut where its frequency reaches $t$.}
 \end{table}
 
 \section{Alternatives Named in the Ablation}
@@ -76,13 +77,13 @@ Pixel counts refer to the 3~m PlanetScope grid.
 
 \begin{table}[h]
 \centering
-\caption{No alternative foreground or added step helps}
+\caption{Foreground alternatives and added steps}
 \label{tab:supp_variants}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}lrr@{}}
 \toprule
-Variant & Validation PQ & Test PQ \\
+Variant & Val PQ & Test PQ \\
 \midrule
 \tablebody{tables/supp_variants_rows.tex}
 \bottomrule
@@ -96,7 +97,7 @@ On PlanetScope B3, the ten countries contain 29,406 small, 20,884 medium, and 12
 
 \begin{table}[h]
 \centering
-\caption{The gain concentrates in the smallest fields}
+\caption{PQ and RQ by reference field size}
 \label{tab:supp_size}
 \footnotesize
 \setlength{\tabcolsep}{3.4pt}
@@ -121,7 +122,7 @@ Portugal has two test patches and Cambodia sixteen, so their scores use far fewe
 
 \begin{table}[h]
 \centering
-\caption{The veto leads in almost every country and model}
+\caption{Per-country PQ for both pipelines}
 \label{tab:supp_country}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -149,7 +150,7 @@ The ordering between methods is unchanged in the sparsest and densest bins, and 
 
 \begin{table}[h]
 \centering
-\caption{The veto costs about what the watershed costs}
+\caption{Median runtime by parcel density}
 \label{tab:supp_timing}
 \footnotesize
 \setlength{\tabcolsep}{2.3pt}
