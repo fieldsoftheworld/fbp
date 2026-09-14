@@ -159,7 +159,8 @@ def main() -> None:
         for name, strat in (
             ("FTP, $h{=}2$", BASE),
             ("FTP + Min Size", RELEASED_FILTER),
-            (OURS_LABEL, OURS),
+            # the model column already sets the table apart, so no "(Ours)" here
+            (r"\textbf{BoundaryVote}", OURS),
         ):
             r = m.loc[strat]
             cells = []
@@ -175,15 +176,15 @@ def main() -> None:
                 if r[col] == best:
                     v = f"\\textbf{{{v}}}"
                 cells.append(v)
-            rows.append((name, cells))
+            rows.append((name, cells, strat == OURS))
         sensor_short = {"PlanetScope": "PS", "Sentinel-2": "S2"}[sensor]
-        for i, (name, cells) in enumerate(rows):
+        for i, (name, cells, ours) in enumerate(rows):
             # The model label sits in the last (shaded) row with a negative
             # span, since a later row's fill would paint over text that
             # multirow hangs down from the first row.
             last = i == len(rows) - 1
             lead = f"\\multirow{{-3}}{{*}}{{{sensor_short} {enc}}}" if last else ""
-            fill = OURS_ROW if name == OURS_LABEL else ""
+            fill = OURS_ROW if ours else ""
             main_rows.append(f"{fill}{lead} & {name} & " + " & ".join(cells) + r" \\")
         main_rows.append(r"\midrule" if run != RUNS[-1][0] else "")
         # like-for-like: both with the minimum-size step, so the split rule is
