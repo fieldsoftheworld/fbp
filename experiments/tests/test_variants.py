@@ -1,22 +1,26 @@
 """Boundary-supported splitting keeps supported lines and merges unsupported ones."""
 
+from typing import cast
+
 import numpy as np
+import pytest
 
 from fieldvote.variants import (
+    apply_post_steps,
     default_variants,
     drop_small,
     foreground,
     gap_close,
+    link_weak_lines,
+    run_variant,
     run_variants,
     supported_split,
+    widen_gaps,
 )
 
 
-def two_fields(gap_boundary: bool, boundary_pb: float):
-    """Two 20x20 blocks side by side. If gap_boundary, the model paints a boundary
-    column between them (with p_boundary = boundary_pb there); otherwise the blocks
-    touch and only a geometric neck (thin bridge) separates them.
-    """
+def two_fields(gap_boundary: bool, boundary_pb: float) -> tuple[np.ndarray, np.ndarray]:
+    """Two 20x20 blocks; a boundary column or a thin neck joins them."""
     H, W = 24, 48
     seg = np.zeros((H, W), dtype=np.uint8)
     prob = np.zeros((3, H, W), dtype=np.float32)
@@ -44,14 +48,17 @@ def two_fields(gap_boundary: bool, boundary_pb: float):
 def test_unsupported_neck_is_merged() -> None:
     seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
     fg = foreground(seg, prob, "arg")
-    inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
+    # return_lines defaults to False, so this is always an array; ty cannot see
+    # that from the union return type, since the function has no @overload split
+    # on return_lines, so the result is cast rather than narrowed.
+    inst = cast(np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5))
     assert inst.max() == 1  # the geometric neck split is not supported -> one field
 
 
 def test_supported_gap_is_kept() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     fg = foreground(seg, prob, "nbg")
-    inst = supported_split(fg, seg, prob, h=1.0, tau=0.5)
+    inst = cast(np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5))
     assert inst.max() == 2
     # instances are separated by a gap of zeros somewhere on the bridge
     assert (inst[10:14, 22:26] == 0).any()
@@ -211,3 +218,127 @@ def test_ws_rule_matches_ftp_pipeline() -> None:
     dist = distance_transform_edt(seg != 2).astype(np.float32)
     want, _ = label(ftp.watershed_instances(seg, dist, h_min=2.0) > 0)
     assert (got > 0).sum() == (want > 0).sum() and got.max() == want.max()
+
+
+def test_foreground_unknown_mode_raises() -> None:
+    seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
+    with pytest.raises(ValueError):
+        foreground(seg, prob, "bogus")
+
+
+def test_supported_split_unknown_surface_raises() -> None:
+    seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
+    fg = foreground(seg, prob, "nbg")
+    with pytest.raises(ValueError):
+        supported_split(fg, seg, prob, h=1.0, tau=0.5, surface="bogus")
+
+
+def test_supported_split_unknown_score_raises() -> None:
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
+    fg = foreground(seg, prob, "nbg")
+    with pytest.raises(ValueError):
+        supported_split(fg, seg, prob, h=1.0, tau=0.5, score="bogus")
+
+
+def test_supported_split_empty_foreground_returns_zeros() -> None:
+    seg = np.zeros((8, 8), dtype=np.uint8)
+    prob = np.zeros((3, 8, 8), dtype=np.float32)
+    prob[0] = 1.0
+    fg = foreground(seg, prob, "nbg")
+    out = supported_split(fg, seg, prob, h=1.0, tau=0.5, return_lines=True)
+    inst, lines, kept = out
+    assert inst.max() == 0 and not lines.any() and not kept.any()
+
+
+def test_link_weak_lines_chains_through_touching_pixel() -> None:
+    """A weak line touching a strong one in its group is kept; a far one is not."""
+    shape = (5, 5)
+    rr = np.array([1, 1, 3])
+    cc = np.array([1, 2, 3])
+    inv = np.array([0, 1, 2])
+    strong = np.array([True, False, False])
+    eligible = np.array([True, True, False])
+    linked = link_weak_lines(strong, eligible, inv, rr, cc, shape)
+    assert linked.tolist() == [True, True, False]
+
+    far_cc = np.array([1, 4, 3])  # line 1 no longer 8-adjacent to line 0
+    unlinked = link_weak_lines(strong, eligible, inv, rr, far_cc, shape)
+    assert unlinked.tolist() == [True, False, False]
+
+
+def test_link_weak_lines_early_exits() -> None:
+    one = np.array([0])
+    assert link_weak_lines(
+        np.array([True]), np.array([False]), one, one, one, (3, 3)
+    ).tolist() == [True]
+    assert link_weak_lines(
+        np.array([True]), np.array([True]), one, one, one, (3, 3)
+    ).tolist() == [True]
+
+
+def test_supported_split_falls_back_when_no_markers_found() -> None:
+    """`h` bigger than the EDT surface leaves no h-maxima -> one component."""
+    seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
+    fg = foreground(seg, prob, "nbg")
+    inst = cast(np.ndarray, supported_split(fg, seg, prob, h=100.0, tau=0.5))
+    assert inst.max() == 1
+
+
+def test_supported_split_no_lines_short_circuits() -> None:
+    """A single solid block has one h-maxima marker, so no watershed line at all."""
+    seg = np.zeros((10, 10), dtype=np.uint8)
+    prob = np.zeros((3, 10, 10), dtype=np.float32)
+    prob[0] = 1.0
+    seg[2:8, 2:8] = 1
+    prob[1][seg == 1] = 0.9
+    prob[0][seg == 1] = 0.05
+    prob[2][seg == 1] = 0.05
+    fg = foreground(seg, prob, "nbg")
+    inst, lines, kept = cast(
+        tuple[np.ndarray, np.ndarray, np.ndarray],
+        supported_split(fg, seg, prob, h=1.0, tau=0.5, return_lines=True),
+    )
+    assert inst.max() == 1 and not lines.any() and not kept.any()
+
+
+def test_supported_split_return_lines_reports_kept_gap() -> None:
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
+    fg = foreground(seg, prob, "nbg")
+    inst, lines_all, lines_kept = cast(
+        tuple[np.ndarray, np.ndarray, np.ndarray],
+        supported_split(fg, seg, prob, h=1.0, tau=0.5, return_lines=True),
+    )
+    assert inst.max() == 2
+    assert lines_all.any() and lines_kept.any()
+    subset = np.logical_and(lines_kept, np.logical_not(lines_all))
+    assert subset.sum() == 0  # kept lines are a subset of all lines
+
+
+def test_soft_score_falls_back_to_hard_test_under_band() -> None:
+    """With `band>0` the soft score is documented to fall back to the hard rule."""
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
+    fg = foreground(seg, prob, "nbg")
+    soft = cast(
+        np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5, score="soft", band=1)
+    )
+    frac = cast(
+        np.ndarray, supported_split(fg, seg, prob, h=1.0, tau=0.5, score="frac", band=1)
+    )
+    np.testing.assert_array_equal(soft, frac)
+
+
+def test_hysteresis_modifier_matches_direct_call() -> None:
+    """`+H50` must thread tau_lo=0.5 into supported_split exactly."""
+    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
+    fg = foreground(seg, prob, "nbg")
+    wired = run_variant("nbg-sup-h1-t0.9+H50", seg, prob)
+    split = cast(np.ndarray, supported_split(fg, seg, prob, 1.0, 0.9, tau_lo=0.5))
+    direct = apply_post_steps(
+        widen_gaps(split, fg, 1),
+        0,
+        0,
+        0,
+        seg,
+        None,
+    )
+    np.testing.assert_array_equal(wired, direct)
