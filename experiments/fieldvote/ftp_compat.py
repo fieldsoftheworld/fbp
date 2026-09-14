@@ -131,8 +131,9 @@ def load_task(
 
 
 def sha256_file(path: Path, chunk: int = 1 << 24) -> str:
+    """SHA-256 of a file, read in chunks."""
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with path.open("rb") as f:
         while True:
             b = f.read(chunk)
             if not b:
@@ -142,6 +143,7 @@ def sha256_file(path: Path, chunk: int = 1 << 24) -> str:
 
 
 def git_sha(repo: Path) -> str:
+    """HEAD SHA, with a ``-dirty`` suffix if the worktree has changes."""
     out = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "HEAD"],
         capture_output=True,

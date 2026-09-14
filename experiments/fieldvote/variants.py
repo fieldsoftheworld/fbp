@@ -51,6 +51,7 @@ FG = ("arg", "nbg", "pf50", "otsu")
 
 
 def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
+    """Foreground mask for one of the ``FG`` rules."""
     if mode == "arg":
         return seg == 1
     if mode == "nbg":
@@ -68,8 +69,10 @@ def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
 def pairs_at_lines(
     inst: np.ndarray, lines: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """For every line pixel return (rows, cols, (n_px, 2) sorted label pairs) of the
-    two largest distinct positive neighbour labels; pixels touching < 2 labels get (0, 0).
+    """Per line pixel: (rows, cols, (n_px, 2) sorted label pairs).
+
+    The pair is the two largest distinct positive neighbour labels; pixels
+    touching < 2 labels get (0, 0).
     """
     p = np.pad(inst, 1)
     r, c = np.nonzero(lines)
@@ -87,22 +90,34 @@ def pairs_at_lines(
 
 
 class UnionFind:
+    """Disjoint-set over labels 0..n, path-compressed, lower label wins."""
+
     def __init__(self, n: int) -> None:
+        """Start with every label its own group."""
         self.parent = np.arange(n + 1)
 
     def find(self, a: int) -> int:
+        """Group representative of ``a``."""
         while self.parent[a] != a:
             self.parent[a] = self.parent[self.parent[a]]
             a = self.parent[a]
         return a
 
     def union(self, a: int, b: int) -> None:
+        """Merge the groups of ``a`` and ``b``."""
         ra, rb = self.find(a), self.find(b)
         if ra != rb:
             self.parent[max(ra, rb)] = min(ra, rb)
 
 
-def link_weak_lines(strong, eligible, inv, rr: ndarray, cc: ndarray, shape):
+def link_weak_lines(
+    strong: ndarray,
+    eligible: ndarray,
+    inv: ndarray,
+    rr: ndarray,
+    cc: ndarray,
+    shape: tuple[int, int],
+) -> ndarray:
     """Hysteresis over the watershed lines.
 
     ``strong`` lines are kept outright. An ``eligible`` line is kept when a chain
@@ -147,7 +162,9 @@ def supported_split(
     tau_lo: float | None = None,
     score: str = "frac",
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """``markers`` (int label image) replaces the h-maxima seeds when given, e.g.
+    """Boundary-supported split: watershed, then keep or merge lines by support.
+
+    ``markers`` (int label image) replaces the h-maxima seeds when given, e.g.
     an instance model's own partition; ``h`` is then ignored. With
     ``return_lines`` also return ``(lines_all, lines_kept)`` boolean masks of the
     watershed lines before and after the support test (figures).
@@ -262,6 +279,7 @@ def supported_split(
 
 
 def gap_close(fg: np.ndarray, seg: np.ndarray, r: int) -> np.ndarray:
+    """Close the boundary class with a (2r+1)^2 square, then take components."""
     closed = binary_closing(
         seg == 2, structure=np.ones((2 * r + 1, 2 * r + 1), dtype=bool)
     )
@@ -270,11 +288,13 @@ def gap_close(fg: np.ndarray, seg: np.ndarray, r: int) -> np.ndarray:
 
 
 def components(fg: np.ndarray) -> np.ndarray:
+    """Connected components of the foreground."""
     out, _ = label(fg)
     return out.astype(np.int32)
 
 
 def default_variants() -> list[str]:
+    """The variant names scored by default (see ``candidates.py --variants``)."""
     v = [f"{f}-none" for f in FG]
     for f in ("arg", "nbg"):
         for h in (1.0, 2.0, 4.0):
@@ -426,13 +446,13 @@ def fill_holes(inst: np.ndarray, max_area: int) -> np.ndarray:
 
 
 def merge_small(inst: np.ndarray, min_area: int) -> np.ndarray:
-    """Merge parcels under ``min_area`` px into the neighbour they share the most
-    border with, instead of deleting them.
+    """Merge small parcels into their longest-shared-border neighbour.
 
-    Parcels are separated by a one-pixel gap, so the neighbourhood is taken two
-    pixels out and the gap between the pair is filled; otherwise the merged
-    parcel would fall apart again when labels are rebuilt. A parcel with no
-    neighbour within that distance is left alone.
+    ``min_area`` px, instead of deleting them. Parcels are separated by a
+    one-pixel gap, so the neighbourhood is taken two pixels out and the gap
+    between the pair is filled; otherwise the merged parcel would fall apart
+    again when labels are rebuilt. A parcel with no neighbour within that
+    distance is left alone.
     """
     if min_area <= 0:
         return inst
@@ -470,7 +490,9 @@ def run_variant(
     markers: np.ndarray | None = None,
     px_m2: float | None = None,
 ) -> np.ndarray:
-    """``<fg>-none`` | ``<fg>-close{r}`` | ``<fg>-{sup|pb}-h{h}-t{tau}`` |
+    """Dispatch a variant name to its split rule.
+
+    ``<fg>-none`` | ``<fg>-close{r}`` | ``<fg>-{sup|pb}-h{h}-t{tau}`` |
     ``<fg>-msup-t{tau}`` (markers = supplied instance partition).
 
     Optional modifiers are appended with ``+``: ``+l{L}`` minimum kept-line
@@ -586,4 +608,5 @@ def run_variants(
     markers: np.ndarray | None = None,
     px_m2: float | None = None,
 ) -> dict[str, np.ndarray]:
+    """``run_variant`` for every name in ``names``."""
     return {n: run_variant(n, seg, prob, markers, px_m2) for n in names}

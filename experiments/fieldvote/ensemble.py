@@ -4,7 +4,8 @@ The grids are identical across Planet checkpoints (same patches, same eval
 transform), so the average is pixel-wise. ``seg`` is the argmax of the average.
 
 Example:
-    python -m fieldvote.ensemble --runs planet_b3 planet_b7 --out planet_b37 --split test
+    python -m fieldvote.ensemble --runs planet_b3 planet_b7 --out planet_b37 \
+        --split test
 """
 
 import argparse
@@ -18,6 +19,7 @@ from .paths import DENSE10, cache_dir
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -59,9 +61,9 @@ def main() -> int:
         print(f"{c}: {len(files)} patches", flush=True)
     manifests = []
     for s in srcs:
-        with open(s / "manifest.json") as f:
+        with (s / "manifest.json").open() as f:
             manifests.append(json.load(f))
-    with open(dst / "manifest.json", "w") as f:
+    with (dst / "manifest.json").open("w") as f:
         json.dump(
             {
                 "run": args.out,

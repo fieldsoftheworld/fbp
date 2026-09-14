@@ -29,6 +29,7 @@ def per_run(
     reference: str,
     countries: tuple[str, ...] = DENSE10,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Per-strategy macro table for one run, plus the per-country pool."""
     root = scores_dir(f"{run}/{split}/{protocol}")
     df = load_patches(root, "patches*.parquet")
     df = df[df.reference == reference]
@@ -64,6 +65,7 @@ def per_run(
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -84,7 +86,8 @@ def main() -> int:
         )
         tabs[run] = tab
         print(
-            f"\n== {run} / {args.protocol} / reference={args.reference} (Δ vs {BASE}, PQ x100) =="
+            f"\n== {run} / {args.protocol} / reference={args.reference} "
+            f"(Δ vs {BASE}, PQ x100) =="
         )
         show = tab.copy()
         for c in (
@@ -117,7 +120,8 @@ def main() -> int:
         cross["min_worst"] = cross[wcols].min(axis=1)
         cross = cross.sort_values("mean_d", ascending=False)
         print(
-            f"\n== cross-run: Δ PQ vs {BASE} (x100); min_d = worst run, min_worst = worst country in worst run =="
+            f"\n== cross-run: Δ PQ vs {BASE} (x100); "
+            "min_d = worst run, min_worst = worst country in worst run =="
         )
         print((cross * 100).round(2).to_string())
         if args.out:

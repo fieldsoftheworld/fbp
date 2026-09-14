@@ -22,6 +22,7 @@ COVER = 0.5
 
 
 def iou_matrix(gt: list, pred: list) -> np.ndarray:
+    """Pairwise IoU of every (gt, pred) polygon, prefiltered with an STRtree."""
     n_gt, n_pred = len(gt), len(pred)
     ious = np.zeros((n_gt, n_pred), dtype=np.float32)
     if n_gt == 0 or n_pred == 0:
@@ -58,6 +59,8 @@ def greedy(ious: np.ndarray, t: float) -> list[tuple[int, int, float]]:
 
 @dataclass
 class MatchResult:
+    """Per-threshold TP/FP/FN counts, plus the pairs matched at the first threshold."""
+
     n_gt: int
     n_pred: int
     tp: dict[float, int]
@@ -70,6 +73,7 @@ class MatchResult:
 def match(
     gt: list, pred: list, thresholds: tuple[float, ...] = THRESHOLDS
 ) -> MatchResult:
+    """Greedy IoU matching at each threshold; ``pairs_50`` is the first threshold's."""
     ious = iou_matrix(gt, pred)
     tp, fp, fn = {}, {}, {}
     pairs_50: list[tuple[int, int, float]] = []
@@ -86,8 +90,10 @@ def match(
 def diagnostics(gt: list, pred: list) -> dict[str, int]:
     """Split / merge / miss / spurious counts under a 50% coverage rule.
 
-    * a prediction *claims* a reference parcel if it covers > COVER of that parcel's area
-    * a reference parcel *absorbs* a prediction if > COVER of the prediction lies inside it
+    * a prediction *claims* a reference parcel if it covers > COVER of that
+      parcel's area
+    * a reference parcel *absorbs* a prediction if > COVER of the prediction
+      lies inside it
     * split:    reference parcel absorbing >= 2 predictions
     * merge:    prediction claiming >= 2 reference parcels
     * missed:   reference parcel with no prediction covering > COVER of it

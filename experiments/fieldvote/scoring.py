@@ -18,10 +18,12 @@ KEYS = ["run", "split", "protocol", "reference", "strategy", "country"]
 
 
 def threshold_key(t: float) -> str:
+    """0.5 -> '50', for the ``tp_50``-style column names."""
     return f"{int(round(t * 100)):02d}"
 
 
 def f1(tp: float, fp: float, fn: float) -> float:
+    """F1 from raw counts."""
     p = tp / max(tp + fp, 1)
     r = tp / max(tp + fn, 1)
     return 2 * p * r / (p + r) if (p + r) else 0.0
@@ -103,7 +105,8 @@ def macro(country_df: pd.DataFrame, countries: tuple[str, ...]) -> pd.DataFrame:
         missing = set(countries) - set(g.country)
         if missing:
             raise ValueError(
-                f"{dict(zip(keys, key, strict=True))} missing countries {sorted(missing)}"
+                f"{dict(zip(keys, key, strict=True))} "
+                f"missing countries {sorted(missing)}"
             )
         r = dict(zip(keys, key, strict=True))
         r["n_countries"] = len(g)

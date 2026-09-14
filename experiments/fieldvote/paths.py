@@ -22,12 +22,14 @@ H_SWEEP = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 4.0, 8.0, 12.0, 16.0, 24.0, 32.0, 48.
 
 
 def ftw_planet_repo() -> Path:
+    """Path to the sibling ftw-planet checkout."""
     return Path(
         os.environ.get("FTW_PLANET_REPO", Path.home() / "github" / "ftw-planet")
     ).resolve()
 
 
 def out_root() -> Path:
+    """Root of every stage's output tree."""
     default = Path(__file__).resolve().parents[1] / "out"
     return Path(os.environ.get("FIELDVOTE_OUT", default)).resolve()
 
@@ -39,12 +41,15 @@ def h_tag(h: float) -> str:
 
 
 def cache_dir(run: str) -> Path:
+    """Stage 1 output for one ``<run>/<split>``."""
     return out_root() / "cache" / run
 
 
 def candidates_dir(run: str) -> Path:
+    """Stage 2 output for one ``<run>/<split>``."""
     return out_root() / "candidates" / run
 
 
 def scores_dir(run: str) -> Path:
+    """Stage 3 output for one ``<run>/<split>/<protocol>``."""
     return out_root() / "scores" / run

@@ -52,6 +52,7 @@ def pseudo_softmax(confs: np.ndarray, rule: str) -> np.ndarray:
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -122,9 +123,9 @@ def main() -> int:
         shutil.copy(src / c / "index.csv", dst / c / "index.csv")
         counts[c] = len(files)
         print(f"{c}: {len(files)} patches", flush=True)
-    with open(src / "manifest.json") as f:
+    with (src / "manifest.json").open() as f:
         src_manifest = json.load(f)
-    with open(dst / "manifest.json", "w") as f:
+    with (dst / "manifest.json").open("w") as f:
         json.dump(
             {
                 "run": args.out,

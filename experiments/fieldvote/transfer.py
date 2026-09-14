@@ -39,6 +39,7 @@ FAMILIES = {
 
 
 def country_table(run: str, split: str, patterns: tuple[str, ...]) -> pd.DataFrame:
+    """Per-country PQ for every strategy matching ``patterns``, vector reference."""
     root = scores_dir(f"{run}/{split}/pixel")
     df = load_patches(root, "patches*.parquet")
     df = df[df.reference == "vector"]
@@ -47,6 +48,7 @@ def country_table(run: str, split: str, patterns: tuple[str, ...]) -> pd.DataFra
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

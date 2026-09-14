@@ -8,7 +8,8 @@ Writes under ``out/scores/<run>/<split>/<protocol>/``:
                    components) against FTP's published per-country CSV
 
 Selection rows (single watershed depth, one per country):
-* ``ws_test``  raw per-instance polygons, depth chosen on the *test* split (retrospective; the letter's current baseline)
+* ``ws_test``  raw per-instance polygons, depth chosen on the *test* split
+               (retrospective; the letter's current baseline)
 * ``ws_val``   same, depth chosen on that country's *val* split
 * ``ws_loco``  depth chosen on the val split of the *other* nine countries
 * ``ws_gval``  one depth for all countries chosen on dense-10 val macro
@@ -61,6 +62,7 @@ HEADLINE = [
 def add_selection_rows(
     country: pd.DataFrame, val_country: pd.DataFrame | None, countries: tuple[str, ...]
 ) -> pd.DataFrame:
+    """Append the ws_*/rt_* single-depth-selection rows described in the module docs."""
     parts = [country]
     for prefix, lab in (("raw", "ws"), ("rt", "rt")):
         parts.append(select_depth(country, country, prefix, f"{lab}_test"))
@@ -90,6 +92,7 @@ def add_selection_rows(
 
 
 def ftp_gate(country: pd.DataFrame, run: str, protocol: str) -> pd.DataFrame | None:
+    """Per-country ``rt:h2`` vs FTP's published CSV; None if this run has no gate."""
     entry = FTP_CONDITION.get(run)
     if entry is None or entry[1] != protocol:
         return None
@@ -127,6 +130,7 @@ def ftp_gate(country: pd.DataFrame, run: str, protocol: str) -> pd.DataFrame | N
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -160,7 +164,8 @@ def main() -> int:
     partial = have[have < len(countries)]
     if len(partial):
         print(
-            f"[report] skipping {len(partial)} strategy/reference pairs with partial country coverage"
+            f"[report] skipping {len(partial)} strategy/reference pairs "
+            "with partial country coverage"
         )
         keep = country.set_index(["reference", "strategy"]).index.isin(
             have[have == len(countries)].index
@@ -174,7 +179,8 @@ def main() -> int:
         gate.to_csv(root / "ftp_gate.csv", index=False)
         pd.set_option("display.width", 200)
         print(
-            "\n== FTP reproduction gate (reference=vector, strategy=rt:h2 vs FTP per-country CSV) =="
+            "\n== FTP reproduction gate (reference=vector, strategy=rt:h2 "
+            "vs FTP per-country CSV) =="
         )
         print(gate.round(4).to_string(index=False))
         print(

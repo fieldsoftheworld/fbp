@@ -25,8 +25,6 @@ returns an int32 label image.
 """
 
 import numpy as np
-from numpy import signedinteger
-from numpy._typing._nbit_base import _32Bit
 from scipy.ndimage import distance_transform_edt, label
 from skimage import graph
 from skimage.morphology import h_maxima
@@ -46,6 +44,7 @@ def lines_from_labels(lab: np.ndarray, fg: np.ndarray) -> np.ndarray:
 
 
 def relabel_dense(lab: np.ndarray) -> np.ndarray:
+    """Labels remapped to a dense 0..n range, preserving background."""
     _, dense = np.unique(lab, return_inverse=True)
     dense = dense.reshape(lab.shape).astype(np.int32)
     if lab.min() != 0:
@@ -53,7 +52,7 @@ def relabel_dense(lab: np.ndarray) -> np.ndarray:
     return dense
 
 
-def weight_boundary(g: type[signedinteger[_32Bit]], src, dst, n):
+def weight_boundary(g: graph.RAG, src: int, dst: int, n: int) -> dict[str, int | float]:
     """Count-weighted mean boundary probability after merging src into dst."""
     default = {"weight": 0.0, "count": 0}
     cs, cd = g[src].get(n, default)["count"], g[dst].get(n, default)["count"]
@@ -62,11 +61,12 @@ def weight_boundary(g: type[signedinteger[_32Bit]], src, dst, n):
     return {"count": count, "weight": (cs * ws + cd * wd) / count}
 
 
-def merge_boundary(g: type[signedinteger[_32Bit]], src, dst) -> None:
-    return None
+def merge_boundary(_g: graph.RAG, _src: int, _dst: int) -> None:
+    """No-op merge callback: ``weight_boundary`` carries all the state we keep."""
 
 
 def ucm(fg: np.ndarray, seg: np.ndarray, prob: np.ndarray, k: float) -> np.ndarray:
+    """Ultrametric contour map: watershed over-segment, then merge below ``k``."""
     if not fg.any():
         return np.zeros(fg.shape, dtype=np.int32)
     dist = distance_transform_edt(seg != 2).astype(np.float32) * fg
@@ -98,6 +98,7 @@ def ucm(fg: np.ndarray, seg: np.ndarray, prob: np.ndarray, k: float) -> np.ndarr
 def swst(
     fg: np.ndarray, seg: np.ndarray, n: int, m: int, t: float, seed: int = 0
 ) -> np.ndarray:
+    """Stochastic watershed: cut where random-marker watershed lines agree >= t."""
     if not fg.any():
         return np.zeros(fg.shape, dtype=np.int32)
     dist = distance_transform_edt(seg != 2).astype(np.float32) * fg
@@ -118,6 +119,7 @@ def swst(
 def iterh(
     fg: np.ndarray, seg: np.ndarray, hs: tuple[float, ...], a_max: int
 ) -> np.ndarray:
+    """Watershed at each depth in ``hs``, re-segmenting regions over ``a_max`` px."""
     if not fg.any():
         return np.zeros(fg.shape, dtype=np.int32)
     dist = distance_transform_edt(seg != 2).astype(np.float32) * fg
@@ -152,6 +154,7 @@ def iterh(
 
 
 def thr(prob: np.ndarray, te: float, tb: float) -> np.ndarray:
+    """Extent/boundary thresholding: field >= te and boundary < tb, then CC."""
     mask = (prob[1] >= te) & (prob[2] < tb)
     out, _ = label(mask)
     return out.astype(np.int32)

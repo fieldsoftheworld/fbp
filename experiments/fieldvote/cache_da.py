@@ -25,6 +25,7 @@ import time
 from argparse import Namespace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -35,6 +36,11 @@ from tqdm import tqdm
 
 from . import ftp_compat as ftp
 from .paths import DENSE10, cache_dir, ftw_planet_repo
+
+if TYPE_CHECKING:
+    # ultralytics is an optional dependency (see the module docstring); this
+    # import is type-only so the rest of the package still imports without it.
+    from ultralytics import YOLO
 
 RGB_REFL_CEILING = 3000.0
 RGB_CHANNELS = {"planet": [2, 1, 0], "s2": [0, 1, 2]}
@@ -81,8 +87,9 @@ def paint_topk(
 
 
 def cache_country(
-    yolo, device: device, args: Namespace, country: str, out: Path
+    yolo: "YOLO", device: device, args: Namespace, country: str, out: Path
 ) -> int:
+    """Cache one country's DA instance predictions to ``<out>/<country>/*.npz``."""
     ds = ftp.FTWPlanet(
         root=args.root,
         countries=[country],
@@ -155,7 +162,7 @@ def cache_country(
             (country, patch_id, H, W, str(crs), json.dumps(list(tr)[:6]), len(masks))
         )
         n += 1
-    with open(cdir / "index.csv", "w", newline="") as f:
+    with (cdir / "index.csv").open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(
             ("country", "patch_id", "height", "width", "crs", "transform", "n_det")
@@ -165,6 +172,7 @@ def cache_country(
 
 
 def main() -> int:
+    """CLI entry point."""
     from huggingface_hub import hf_hub_download
     from ultralytics import YOLO
 
@@ -225,7 +233,7 @@ def main() -> int:
         "dilation_px": 1,
         "patches_per_country": counts,
     }
-    with open(out / "manifest.json", "w") as f:
+    with (out / "manifest.json").open("w") as f:
         json.dump(manifest, f, indent=2)
     print(f"wrote {out}/manifest.json; total {sum(counts.values())} patches")
     return 0

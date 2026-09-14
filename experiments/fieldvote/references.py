@@ -7,8 +7,9 @@ Three conventions, all returned in the eval-grid pixel frame unless noted:
                Planet). ``areas_ha`` are true UTM areas.
 * ``mask``     connected components of the semantic field class in the label raster
                (FTP's default mode; the legacy ICVR "semantic-mask" footing).
-* ``instance`` FTW instance label raster (S2 grid) reprojected nearest-neighbour onto
-               the eval grid and polygonized per id (legacy ICVR ``rescore_instance_gt``).
+* ``instance`` FTW instance label raster (S2 grid) reprojected nearest-neighbour
+               onto the eval grid and polygonized per id (legacy ICVR
+               ``rescore_instance_gt``).
 
 ``vector_utm`` returns the parcels in their UTM CRS for FTP's native-GSD mode.
 """
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pyproj
 import rasterio
 import rasterio.features
 import rasterio.warp
@@ -31,6 +33,8 @@ REFERENCES = ("vector", "mask", "instance")
 
 @dataclass(frozen=True)
 class PatchGrid:
+    """One cached patch's eval-grid geometry plus its remapped label raster."""
+
     country: str
     patch_id: str
     height: int
@@ -41,10 +45,12 @@ class PatchGrid:
 
     @property
     def shape(self) -> tuple[int, int]:
+        """(height, width)."""
         return self.height, self.width
 
 
 def load_grid(npz_path: Path, country: str) -> PatchGrid:
+    """Load one patch's grid geometry and label raster from its npz cache."""
     with np.load(npz_path) as d:
         gt = d["gt"]
         t = d["transform"]
@@ -61,29 +67,34 @@ def load_grid(npz_path: Path, country: str) -> PatchGrid:
 
 
 def load_prob(npz_path: Path) -> np.ndarray:
+    """Cached softmax for one patch."""
     with np.load(npz_path) as d:
         return d["prob"].astype(np.float32)
 
 
 def polygons_root() -> Path:
+    """Root of the clipped FTW parquet ground truth."""
     return ftw_planet_repo() / "data" / "ftw_polygons_clipped"
 
 
 def ftw_root() -> Path:
+    """Root of the FTW (S2) dataset."""
     return ftw_planet_repo() / "data" / "ftw"
 
 
 def vector(grid: PatchGrid) -> tuple[list, list[float]]:
+    """True FTW parcels in the eval-grid pixel frame, FTP Table 1 protocol."""
     return ftp.true_gt_shapes(
         str(polygons_root()), grid.country, grid.patch_id, grid.crs, grid.transform
     )
 
 
 def vector_utm(grid: PatchGrid) -> tuple[list, list[float], object]:
+    """True FTW parcels in their native UTM CRS, for FTP's native-GSD mode."""
     return ftp.true_gt_utm(str(polygons_root()), grid.country, grid.patch_id)
 
 
-def utm_crs(grid: PatchGrid):
+def utm_crs(grid: PatchGrid) -> pyproj.CRS | None:
     """CRS of the patch's clipped GT parquet (UTM); None if the parquet is missing."""
     import geopandas as gpd
 
@@ -94,10 +105,12 @@ def utm_crs(grid: PatchGrid):
 
 
 def mask(grid: PatchGrid) -> list:
+    """Connected components of the field class in the label raster."""
     return ftp.extract_shapes((grid.gt == 1).astype(np.uint8))
 
 
 def instance(grid: PatchGrid) -> list:
+    """FTW instance raster reprojected onto the eval grid and polygonized."""
     src_path = (
         ftw_root() / grid.country / "label_masks" / "instance" / f"{grid.patch_id}.tif"
     )
@@ -121,7 +134,7 @@ def instance(grid: PatchGrid) -> list:
     return shapes
 
 
-def pixel_area_ha(grid: PatchGrid, utm) -> float:
+def pixel_area_ha(grid: PatchGrid, utm: pyproj.CRS | None) -> float:
     """True ground area (ha) of one eval-grid pixel via the patch extent in UTM."""
     if utm is None:
         # Planet grids are already UTM metres.

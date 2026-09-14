@@ -45,7 +45,7 @@ BINS = [(1, 10), (10, 30), (30, 100), (100, 10**9)]
 BIN_NAMES = ["1-9", "10-29", "30-99", "100+"]
 
 
-def ftp_pipeline(seg: np.ndarray, prob: np.ndarray) -> np.ndarray:
+def ftp_pipeline(seg: np.ndarray, _prob: np.ndarray) -> np.ndarray:
     """Field argmax, watershed at h=2, connected components of the union."""
     from scipy.ndimage import distance_transform_edt, label
 
@@ -60,6 +60,7 @@ def ftp_pipeline(seg: np.ndarray, prob: np.ndarray) -> np.ndarray:
 def call(
     name: str, seg: np.ndarray, prob: np.ndarray, px_m2: float | None = None
 ) -> np.ndarray:
+    """Dispatch to the FTP pipeline or a model-free variant by name."""
     if name == "arg-none-ws":
         return ftp_pipeline(seg, prob)
     return run_variant(name, seg, prob, px_m2=px_m2)
@@ -69,14 +70,17 @@ class RSSSampler:
     """Peak resident memory of this process while the block runs."""
 
     def __init__(self, hz: int = 1000) -> None:
+        """Sample at ``hz`` Hz while the ``with`` block runs."""
         self.interval = 1.0 / hz
         self.peak = 0
 
     def read_rss(self) -> int:
-        with open("/proc/self/statm") as f:
+        """Current resident set size, in bytes."""
+        with Path("/proc/self/statm").open() as f:
             return int(f.read().split()[1]) * 4096  # pages -> bytes
 
     def __enter__(self) -> Self:
+        """Start the background sampling thread."""
         gc.collect()
         self.base = self.read_rss()
         self.peak = self.base
@@ -86,11 +90,13 @@ class RSSSampler:
         return self
 
     def sample_loop(self) -> None:
+        """Poll RSS at ``self.interval`` until stopped."""
         while not self._stop.is_set():
             self.peak = max(self.peak, self.read_rss())
             time.sleep(self.interval)
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc: object) -> None:
+        """Stop sampling and record the peak increase over the resting set in ``mb``."""
         self._stop.set()
         self._t.join()
         self.mb = max(self.peak - self.base, 0) / 2**20
@@ -122,6 +128,7 @@ def sample_patches(
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )

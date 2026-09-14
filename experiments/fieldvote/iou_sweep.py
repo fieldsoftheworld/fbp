@@ -26,6 +26,7 @@ THRESHOLDS = (0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7)
 
 
 def score_country(job: tuple[str, str, str, tuple[str, ...]]) -> list[dict]:
+    """TP/FP/FN rows for one country, every variant x IoU threshold."""
     run, split, country, variants = job
     cdir = candidates_dir(f"{run}/{split}") / country
     polys = {}
@@ -62,6 +63,7 @@ def score_country(job: tuple[str, str, str, tuple[str, ...]]) -> list[dict]:
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run", default="planet_b3")
     p.add_argument("--split", default="val")

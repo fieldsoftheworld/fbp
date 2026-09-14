@@ -8,7 +8,8 @@ field-mask connected components are stored as depth tag ``cc``.
 
 Per country under ``out/candidates/<run>/<split>/<country>/``:
 
-* ``polys_<htag>.parquet``  columns ``patch_id, inst_id, geometry`` (GeoParquet, crs=None)
+* ``polys_<htag>.parquet``  columns ``patch_id, inst_id, geometry`` (GeoParquet,
+                            crs=None)
 * ``manifest.csv``          one row per (patch, depth): field pixels, marker count,
                             whether the connected-component fallback fired, instance
                             and polygon counts, wall time.
@@ -32,15 +33,17 @@ from scipy.ndimage import distance_transform_edt, label
 from skimage.morphology import h_maxima
 from skimage.segmentation import watershed
 
-from . import variants as V
+from . import variants as v
 from .paths import DENSE10, H_SWEEP, cache_dir, candidates_dir, h_tag
 
 
 def tag_to_file(tag: str) -> str:
+    """Depth/variant tag -> its parquet filename."""
     return "polys_" + tag.replace(":", "_") + ".parquet"
 
 
 def file_to_tag(name: str) -> str:
+    """Parquet filename -> its depth/variant tag."""
     stem = name.removeprefix("polys_").removesuffix(".parquet")
     return "v:" + stem[2:] if stem.startswith("v_") else stem
 
@@ -92,6 +95,7 @@ def instance_polygons(
 def binary_polygons(
     mask: np.ndarray,
 ) -> list[tuple[int, shapely.geometry.base.BaseGeometry]]:
+    """One polygon per connected component of a binary mask."""
     out = []
     for k, (geom, val) in enumerate(
         rasterio.features.shapes(mask.astype(np.uint8), mask=mask > 0)
@@ -170,7 +174,7 @@ def process_patch(
 
     for name in variant_names:
         t0 = time.perf_counter()
-        inst = V.run_variant(name, seg, prob, markers, px_m2)
+        inst = v.run_variant(name, seg, prob, markers, px_m2)
         pp = instance_polygons(inst)
         tag = f"v:{name}"
         polys[tag] = [(pid, i, g) for i, g in pp]
@@ -190,7 +194,10 @@ def process_patch(
     return polys, rows
 
 
-def run_patch_job(args: tuple[Path, tuple[float, ...], tuple[str, ...], float | None]):
+def run_patch_job(
+    args: tuple[Path, tuple[float, ...], tuple[str, ...], float | None],
+) -> tuple[dict[str, list], list[tuple]]:
+    """``process_patch(*args)``, unpacked for ``Pool.imap_unordered``."""
     return process_patch(*args)
 
 
@@ -202,6 +209,7 @@ def process_country(
     workers: int,
     variant_names: tuple[str, ...] = (),
 ) -> int:
+    """Run the depth sweep and/or variants for one country; returns patch count."""
     src = cache_dir(f"{run}/{split}") / country
     npzs = sorted(src.glob("*.npz"))
     if not npzs:
@@ -258,6 +266,7 @@ def process_country(
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -282,7 +291,7 @@ def main() -> int:
     variant_names: tuple[str, ...] = ()
     if args.variants is not None:
         variant_names = (
-            tuple(args.variants) if args.variants else tuple(V.default_variants())
+            tuple(args.variants) if args.variants else tuple(v.default_variants())
         )
     for c in args.countries:
         t0 = time.time()

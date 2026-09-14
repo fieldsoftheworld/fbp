@@ -55,9 +55,7 @@ def test_ensemble_binds_gt_transform_crs_from_first_run(tmp_path, monkeypatch) -
         d.mkdir(parents=True)
         prob = np.zeros((3, 2, 2), dtype=np.float32)
         prob[i] = 1.0
-        np.savez(
-            d / "p0.npz", prob=prob, gt=gt, transform=transform, crs="EPSG:4326"
-        )
+        np.savez(d / "p0.npz", prob=prob, gt=gt, transform=transform, crs="EPSG:4326")
         (d / "index.csv").write_text("patch_id\np0\n")
         with (cache_dir(f"{run}/test") / "manifest.json").open("w") as f:
             json.dump({"run": run}, f)

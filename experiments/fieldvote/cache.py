@@ -32,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from ftw_tools.training.datasets import FTW
 from torch._C import device
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -50,10 +51,11 @@ INDEX_COLS = (
 )
 
 
-def build_dataset(backend: str, root: str, country: str, split: str):
+def build_dataset(
+    backend: str, root: str, country: str, split: str
+) -> FTW | ftp.FTWPlanet:
+    """FTW (S2) or FTWPlanet dataset for one country/split."""
     if backend == "s2":
-        from ftw_tools.training.datasets import FTW
-
         return FTW(
             root=root,
             countries=[country],
@@ -71,15 +73,24 @@ def build_dataset(backend: str, root: str, country: str, split: str):
     )
 
 
-def label_path(ds, idx: int, backend: str) -> str:
+def label_path(ds: FTW | ftp.FTWPlanet, idx: int, backend: str) -> str:
+    """Path to the label file backing sample ``idx``."""
     if backend == "s2":
+        assert isinstance(ds, FTW)
         return str(ds.filenames[idx]["mask"]) if "mask" in ds.filenames[idx] else ""
+    assert isinstance(ds, ftp.FTWPlanet)
     return ds.records[idx]["label"]
 
 
 def cache_country(
-    task, model, device: device, args: Namespace, country: str, out: Path
+    task: torch.nn.Module,
+    model: torch.nn.Module,
+    device: device,
+    args: Namespace,
+    country: str,
+    out: Path,
 ) -> int:
+    """Cache one country's patches to ``<out>/<country>/*.npz`` + ``index.csv``."""
     ds = build_dataset(args.backend, args.root, country, args.split)
     dl = DataLoader(
         ds, batch_size=1, shuffle=False, num_workers=args.num_workers, pin_memory=True
@@ -122,7 +133,7 @@ def cache_country(
         mask_eval = mask.clone()
         mask_eval[mask_eval == 2] = 0
         mask_eval[mask == 3] = 3
-        # argmax on float32 exactly as FTP does; float16 probs are for soft variants only
+        # argmax on float32 exactly as FTP does; float16 probs are for soft variants
         seg_np = probs.argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)[:H, :W]
         prob_np = probs.squeeze(0).cpu().numpy().astype(np.float16)[:, :H, :W]
         gt_np = mask_eval.squeeze(0).cpu().numpy().astype(np.uint8)[:H, :W]
@@ -156,7 +167,7 @@ def cache_country(
             )
         )
         n += 1
-    with open(cdir / "index.csv", "w", newline="") as f:
+    with (cdir / "index.csv").open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow(INDEX_COLS)
         w.writerows(rows)
@@ -164,6 +175,7 @@ def cache_country(
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -250,7 +262,7 @@ def main() -> int:
         if args.backend == "planet"
         else f"/{args.s2_data_scale:g}",
     }
-    with open(out / "manifest.json", "w") as f:
+    with (out / "manifest.json").open("w") as f:
         json.dump(manifest, f, indent=2)
     print(f"wrote {out}/manifest.json; total {sum(counts.values())} patches")
     return 0

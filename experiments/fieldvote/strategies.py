@@ -13,11 +13,13 @@ import numpy as np
 import rasterio.features
 import shapely
 import shapely.geometry
+import shapely.geometry.base
 
 from . import ftp_compat as ftp
 
 
 def rasterize(polys: list, shape: tuple[int, int]) -> np.ndarray:
+    """Binary foreground mask of a polygon list."""
     if not polys:
         return np.zeros(shape, dtype=np.uint8)
     return rasterio.features.rasterize(
@@ -31,6 +33,7 @@ def polygonize(mask: np.ndarray) -> list:
 
 
 def roundtrip(polys: list, shape: tuple[int, int]) -> list:
+    """Rasterize then polygonize: the single-depth control."""
     return polygonize(rasterize(polys, shape))
 
 
@@ -56,7 +59,10 @@ def vote(candidates: list[list], shape: tuple[int, int], tau: float = 0.5) -> li
     return polygonize((votes >= k_min).astype(np.uint8))
 
 
-def iou(a, b) -> float:
+def iou(
+    a: shapely.geometry.base.BaseGeometry, b: shapely.geometry.base.BaseGeometry
+) -> float:
+    """IoU of two polygons."""
     inter = a.intersection(b).area
     if inter <= 0:
         return 0.0
@@ -64,9 +70,7 @@ def iou(a, b) -> float:
 
 
 def nms_pool(candidates: list[list], iou_thresh: float = 0.5) -> list:
-    """Legacy strategy A: pool every candidate polygon, rank by how many other
-    candidates contain an IoU>=thresh match, then greedy NMS at the same IoU.
-    """
+    """Legacy strategy A: pool candidates, rank by IoU-match support, greedy NMS."""
     pool = [p for polys in candidates for p in polys if not p.is_empty]
     if not pool:
         return []
@@ -90,9 +94,7 @@ def nms_pool(candidates: list[list], iou_thresh: float = 0.5) -> list:
 
 
 def elbow(candidates: list[list]) -> list:
-    """Legacy strategy D: pick the depth whose relative change in polygon count
-    to the next depth is smallest (candidates ordered by increasing depth).
-    """
+    """Legacy strategy D: pick the depth with the smallest relative count change."""
     counts = [len(p) for p in candidates]
     if len(counts) == 1:
         return candidates[0]

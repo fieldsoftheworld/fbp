@@ -28,7 +28,7 @@ import pandas as pd
 
 from . import ftp_compat as ftp
 from . import references as refs
-from . import strategies as S
+from . import strategies as s
 from .candidates import file_to_tag
 from .matching import THRESHOLDS, diagnostics, match
 from .paths import DENSE10, H_SWEEP, cache_dir, candidates_dir, h_tag, scores_dir
@@ -70,7 +70,7 @@ def build_strategies(
             if wanted is not None and tag not in wanted:
                 continue
             out[f"raw:{tag}"] = cand[tag]
-            out[f"rt:{tag}"] = S.roundtrip(cand[tag], shape)
+            out[f"rt:{tag}"] = s.roundtrip(cand[tag], shape)
     if "base" not in opts["sets"]:
         return out
     sweep = [cand[h_tag(h)] for h in H_SWEEP]
@@ -78,28 +78,30 @@ def build_strategies(
     for h in H_SWEEP:
         tag = h_tag(h)
         out[f"raw:{tag}"] = cand[tag]
-        out[f"rt:{tag}"] = S.roundtrip(cand[tag], shape)
+        out[f"rt:{tag}"] = s.roundtrip(cand[tag], shape)
     for tau in opts["taus"]:
-        out[f"vote:t{tau:g}"] = S.vote(sweep, shape, tau)
+        out[f"vote:t{tau:g}"] = s.vote(sweep, shape, tau)
     for name, hs in SUBSETS.items():
-        out[f"vote:t0.5:{name}"] = S.vote([cand[h_tag(h)] for h in hs], shape, 0.5)
+        out[f"vote:t0.5:{name}"] = s.vote([cand[h_tag(h)] for h in hs], shape, 0.5)
     if opts["drop_one"]:
         for h in H_SWEEP:
-            out[f"vote:t0.5:drop{h_tag(h)}"] = S.vote(
+            out[f"vote:t0.5:drop{h_tag(h)}"] = s.vote(
                 [cand[h_tag(g)] for g in H_SWEEP if g != h], shape, 0.5
             )
-    out["nms"] = S.nms_pool(sweep, 0.5)
-    out["elbow"] = S.elbow(sweep)
+    out["nms"] = s.nms_pool(sweep, 0.5)
+    out["elbow"] = s.elbow(sweep)
     return out
 
 
 def area_bin_of(area_ha: float) -> str:
+    """FTP's small/medium/large bin for one parcel area."""
     return ftp.area_bin(area_ha, AREA_EDGES)
 
 
 def tally(
     gt: list, gt_areas: list[float], pred: list, pred_area_ha: float | None
 ) -> dict:
+    """Raw TP/FP/FN and diagnostic counts for one (gt, pred) polygon set."""
     m = match(gt, pred)
     row: dict = {"n_gt": m.n_gt, "n_pred": m.n_pred}
     for t in THRESHOLDS:
@@ -133,6 +135,7 @@ def tally(
 
 
 def score_patch(job: tuple[str, str, str]) -> list[dict]:
+    """Every (strategy, reference) row for one cached patch."""
     country, pid, npz = job
     grid = refs.load_grid(Path(npz), country)
     cand = _CANDS[pid]
@@ -180,6 +183,7 @@ def score_patch(job: tuple[str, str, str]) -> list[dict]:
 
 
 def load_candidates(run: str, split: str, country: str) -> dict[str, dict[str, list]]:
+    """{patch_id: {tag: [polygons]}} from every ``polys_*.parquet`` on disk."""
     cdir = candidates_dir(f"{run}/{split}") / country
     files = sorted(cdir.glob("polys_*.parquet"))
     tags = [file_to_tag(f.name) for f in files]
@@ -200,6 +204,7 @@ def load_candidates(run: str, split: str, country: str) -> dict[str, dict[str, l
 
 
 def run_country(args: Namespace, country: str) -> pd.DataFrame:
+    """Score every patch of one country; workers share ``_CANDS``/``_OPTS`` by fork."""
     global _CANDS, _OPTS
     src = cache_dir(f"{args.run}/{args.split}") / country
     npzs = sorted(src.glob("*.npz"))
@@ -232,6 +237,7 @@ def run_country(args: Namespace, country: str) -> pd.DataFrame:
 
 
 def main() -> int:
+    """CLI entry point."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -277,7 +283,8 @@ def main() -> int:
         n_pat = df.patch_id.nunique()
         n_str = df.strategy.nunique()
         print(
-            f"{c}: {n_pat} patches x {n_str} strategies x {df.reference.nunique()} refs in {time.time() - t0:.0f}s",
+            f"{c}: {n_pat} patches x {n_str} strategies x "
+            f"{df.reference.nunique()} refs in {time.time() - t0:.0f}s",
             flush=True,
         )
     return 0
