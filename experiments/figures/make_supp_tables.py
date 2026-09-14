@@ -246,7 +246,7 @@ def country_rows() -> list[str]:
         tabs[label] = (100 * base, 100 * ours)
     rows = []
     for country, name in NAMES.items():
-        cells = []
+        cells: list[str] = []
         for _, _, label in RUNS:
             b, o = tabs[label]
             pair = [b[country], o[country]]
@@ -276,7 +276,7 @@ def timing_rows() -> list[str]:
             frames[label] = df.groupby(["method", "bin"]).ms.median().unstack()[order]
     rows = []
     for meth, label in labels.items():
-        cells = []
+        cells: list[str] = []
         for _, fr in frames.items():
             cells += [f"{fr.loc[meth, b]:.0f}" for b in order]
         rows.append(f"{label} & " + " & ".join(cells) + r" \\")

@@ -91,9 +91,8 @@ def compare_rows() -> list[str]:
     ms2 = macro_vec("s2_b7", "test/pixel")
     lines = []
     for label, knobs, fam, meth, strat in COMPARE:
-        if strat is None:
-            strat = tr.loc[fam].val_choice
-        s3, s2 = with_filter(strat, mb3), with_filter(strat, ms2)
+        resolved_strat = tr.loc[fam].val_choice if strat is None else strat
+        s3, s2 = with_filter(resolved_strat, mb3), with_filter(resolved_strat, ms2)
         pq3, pq2 = (
             f(mb3.loc[s3].pq),
             f(ms2.loc[s2].pq) if s2 in ms2.index else "--",
@@ -143,8 +142,9 @@ def compare_macros() -> dict[str, str]:
 
 def main() -> None:
     OUT.mkdir(exist_ok=True)
-    main_rows, vals = [], {}
-    gains = {}
+    main_rows: list[str] = []
+    vals: dict[str, str] = {}
+    gains: dict[str, float] = {}
     for run, sub, sensor, enc in RUNS:
         m = macro_vec(run, sub)
         c = country_vec(run, sub)
