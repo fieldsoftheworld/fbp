@@ -92,7 +92,9 @@ def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.nd
     return s
 
 
-def build_row(run: str, country: str, pid: str, crop: float):
+def build_row(
+    run: str, country: str, pid: str, crop: float
+) -> tuple[list[tuple[np.ndarray, str | None]], tuple[np.ndarray, ...]]:
     """The seven panel images for one crop, plus its seed-point coordinates.
 
     ``crop`` is the kept fraction of the patch's short side; the window is
@@ -154,7 +156,7 @@ def build_row(run: str, country: str, pid: str, crop: float):
     final_img = label_colors(final, 2)
     final_img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
 
-    panels = [
+    panels: list[tuple[np.ndarray, str | None]] = [
         (rgb, None),
         (pb, "gray_r"),
         (fg_img, None),
@@ -249,14 +251,14 @@ def main() -> None:
     # colorbar for column (f), under its titles
     pos = axes[-1][5].get_position()
     cax = fig.add_axes(
-        [pos.x0 + 0.06 * pos.width, bottom * 0.30, 0.88 * pos.width, 0.02]
+        (pos.x0 + 0.06 * pos.width, bottom * 0.30, 0.88 * pos.width, 0.02)
     )
     sm = plt.cm.ScalarMappable(cmap=SUPPORT_CMAP, norm=SUPPORT_NORM)
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cb.set_ticks([0, TAU, 1])
     cb.set_ticklabels(["0", r"$\tau=0.7$", "1"])
     cb.ax.tick_params(labelsize=5.5, length=1.5, pad=1)
-    cb.outline.set_linewidth(0.4)
+    cb.ax.spines["outline"].set_linewidth(0.4)
     save(fig, str(ROOT / "figures" / "rev_method"), formats=("pdf",))
 
 
