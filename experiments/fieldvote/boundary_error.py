@@ -31,12 +31,12 @@ import pandas as pd
 import rasterio.features
 
 from . import references as refs
-from .ftp_compat import _symmetric_chamfer
+from .ftp_compat import symmetric_chamfer
 from .matching import match
 from .paths import DENSE10, cache_dir, candidates_dir, out_root
 
 
-def _outline_mask(shape, geom):
+def outline_mask(shape, geom):
     """Boundary pixels of one polygon. Shapes are already in pixel coordinates."""
     filled = rasterio.features.rasterize(
         [(geom, 1)], out_shape=shape, dtype="uint8"
@@ -74,15 +74,15 @@ def score_country(job) -> list[dict]:
             m = match(gt, pred, thresholds=(0.5,))
             for i, j, _ in m.pairs_50:
                 if i not in gt_masks:
-                    gm = _outline_mask(grid.shape, gt[i])
+                    gm = outline_mask(grid.shape, gt[i])
                     if gm is None:
                         continue
                     gt_masks[i] = gm
                 gm = gt_masks.get(i)
-                pm = _outline_mask(grid.shape, pred[j])
+                pm = outline_mask(grid.shape, pred[j])
                 if gm is None or pm is None:
                     continue
-                c = _symmetric_chamfer(pm, gm)
+                c = symmetric_chamfer(pm, gm)
                 if c is None:
                     continue
                 rows.append(

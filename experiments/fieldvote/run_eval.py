@@ -93,7 +93,7 @@ def build_strategies(
 
 
 def _bin_of(area_ha: float) -> str:
-    return ftp._area_bin(area_ha, AREA_EDGES)
+    return ftp.area_bin(area_ha, AREA_EDGES)
 
 
 def _tally(
@@ -160,7 +160,7 @@ def score_patch(job: tuple[str, str, str]) -> list[dict]:
     for sname, pred in strategies.items():
         for rname, (gt, areas) in gts.items():
             if rname == "vector" and opts["protocol"] == "gsd":
-                pred_s = ftp._cap_pred_to_gsd(
+                pred_s = ftp.cap_pred_to_gsd(
                     pred, grid.transform, grid.crs, utm, opts["gsd_m"]
                 )
                 row = _tally(gt, areas, pred_s, None)

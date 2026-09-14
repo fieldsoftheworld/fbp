@@ -22,7 +22,7 @@ def test_match_equals_ftp():
         gt = _random_boxes(rng, int(rng.integers(0, 30)))
         pred = _random_boxes(rng, int(rng.integers(0, 30)))
         ours = match(gt, pred)
-        ref = ftp._match_shapes(gt, pred, list(THRESHOLDS))
+        ref = ftp.match_shapes(gt, pred, list(THRESHOLDS))
         for t in THRESHOLDS:
             assert (ours.tp[t], ours.fp[t], ours.fn[t]) == ref["per_t"][t]
         assert [(i, j) for i, j, _ in ours.pairs_50] == [

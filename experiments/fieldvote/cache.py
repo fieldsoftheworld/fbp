@@ -108,13 +108,13 @@ def cache_country(task, model, device, args, country: str, out: Path) -> int:
                 .squeeze(1)
                 .to(mask.dtype)
             )
-        image, mask, H, W = ftp._pad_min32(
+        image, mask, H, W = ftp.pad_min32(
             image, mask, min_size=args.min_pad_size, pad_mode=args.pad_mode
         )
         if args.tta:
-            probs, _ = ftp._predict_tta(task, model, image, args.sdf_clip)
+            probs, _ = ftp.predict_tta(task, model, image, args.sdf_clip)
         else:
-            probs, _ = ftp._predict(task, model, image, args.sdf_clip)
+            probs, _ = ftp.predict(task, model, image, args.sdf_clip)
         mask_eval = mask.clone()
         mask_eval[mask_eval == 2] = 0
         mask_eval[mask == 3] = 3
@@ -123,7 +123,7 @@ def cache_country(task, model, device, args, country: str, out: Path) -> int:
         prob_np = probs.squeeze(0).cpu().numpy().astype(np.float16)[:, :H, :W]
         gt_np = mask_eval.squeeze(0).cpu().numpy().astype(np.uint8)[:H, :W]
 
-        patch_id, crs, tr, _ = ftp._eval_grid(
+        patch_id, crs, tr, _ = ftp.eval_grid(
             ds,
             idx,
             country,

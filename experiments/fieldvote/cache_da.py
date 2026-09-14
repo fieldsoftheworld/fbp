@@ -133,7 +133,7 @@ def cache_country(yolo, device, args, country: str, out: Path) -> int:
         gt = mask.copy()
         gt[gt == 2] = 0
         gt[mask == 3] = 3
-        patch_id, crs, tr, _ = ftp._eval_grid(
+        patch_id, crs, tr, _ = ftp.eval_grid(
             ds, idx, country, "planet", args.root, "a", None
         )
         np.savez_compressed(

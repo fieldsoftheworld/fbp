@@ -27,7 +27,7 @@ def rasterize(polys: list, shape: tuple[int, int]) -> np.ndarray:
 
 def polygonize(mask: np.ndarray) -> list:
     """Four-connected foreground components, identical to FTP's ``_extract_shapes``."""
-    return ftp._extract_shapes(mask)
+    return ftp.extract_shapes(mask)
 
 
 def roundtrip(polys: list, shape: tuple[int, int]) -> list:

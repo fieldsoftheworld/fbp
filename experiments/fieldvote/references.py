@@ -74,13 +74,13 @@ def ftw_root() -> Path:
 
 
 def vector(grid: PatchGrid) -> tuple[list, list[float]]:
-    return ftp._true_gt_shapes(
+    return ftp.true_gt_shapes(
         str(polygons_root()), grid.country, grid.patch_id, grid.crs, grid.transform
     )
 
 
 def vector_utm(grid: PatchGrid) -> tuple[list, list[float], object]:
-    return ftp._true_gt_utm(str(polygons_root()), grid.country, grid.patch_id)
+    return ftp.true_gt_utm(str(polygons_root()), grid.country, grid.patch_id)
 
 
 def utm_crs(grid: PatchGrid):
@@ -94,7 +94,7 @@ def utm_crs(grid: PatchGrid):
 
 
 def mask(grid: PatchGrid) -> list:
-    return ftp._extract_shapes((grid.gt == 1).astype(np.uint8))
+    return ftp.extract_shapes((grid.gt == 1).astype(np.uint8))
 
 
 def instance(grid: PatchGrid) -> list:
