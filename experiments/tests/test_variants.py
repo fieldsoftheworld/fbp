@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from fieldvote.variants import (
+from boundaryvote.variants import (
     apply_post_steps,
     default_variants,
     drop_small,
@@ -87,7 +87,7 @@ def touching_pairs(inst: np.ndarray) -> int:
 
 
 def test_kept_splits_are_gaps_on_real_patch() -> None:
-    from fieldvote.paths import cache_dir
+    from boundaryvote.paths import cache_dir
 
     src = cache_dir("smoke_b3/test") / "portugal"
     npzs = sorted(src.glob("*.npz"))
@@ -132,9 +132,9 @@ def test_no_adjacent_labels_on_many_real_patches() -> None:
     """The kept-split invariant on a spread of real patches, not just one country."""
     import itertools
 
-    from fieldvote.candidates import instance_polygons
-    from fieldvote.paths import DENSE10, cache_dir
-    from fieldvote.strategies import polygonize, rasterize
+    from boundaryvote.candidates import instance_polygons
+    from boundaryvote.paths import DENSE10, cache_dir
+    from boundaryvote.strategies import polygonize, rasterize
 
     checked = 0
     for country in DENSE10:
@@ -157,7 +157,7 @@ def test_no_adjacent_labels_on_many_real_patches() -> None:
 
 
 def test_min_line_and_min_area_and_band() -> None:
-    from fieldvote.variants import drop_small
+    from boundaryvote.variants import drop_small
 
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     base = run_variants(seg, prob, ["nbg-sup-h1-t0.5"])["nbg-sup-h1-t0.5"]
@@ -176,7 +176,7 @@ def test_min_line_and_min_area_and_band() -> None:
 
 
 def test_fill_holes_and_merge_small() -> None:
-    from fieldvote.variants import fill_holes, merge_small
+    from boundaryvote.variants import fill_holes, merge_small
 
     inst = np.zeros((20, 20), dtype=np.int32)
     inst[2:12, 2:12] = 1
@@ -209,7 +209,7 @@ def test_ws_rule_matches_ftp_pipeline() -> None:
     """`arg-ws2` must reproduce the FTP pipeline's watershed-then-components step."""
     from scipy.ndimage import distance_transform_edt, label
 
-    from fieldvote import ftp_compat as ftp
+    from boundaryvote import ftp_compat as ftp
 
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     got = run_variants(seg, prob, ["arg-ws2"])["arg-ws2"]

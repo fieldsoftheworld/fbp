@@ -13,11 +13,11 @@ checkpoint hash, git SHAs, and every inference flag. Downstream stages are
 CPU-only and re-runnable from this cache.
 
 Example (Planet B3, dense-10 test):
-    python -m fieldvote.cache --run planet_b3 \
+    python -m boundaryvote.cache --run planet_b3 \
         --ckpt logs/best_checkpoints/planet_efnet3_augmax_full_best.ckpt
 
 Example (S2 B7, FTP native-GSD protocol grid):
-    python -m fieldvote.cache --run s2_b7 --backend s2 --upsample-to 512 \
+    python -m boundaryvote.cache --run s2_b7 --backend s2 --upsample-to 512 \
         --ckpt logs/best_checkpoints/s2_efnet7_best.ckpt
 """
 

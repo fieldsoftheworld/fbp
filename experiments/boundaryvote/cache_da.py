@@ -8,13 +8,13 @@ patch, the instances painted in descending confidence:
                           partition; conf-ranked painting resolves overlaps)
 * ``id{1,2,3}, conf{1,2,3}`` top-3 instances per pixel after a 1-px dilation of
                           every mask, so touching instances contest their seam
-* ``n_det``, ``gt``, ``transform``, ``crs`` as in ``fieldvote.cache``
+* ``n_det``, ``gt``, ``transform``, ``crs`` as in ``boundaryvote.cache``
 
-``fieldvote.da_softmax`` turns this into a standard (prob, seg) cache run.
+``boundaryvote.da_softmax`` turns this into a standard (prob, seg) cache run.
 
 Example (run inside ftw-planet with ultralytics available):
     uv run --no-sync --with ultralytics --with huggingface_hub \
-        python -m fieldvote.cache_da --run da_v2 --imgsz 1024 --conf 0.05
+        python -m boundaryvote.cache_da --run da_v2 --imgsz 1024 --conf 0.05
 """
 
 import argparse

@@ -5,7 +5,7 @@ Self-contained rebuild of the experiments behind `main_grsl_revised.tex` and
 
 Everything here runs inside the sibling `~/github/ftw-planet` checkout's venv
 (`experiments/run.sh` sets `PYTHONPATH` and `cd`s there) and imports FTP's own
-inference, watershed, and matching functions (`fieldvote/ftp_compat.py`), so the
+inference, watershed, and matching functions (`boundaryvote/ftp_compat.py`), so the
 scores are directly comparable with FTP Table 1. Outputs go to
 `experiments/out/` (gitignored); tracked results are copied to `tables/`.
 
@@ -13,16 +13,16 @@ scores are directly comparable with FTP Table 1. Outputs go to
 
 | # | module | device | writes |
 |---|---|---|---|
-| 1 | `fieldvote.cache` | GPU | `out/cache/<run>/<split>/<country>/<pid>.npz` (softmax f16, argmax, GT, grid) + `manifest.json` (ckpt sha256, git SHAs, flags) |
-| 2 | `fieldvote.candidates` | CPU | `out/candidates/…/polys_<h>.parquet` per-instance polygons for 14 depths + `cc`; `manifest.csv` (markers, fallback, counts) |
-| 3 | `fieldvote.run_eval` | CPU | `out/scores/<run>/<split>/<protocol>/patches_<country>.parquet` — per (patch, reference, strategy) tallies |
-| 4 | `fieldvote.report` | CPU | `country.csv`, `macro.csv`, `ftp_gate.csv` + printed tables |
+| 1 | `boundaryvote.cache` | GPU | `out/cache/<run>/<split>/<country>/<pid>.npz` (softmax f16, argmax, GT, grid) + `manifest.json` (ckpt sha256, git SHAs, flags) |
+| 2 | `boundaryvote.candidates` | CPU | `out/candidates/…/polys_<h>.parquet` per-instance polygons for 14 depths + `cc`; `manifest.csv` (markers, fallback, counts) |
+| 3 | `boundaryvote.run_eval` | CPU | `out/scores/<run>/<split>/<protocol>/patches_<country>.parquet` — per (patch, reference, strategy) tallies |
+| 4 | `boundaryvote.report` | CPU | `country.csv`, `macro.csv`, `ftp_gate.csv` + printed tables |
 
 ```sh
 sbatch experiments/hpc/cache_preds.sbatch                       # all 4 ckpts x {test,val}
 sbatch --export=ALL,RUN=planet_b3,SPLIT=test experiments/hpc/cpu_stages.sbatch
 sbatch --export=ALL,RUN=s2_b7,SPLIT=test,PROTOCOL=gsd,GSD=10 experiments/hpc/cpu_stages.sbatch
-experiments/run.sh fieldvote.report --run planet_b3 --split test
+experiments/run.sh boundaryvote.report --run planet_b3 --split test
 ```
 
 Runs: `planet_b3` (FTP headline, `planet_efnet3_augmax_full_best.ckpt`),
@@ -85,7 +85,7 @@ in 4/10 countries, where the connected-component fallback fires on 64% of
 patches. Under the S2 protocol `raw == rt` by construction (`_cap_pred_to_gsd`
 rasterizes).
 
-## Model-free variant ablation (2026-09-10, `results/ablation/`, `fieldvote/variants.py`)
+## Model-free variant ablation (2026-09-10, `results/ablation/`, `boundaryvote/variants.py`)
 
 Variants built from `(argmax, softmax)` only: foreground rule × split rule.
 Δ macro PQ vs `rt:h2` (FTP's default), true-vector reference, all runs on one
@@ -117,7 +117,7 @@ variant gains +3.7 on both encoders with every country improving. FTP's native-1
 variant loses because sub-10 m separations and thin parcels are rasterized
 away, and widening the kept lines to 10–25 m (`-w2..-w5`) does not recover it.
 
-## Instance models (DelineateAnything-v2), `fieldvote/cache_da.py`, `fieldvote/da_softmax.py`
+## Instance models (DelineateAnything-v2), `boundaryvote/cache_da.py`, `boundaryvote/da_softmax.py`
 
 DA-v2 (`MykolaL/DelineateAnything`, `DelineateAnythingv2.pt`, FTP's best swept
 setting `--imgsz 1024 --conf 0.05`) emits instances + confidences, no boundary
@@ -169,7 +169,7 @@ Figure text is Nimbus Roman (Times New Roman is not installed here). Paper
 default is `nbg-sup-h2-t0.7`; "best depth" rows are `rt_test` restricted to
 `rt:h*` strategies.
 
-## Prior post-processing baselines (`fieldvote/priors.py`)
+## Prior post-processing baselines (`boundaryvote/priors.py`)
 
 Four label-free post-processing pipelines re-implemented on the same cached
 predictions, so
@@ -191,7 +191,7 @@ Each grid is swept until its optimum is interior, its setting is chosen on the
 
 ```sh
 sbatch --export=ALL,RUN=planet_b3 experiments/hpc/profile.sbatch   # out/profile/<run>_<split>.csv
-experiments/run.sh fieldvote.transfer --run planet_b3              # out/transfer/<run>.csv
+experiments/run.sh boundaryvote.transfer --run planet_b3              # out/transfer/<run>.csv
 experiments/rebuild_paper.sh                                       # every table, figure, both PDFs
 ```
 
@@ -242,10 +242,10 @@ Console reports over `out/scores` and `out/candidates`; none of them writes a
 paper input, so they are not part of `rebuild_paper.sh`.
 
 ```sh
-experiments/run.sh fieldvote.ablation --runs planet_b3 planet_b7 planet_b37 --protocol pixel
-experiments/run.sh fieldvote.iou_sweep --run planet_b3 --split val \
+experiments/run.sh boundaryvote.ablation --runs planet_b3 planet_b7 planet_b37 --protocol pixel
+experiments/run.sh boundaryvote.iou_sweep --run planet_b3 --split val \
     --variants nbg-sup-h2-t0.7 nbg-sup-h2-t0.7+H40          # out/iou_sweep/<run>_<split>.csv
-experiments/run.sh fieldvote.boundary_error --run planet_b3 --split test \
+experiments/run.sh boundaryvote.boundary_error --run planet_b3 --split test \
     --variants arg-ws2+A900 nbg-sup-h2-t0.7+A900            # out/boundary/<run>_<split>.csv
 ```
 

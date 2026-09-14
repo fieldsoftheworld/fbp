@@ -32,25 +32,25 @@ if [ -n "$SCORE_ONLY" ]; then
   if [ -n "$ENSEMBLE" ]; then
     echo "=== scores base $RUN/$SPLIT (existing candidates) ==="
     # shellcheck disable=SC2086
-    experiments/run.sh fieldvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
+    experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
         --references $REFS --workers "$W" --sets base
   fi
 elif [ -n "$ENSEMBLE" ]; then
   echo "=== ensemble $RUN <- $ENSEMBLE ==="
   # shellcheck disable=SC2086
-  experiments/run.sh fieldvote.ensemble --runs $ENSEMBLE --out "$RUN" --split "$SPLIT"
+  experiments/run.sh boundaryvote.ensemble --runs $ENSEMBLE --out "$RUN" --split "$SPLIT"
   echo "=== candidates (depths + variants) $RUN/$SPLIT ==="
-  experiments/run.sh fieldvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants
+  experiments/run.sh boundaryvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants
   echo "=== scores base $RUN/$SPLIT ==="
   # shellcheck disable=SC2086
-  experiments/run.sh fieldvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
+  experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
       --references $REFS --workers "$W" --sets base
 else
   echo "=== candidates (variants only) $RUN/$SPLIT ==="
-  experiments/run.sh fieldvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants --variants-only
+  experiments/run.sh boundaryvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants --variants-only
 fi
 echo "=== scores variants $RUN/$SPLIT protocol=$PROTOCOL ==="
 # shellcheck disable=SC2086
-experiments/run.sh fieldvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
-    --references $REFS --workers "$W" --sets variants --tag variants --variants $(experiments/run.sh fieldvote.list_variants)
+experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
+    --references $REFS --workers "$W" --sets variants --tag variants --variants $(experiments/run.sh boundaryvote.list_variants)
 echo "done."

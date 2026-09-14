@@ -1,11 +1,11 @@
-"""Cross-country gallery (Fig. 1): FTP pipeline vs. boundary veto, one patch per country.
+"""Cross-country gallery (Fig. 1): FTP pipeline vs. BoundaryVote, one patch per country.
 
-Each example is a triple: image, the FTP pipeline, the boundary veto; reference parcels
+Each example is a triple: image, the FTP pipeline, BoundaryVote; reference parcels
 are drawn as black outlines on both prediction panels; titles give crop field
 counts and badges give full-patch PQ. Rows cover all ten dense-label countries on
 PlanetScope B3 except Portugal (two test patches), eight countries on
 Sentinel-2 B7, and one failure case. Patch choice per (model, country): the
-largest per-patch PQ gain (boundary veto minus FTP pipeline) among test patches with 10-120
+largest per-patch PQ gain (BoundaryVote minus FTP pipeline) among test patches with 10-120
 reference parcels whose densest square window shows at least eight of them
 covering at least a quarter of the window;
 the full-patch PQ of each prediction panel is printed on it.
@@ -43,16 +43,16 @@ from figstyle import (  # noqa: E402
     use_style,
 )
 
-from fieldvote import ftp_compat as ftp  # noqa: E402
-from fieldvote import references as refs  # noqa: E402
-from fieldvote.candidates import pixel_area_m2  # noqa: E402
-from fieldvote.paths import (  # noqa: E402
+from boundaryvote import ftp_compat as ftp  # noqa: E402
+from boundaryvote import references as refs  # noqa: E402
+from boundaryvote.candidates import pixel_area_m2  # noqa: E402
+from boundaryvote.paths import (  # noqa: E402
     DENSE10,
     cache_dir,
     ftw_planet_repo,
     scores_dir,
 )
-from fieldvote.variants import run_variant  # noqa: E402
+from boundaryvote.variants import run_variant  # noqa: E402
 
 TAU, H = 0.7, 2.0
 VARIANT = "nbg-sup-h2-t0.7+A900"
@@ -307,7 +307,7 @@ def main() -> None:
         )
         if k == 0:
             # inside the panels, so the labels cost no vertical space
-            for ax, t in zip(axes, ("Image", "FTP", "Veto"), strict=True):
+            for ax, t in zip(axes, ("Image", "FTP", "BoundaryVote"), strict=True):
                 ax.text(
                     0.03,
                     0.97,

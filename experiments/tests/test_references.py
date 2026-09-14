@@ -15,7 +15,7 @@ import rasterio
 import shapely.geometry
 from rasterio.transform import Affine
 
-from fieldvote.references import (
+from boundaryvote.references import (
     PatchGrid,
     ftw_root,
     instance,

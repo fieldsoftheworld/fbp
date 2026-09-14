@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from fieldvote.variants import (
+from boundaryvote.variants import (
     components,
     drop_small_unsupported,
     fill_holes,

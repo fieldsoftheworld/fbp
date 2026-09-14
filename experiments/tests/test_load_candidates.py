@@ -6,9 +6,9 @@ import geopandas as gpd
 import pytest
 import shapely.geometry
 
-from fieldvote import paths
-from fieldvote.candidates import tag_to_file
-from fieldvote.run_eval import load_candidates
+from boundaryvote import paths
+from boundaryvote.candidates import tag_to_file
+from boundaryvote.run_eval import load_candidates
 
 
 def test_missing_tag_filled_with_empty_list(

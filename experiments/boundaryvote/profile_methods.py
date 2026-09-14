@@ -12,7 +12,7 @@ drawn from each bin with a fixed seed.
 
 Writes ``out/profile/<run>_<split>.csv``: one row per (method, patch).
 
-Regenerate: python -m fieldvote.profile_methods --run planet_b3 --per-bin 25
+Regenerate: python -m boundaryvote.profile_methods --run planet_b3 --per-bin 25
 """
 
 import argparse
@@ -30,7 +30,7 @@ from .candidates import pixel_area_m2
 from .paths import DENSE10, cache_dir, out_root
 from .variants import foreground, run_variant
 
-# The FTP pipeline, the boundary veto, and the prior families at the setting
+# The FTP pipeline, BoundaryVote, and the prior families at the setting
 # each one reaches its best validation score with. The first element of each
 # pair is the ``method`` key written to the CSV, so it stays as it is.
 METHODS = [

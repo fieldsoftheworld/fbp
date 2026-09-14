@@ -17,7 +17,7 @@ Also writes DA's native partition (``id1_raw``, conf-ranked painting of the raw
 masks) as candidate tag ``v:da-native`` so it can be scored alongside.
 
 Example:
-    python -m fieldvote.da_softmax --src da_v2 --rule c2 --out da_v2_c2
+    python -m boundaryvote.da_softmax --src da_v2 --rule c2 --out da_v2_c2
 """
 
 import argparse

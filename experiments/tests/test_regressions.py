@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 import torch
 
-from fieldvote import ensemble, ftp_compat, profile_methods, references
-from fieldvote.paths import DENSE10, cache_dir
+from boundaryvote import ensemble, ftp_compat, profile_methods, references
+from boundaryvote.paths import DENSE10, cache_dir
 
 
 def test_sample_patches_rows_unpack_into_five_fields(

@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from fieldvote.priors import iterh, swst, thr, ucm
-from fieldvote.variants import foreground, run_variant
+from boundaryvote.priors import iterh, swst, thr, ucm
+from boundaryvote.variants import foreground, run_variant
 
 
 def two_field_scene() -> tuple[np.ndarray, np.ndarray]:

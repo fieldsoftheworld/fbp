@@ -40,9 +40,9 @@ from figstyle import (  # noqa: E402
 )
 from gallery import label_colors, outlines, rgb_for  # noqa: E402
 
-from fieldvote import references as refs  # noqa: E402
-from fieldvote.paths import cache_dir  # noqa: E402
-from fieldvote.variants import (  # noqa: E402
+from boundaryvote import references as refs  # noqa: E402
+from boundaryvote.paths import cache_dir  # noqa: E402
+from boundaryvote.variants import (  # noqa: E402
     foreground,
     pairs_at_lines,
     supported_split,

@@ -5,9 +5,9 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from fieldvote.matching import THRESHOLDS
-from fieldvote.run_eval import BINS
-from fieldvote.scoring import (
+from boundaryvote.matching import THRESHOLDS
+from boundaryvote.run_eval import BINS
+from boundaryvote.scoring import (
     load_patches,
     macro,
     pool_country,

@@ -7,8 +7,9 @@ the error-type rates. Then a cross-run table ranking variants by mean PQ gain
 so model-agnostic winners stand out.
 
 Example:
-    python -m fieldvote.ablation --runs planet_b3 planet_b7 planet_b37 --protocol pixel
-    python -m fieldvote.ablation --runs s2_b7 s2_b3 --protocol gsd
+    python -m boundaryvote.ablation --runs planet_b3 planet_b7 planet_b37 \
+        --protocol pixel
+    python -m boundaryvote.ablation --runs s2_b7 s2_b3 --protocol gsd
 """
 
 import argparse

@@ -13,8 +13,8 @@ Protocols:
              matched against UTM parcels (FTP Table 1 S2 rows; use 10 for S2)
 
 Example:
-    python -m fieldvote.run_eval --run planet_b3 --split test --workers 16
-    python -m fieldvote.run_eval --run s2_b7 --split test --protocol gsd --gsd-m 10
+    python -m boundaryvote.run_eval --run planet_b3 --split test --workers 16
+    python -m boundaryvote.run_eval --run s2_b7 --split test --protocol gsd --gsd-m 10
 """
 
 import argparse
@@ -259,7 +259,7 @@ def main() -> int:
         nargs="*",
         default=["base"],
         choices=["base", "variants"],
-        help="base = depth sweep/vote/nms/elbow; variants = fieldvote.variants tags",
+        help="base = depth sweep/vote/nms/elbow; variants = boundaryvote.variants tags",
     )
     p.add_argument("--tag", default="", help="output file infix, e.g. 'variants'")
     p.add_argument(

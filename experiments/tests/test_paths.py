@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from fieldvote import paths
+from boundaryvote import paths
 
 
 def test_h_tag_formats_depths() -> None:

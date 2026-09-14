@@ -4,7 +4,7 @@ The grids are identical across Planet checkpoints (same patches, same eval
 transform), so the average is pixel-wise. ``seg`` is the argmax of the average.
 
 Example:
-    python -m fieldvote.ensemble --runs planet_b3 planet_b7 --out planet_b37 \
+    python -m boundaryvote.ensemble --runs planet_b3 planet_b7 --out planet_b37 \
         --split test
 """
 

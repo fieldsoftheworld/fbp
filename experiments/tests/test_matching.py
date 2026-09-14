@@ -5,9 +5,9 @@ import pytest
 import shapely.geometry
 from numpy.random._generator import Generator
 
-from fieldvote import ftp_compat as ftp
-from fieldvote.matching import THRESHOLDS, diagnostics, greedy, iou_matrix, match
-from fieldvote.strategies import elbow, nms_pool, roundtrip, vote
+from boundaryvote import ftp_compat as ftp
+from boundaryvote.matching import THRESHOLDS, diagnostics, greedy, iou_matrix, match
+from boundaryvote.strategies import elbow, nms_pool, roundtrip, vote
 
 
 def random_boxes(

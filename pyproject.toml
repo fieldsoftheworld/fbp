@@ -8,7 +8,7 @@ target-version = "py313"
 # 88 matches the existing formatting: at 88 only 9 files reformat, at 100 it is
 # 27 and at 120 it is 32.
 line-length = 88
-# Makes `fieldvote` resolve as first-party for import sorting, mirroring the
+# Makes `boundaryvote` resolve as first-party for import sorting, mirroring the
 # PYTHONPATH that run.sh and tests/conftest.py set.
 src = ["experiments"]
 extend-exclude = ["experiments/out"]
@@ -47,7 +47,7 @@ ignore = [
     # inline; naming every one of them as a constant hurts more than it helps.
     "PLR2004",
     # Heavy imports (torch, rasterio, ftw-planet internals) are deliberately
-    # deferred into the functions that need them so `-m fieldvote.<stage> --help`
+    # deferred into the functions that need them so `-m boundaryvote.<stage> --help`
     # and the pure-geometry tests stay fast.
     "PLC0415",
     # `H, W = arr.shape` is the array-shape convention throughout; forcing
@@ -91,14 +91,14 @@ unfixable = []
 "experiments/figures/figstyle.py" = ["PLW0603"]
 # `_CANDS`/`_OPTS` are set in the Pool initializer so forked workers inherit the
 # candidate set without re-reading it per patch. That is what a global is for.
-"experiments/fieldvote/run_eval.py" = ["PLW0603"]
+"experiments/boundaryvote/run_eval.py" = ["PLW0603"]
 # `supported_split` is the method the letter proposes and `run_variant` is its
 # name dispatcher. Both are wide and branchy because the algorithm is; splitting
 # them would scatter one contiguous procedure across call sites.
-"experiments/fieldvote/variants.py" = ["PLR0912", "PLR0913", "PLR0915"]
+"experiments/boundaryvote/variants.py" = ["PLR0912", "PLR0913", "PLR0915"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["fieldvote"]
+known-first-party = ["boundaryvote"]
 # Explicitly empty: this is what would otherwise inject
 # `from __future__ import annotations` into every module.
 required-imports = []
@@ -142,7 +142,7 @@ addopts = ["-ra", "--strict-markers", "--strict-config"]
 filterwarnings = ["default"]
 
 [tool.coverage.run]
-source = ["experiments/fieldvote", "experiments/figures"]
+source = ["experiments/boundaryvote", "experiments/figures"]
 branch = true
 omit = ["experiments/tests/*", "experiments/out/*"]
 
@@ -159,7 +159,7 @@ exclude_also = [
 python-version = "3.13"
 # The stages import ftw-planet, torch, rasterio etc. from the sibling venv.
 python = "../ftw-planet/.venv"
-# `fieldvote` is importable because experiments/ is on sys.path, not because it
+# `boundaryvote` is importable because experiments/ is on sys.path, not because it
 # is installed.
 extra-paths = ["experiments", "experiments/figures"]
 root = ["experiments", "experiments/figures"]

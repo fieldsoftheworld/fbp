@@ -9,7 +9,7 @@ whether the ranking between them depends on where the threshold sits.
 Writes ``out/iou_sweep/<run>_<split>.csv``: one row per (variant, country,
 threshold) with matched, predicted, and reference counts.
 
-Run: python -m fieldvote.iou_sweep --run planet_b3 --split val \
+Run: python -m boundaryvote.iou_sweep --run planet_b3 --split val \
         --variants nbg-sup-h2-t0.7 nbg-sup-h2-t0.7+H40
 """
 

@@ -2,8 +2,8 @@
 
 import shapely.geometry
 
-from fieldvote.paths import H_SWEEP, h_tag
-from fieldvote.run_eval import AREA_EDGES, area_bin_of, build_strategies, tally
+from boundaryvote.paths import H_SWEEP, h_tag
+from boundaryvote.run_eval import AREA_EDGES, area_bin_of, build_strategies, tally
 
 
 def test_area_bin_boundaries() -> None:

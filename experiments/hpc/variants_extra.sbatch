@@ -27,9 +27,9 @@ W="$SLURM_CPUS_PER_TASK"
 
 echo "=== candidates ($TAG) $RUN/$SPLIT ==="
 # shellcheck disable=SC2086
-experiments/run.sh fieldvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants-only --variants $VARIANTS
+experiments/run.sh boundaryvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants-only --variants $VARIANTS
 echo "=== scores ($TAG) $RUN/$SPLIT protocol=$PROTOCOL ==="
 # shellcheck disable=SC2086
-experiments/run.sh fieldvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
+experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
     --references $REFS --workers "$W" --sets variants --tag "$TAG" --variants $VARIANTS $SCORE_EXTRA
 echo "done."

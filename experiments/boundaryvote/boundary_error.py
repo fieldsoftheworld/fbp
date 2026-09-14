@@ -18,7 +18,7 @@ number.
 
 Writes ``out/boundary/<run>_<split>.csv``: one row per (variant, country, patch).
 
-Run: python -m fieldvote.boundary_error --run planet_b3 --split test \
+Run: python -m boundaryvote.boundary_error --run planet_b3 --split test \
         --variants arg-ws2+A900 nbg-sup-h2-t0.7+A900
 """
 

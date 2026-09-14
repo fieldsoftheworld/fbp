@@ -16,7 +16,7 @@ Selection rows (single watershed depth, one per country):
 * ``rt_*``     the same four choices for the rasterize->polygonize control
 
 Example:
-    python -m fieldvote.report --run planet_b3 --split test
+    python -m boundaryvote.report --run planet_b3 --split test
 """
 
 import argparse

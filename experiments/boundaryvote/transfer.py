@@ -14,7 +14,7 @@ country, needs local labels to reach the accuracy its best row reports.
 
 Writes ``out/transfer/<run>.csv``.
 
-Regenerate: python -m fieldvote.transfer --run planet_b3
+Regenerate: python -m boundaryvote.transfer --run planet_b3
 """
 
 import argparse

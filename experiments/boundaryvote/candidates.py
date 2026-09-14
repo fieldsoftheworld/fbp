@@ -15,7 +15,7 @@ Per country under ``out/candidates/<run>/<split>/<country>/``:
                             and polygon counts, wall time.
 
 Example:
-    python -m fieldvote.candidates --run planet_b3 --split test --workers 8
+    python -m boundaryvote.candidates --run planet_b3 --split test --workers 8
 """
 
 import argparse
@@ -279,7 +279,7 @@ def main() -> int:
         "--variants",
         nargs="*",
         default=None,
-        help="model-free variants (fieldvote.variants); no value = all defaults",
+        help="model-free variants (boundaryvote.variants); no value = all defaults",
     )
     p.add_argument(
         "--variants-only",

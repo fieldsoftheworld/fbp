@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from fieldvote.cache_da import paint_topk
-from fieldvote.da_softmax import RULES, pseudo_softmax
+from boundaryvote.cache_da import paint_topk
+from boundaryvote.da_softmax import RULES, pseudo_softmax
 
 
 def overlapping_instances() -> tuple[np.ndarray, np.ndarray]:
@@ -53,7 +53,7 @@ def test_pseudo_softmax_rules_sum_to_one_and_mark_contest() -> None:
 
 
 def test_marker_supported_split_keeps_strong_seams_merges_weak() -> None:
-    from fieldvote.variants import run_variant
+    from boundaryvote.variants import run_variant
 
     # A (.9) | B (.8) touch along column 5; C (.2) is a weak duplicate inside A.
     masks = np.zeros((3, 12, 12), dtype=np.uint8)

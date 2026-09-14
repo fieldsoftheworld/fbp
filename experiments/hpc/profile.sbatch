@@ -20,5 +20,5 @@ RUN="${RUN:-planet_b3}"
 SPLIT="${SPLIT:-test}"
 PERBIN="${PERBIN:-30}"
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
-experiments/run.sh fieldvote.profile_methods --run "$RUN" --split "$SPLIT" --per-bin "$PERBIN" --repeats 3
+experiments/run.sh boundaryvote.profile_methods --run "$RUN" --split "$SPLIT" --per-bin "$PERBIN" --repeats 3
 echo done.

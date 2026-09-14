@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 import shapely.geometry
 
-from fieldvote.boundary_error import outline_mask, report
+from boundaryvote.boundary_error import outline_mask, report
 
 
 def test_outline_mask_is_the_border_not_the_interior() -> None:

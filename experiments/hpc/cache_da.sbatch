@@ -24,9 +24,9 @@ CONF="${CONF:-0.05}"
 RUN="${RUN:-da_v2}"
 
 cd "$FTW"
-uv run --no-sync --with ultralytics --with huggingface_hub python -m fieldvote.cache_da \
+uv run --no-sync --with ultralytics --with huggingface_hub python -m boundaryvote.cache_da \
     --run "$RUN" --imgsz "$IMGSZ" --conf "$CONF" --gpu 0 --num-workers 4
 for rule in ratio hard; do
-  "$FTW/.venv/bin/python" -m fieldvote.da_softmax --src "$RUN" --rule "$rule" --out "${RUN}_${rule}"
+  "$FTW/.venv/bin/python" -m boundaryvote.da_softmax --src "$RUN" --rule "$rule" --out "${RUN}_${rule}"
 done
 echo "done."
