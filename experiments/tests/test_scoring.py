@@ -1,11 +1,14 @@
 """Pooling and depth-selection arithmetic on synthetic tallies."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
 from fieldvote.matching import THRESHOLDS
 from fieldvote.run_eval import BINS
 from fieldvote.scoring import (
+    load_patches,
     macro,
     pool_country,
     select_depth,
@@ -21,14 +24,13 @@ def make_row(
     fp: int,
     fn: int,
     iou_sum: float,
-    split="test",
-    ref="vector",
-):
+    split: str = "test",
+) -> dict[str, str | int | float]:
     r = {
         "run": "r",
         "split": split,
         "protocol": "pixel",
-        "reference": ref,
+        "reference": "vector",
         "strategy": strategy,
         "country": country,
         "patch_id": patch,
@@ -88,7 +90,7 @@ def test_macro_requires_all_countries() -> None:
 
 def country_scores(
     split: str, pq_by: dict[str, dict[str, tuple[int, int, int, float]]]
-):
+) -> pd.DataFrame:
     """pq_by: {country: {strategy: (tp, fp, fn, iou_sum)}} -> pooled country frame."""
     rows = []
     for c, d in pq_by.items():
@@ -149,4 +151,20 @@ def test_select_depth_global_loco() -> None:
     gval = select_depth_global(
         test, val, "raw", "ws_gval", ("a", "b", "c"), exclude_target=False
     )
-    assert gval.selected_depth.nunique() == 1
+    assert (gval.selected_depth == gval.selected_depth.iloc[0]).all()
+
+
+def test_load_patches_missing_pattern_raises(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        load_patches(tmp_path)
+
+
+def test_load_patches_last_file_wins_on_duplicate_key(tmp_path: Path) -> None:
+    """A strategy scored twice must not double-count; the later file's row wins."""
+    old = pd.DataFrame([make_row("a", "p1", "s", tp=1, fp=0, fn=0, iou_sum=0.9)])
+    new = pd.DataFrame([make_row("a", "p1", "s", tp=2, fp=1, fn=1, iou_sum=1.5)])
+    old.to_parquet(tmp_path / "patches_a.parquet", index=False)
+    new.to_parquet(tmp_path / "patches_b.parquet", index=False)
+    df = load_patches(tmp_path)
+    assert len(df) == 1
+    assert df.iloc[0].n_pred == 3 and df.iloc[0].n_gt == 3
