@@ -19,6 +19,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# Tooling handoff artifact (regenerate with ruff/ty/pyrefly)
+.lint-findings.md
+
 # Experiment scratch (tracked copies live in experiments/results/)
 experiments/out/
 
