@@ -5,7 +5,7 @@ these, so changing the shipped setting is a one-line edit here.
 """
 
 SURFACE = "pb"  # watershed surface: "pb" = boundary probability, "sup" = distance
-H = 0.0  # seed depth; 0 seeds every regional minimum of the surface
+H = 0.01  # seed depth in probability units; 0 would seed every regional minimum
 TAU = 0.3  # a line is kept when at least this share of its pixels votes boundary
 MIN_SIZE = "+A900"  # minimum parcel size, square metres, shared by every row
 

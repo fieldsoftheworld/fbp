@@ -274,11 +274,15 @@ def main() -> None:
             None,
         ),
         ("FTP + Min Size", RELEASED_FILTER),
-        ("Field, Probability Watershed + Vote", "raw:v:arg-pb-h0-t0.3+A900"),
+        ("Field, Probability Watershed + Vote", "raw:v:arg-pb-h0.01-t0.3+A900"),
         ("Not-Background, Components", "raw:v:nbg-none+A900"),
         ("Not-Background, Distance Watershed + Vote", OURS_DISTANCE),
-        ("Not-Background, Probability Watershed, No Vote", "raw:v:nbg-pb-h0-t0+A900"),
-        ("Same, Seed Depth $h{=}0.05$", "raw:v:nbg-pb-h0.05-t0+A900"),
+        (
+            "Not-Background, Probability Watershed, No Vote",
+            "raw:v:nbg-pb-h0.01-t0+A900",
+        ),
+        ("Same, Every Minimum Seeds ($h{=}0$)", "raw:v:nbg-pb-h0-t0+A900"),
+        ("BoundaryVote, Every Minimum Seeds ($h{=}0$)", "raw:v:nbg-pb-h0-t0.3+A900"),
         (OURS_LABEL, OURS),
         (r"\multicolumn{3}{@{}l}{\emph{Without the Minimum Parcel Size}} \\", None),
         ("FTP Pipeline ($h{=}2$)", BASE),
@@ -335,8 +339,9 @@ def main() -> None:
     vals["ArgSupGain"] = delta(mb3, "raw:v:arg-sup-h2-t0.7")
     # the vote's two roles: accuracy at a tuned depth and rescue at h = 0
     for key, strat in (
-        ("NoVotePQ", "raw:v:nbg-pb-h0-t0+A900"),
-        ("NoVoteTunedPQ", "raw:v:nbg-pb-h0.05-t0+A900"),
+        ("NoVotePQ", "raw:v:nbg-pb-h0.01-t0+A900"),
+        ("NoVoteZeroPQ", "raw:v:nbg-pb-h0-t0+A900"),
+        ("OursZeroPQ", "raw:v:nbg-pb-h0-t0.3+A900"),
         ("NbgNoneMinPQ", "raw:v:nbg-none+A900"),
         ("DistancePQ", OURS_DISTANCE),
         ("OursNoFilterPQ", OURS_NOFILTER),
