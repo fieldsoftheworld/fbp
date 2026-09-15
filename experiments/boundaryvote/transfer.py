@@ -34,6 +34,7 @@ FAMILIES = {
     "swst": r"^raw:v:nbg-swst-[^+]+$",
     "iterh": r"^raw:v:(nbg|arg)-iterh-[^+]+$",
     "thr": r"^raw:v:arg-thr-[^+]+$",
+    "owt": r"^raw:v:nbg-owt-l[\d.]+$",
     "depth": r"^rt:h[\d.p]+$",
 }
 

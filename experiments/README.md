@@ -171,9 +171,9 @@ default is `nbg-sup-h2-t0.7`; "best depth" rows are `rt_test` restricted to
 
 ## Prior post-processing baselines (`boundaryvote/priors.py`)
 
-Four label-free post-processing pipelines re-implemented on the same cached
-predictions, so
-the comparison isolates the split/merge rule:
+Five label-free post-processing pipelines re-implemented on the same cached
+predictions, so the comparison isolates the split/merge rule (`owt` lives in
+`boundaryvote/priors_recent.py`):
 
 | name | method | knobs |
 |---|---|---|
@@ -181,9 +181,14 @@ the comparison isolates the split/merge rule:
 | `swst` | stochastic watershed: `m` draws of `n` random markers, cut where the line frequency reaches `t` | `n`, `m`, `t` |
 | `iterh` | iterative marker depth: watershed at `h=8`, re-segment regions over `a` px at 4, 2, 1 | `a` |
 | `thr` | extent/boundary thresholds `p_field >= te`, `p_bnd < tb`, then components | `te`, `tb` |
+| `owt` | Zhu et al. (IJDE 2024): oriented boundary signal (mean `p_bnd` along 5-px lines at 8 orientations), watershed of its maximum seeded at `h`-minima, arcs weighted by the signal at their own orientation, greedy merge below level `l` | `l`, `h` |
 
-Each grid is swept until its optimum is interior, its setting is chosen on the
+Each grid is extended past its first optimum (`hpc/variants_extra.sbatch` with
+`TAG=priors2` holds the second round), its setting is chosen on the
 **validation** split, and the same setting is reported on test for every run.
+The vote's line statistic has three alternatives for the supplement:
+`nbg-ssup-*` (mean probability share), `nbg-asup-*` (mean `p_bnd`, an absolute
+threshold) and `nbg-dsup-*` (mean margin `p_bnd - p_field`), all at `h=2`.
 `arg-ws{h}` is the FTP pipeline expressed as a variant, so post-steps
 (`+a`, `+f`, `+m`) can be applied to it on equal terms.
 
@@ -196,6 +201,11 @@ experiments/rebuild_paper.sh                                       # every table
 ```
 
 Copies of the cost and transfer CSVs behind Table I live in `results/cost/`.
+
+`boundaryvote.bootstrap --run <run>` resamples each country's test patches
+1,000 times (seed 0) for 95% intervals on both pipelines' macro PQ and their
+difference; copies live in `results/bootstrap/` and feed the supplement's
+bootstrap table and the letter's `\GainCILow` macro.
 
 `profile_methods` times each method on one core (threads pinned to 1, minimum
 of three repeats) and samples peak RSS in a background thread, on patches

@@ -49,6 +49,14 @@ from skimage.morphology import h_maxima
 from skimage.segmentation import watershed
 
 FG = ("arg", "nbg", "pf50", "otsu")
+# Rule kind -> how a watershed line's support is scored (see supported_split).
+LINE_SCORE = {
+    "sup": "frac",
+    "pb": "frac",
+    "ssup": "soft",
+    "asup": "mean",
+    "dsup": "diff",
+}
 
 
 def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
@@ -209,7 +217,10 @@ def supported_split(
     of its pixels where the boundary class outscores the field class, and
     ``"soft"`` averages ``p_bnd / (p_bnd + p_field)`` instead, so a pixel that
     barely favours boundary counts for less than one that favours it strongly.
-    Both land in [0, 1] and share the 0.5 neutral point.
+    Both land in [0, 1] and share the 0.5 neutral point. ``"mean"`` is the mean
+    ``p_bnd`` along the line, so ``tau`` becomes an absolute threshold as in
+    hierarchical merging, and ``"diff"`` is the mean of ``(p_bnd - p_field + 1) / 2``,
+    so ``tau = 0.5`` keeps a line whose mean margin favours boundary.
 
     ``tau_lo`` turns the single threshold into hysteresis, as in edge linking: a
     line at or above ``tau`` is kept outright, and a line at or above ``tau_lo``
@@ -262,6 +273,11 @@ def supported_split(
         )
         if band > 0:  # the band is a spatial rule; fall back to the hard test
             support = is_bnd[r, c].astype(np.float64)
+    elif score == "mean":
+        support = prob[2][r, c].astype(np.float64)
+    elif score == "diff":
+        pb, pf = prob[2][r, c].astype(np.float64), prob[1][r, c].astype(np.float64)
+        support = (pb - pf + 1.0) / 2.0
     else:
         raise ValueError(score)
     keys = pairs[valid, 0].astype(np.int64) * (inst.max() + 1) + pairs[valid, 1]
@@ -535,9 +551,10 @@ def run_variant(
     length, ``+b{R}`` support tolerance band, ``+a{A}`` minimum parcel area,
     ``+w{k}`` kept-line width, ``+H{t}`` hysteresis low bar (hundredths, so
     ``+H45`` is 0.45), and ``+K{t}`` the outline-support bar that spares a small
-    parcel from the minimum-size step. Rule kind ``ssup`` scores a line by the
-    average probability share instead of a pixel count. They never collide with
-    a rule's own parameters.
+    parcel from the minimum-size step. Rule kinds ``ssup``, ``asup`` and ``dsup``
+    score a line by the average probability share, the mean boundary
+    probability, and the mean margin instead of a pixel count (``LINE_SCORE``).
+    They never collide with a rule's own parameters.
     """
     width_px, min_line, band, min_area, hole_area, merge_area = 1, 0, 0, 0, 0, 0
     tau_lo, keep_tau = None, None
@@ -593,7 +610,7 @@ def run_variant(
             seg,
             keep_tau,
         )
-    if rest.split("-")[0] in ("ucm", "swst", "iterh", "thr"):
+    if rest.split("-")[0] in ("ucm", "swst", "iterh", "thr", "owt"):
         from .priors import run_prior
 
         inst = run_prior(rest, fg, seg, prob)
@@ -630,7 +647,7 @@ def run_variant(
         min_line=min_line,
         band=band,
         tau_lo=tau_lo,
-        score="soft" if kind == "ssup" else "frac",
+        score=LINE_SCORE.get(kind, "frac"),
     )
     return apply_post_steps(
         widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau

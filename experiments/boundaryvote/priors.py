@@ -163,7 +163,11 @@ def thr(prob: np.ndarray, te: float, tb: float) -> np.ndarray:
 def run_prior(
     name: str, fg: np.ndarray, seg: np.ndarray, prob: np.ndarray
 ) -> np.ndarray:
-    """``ucm-k0.3`` | ``swst-n40-m30-t0.5`` | ``iterh-a20000`` | ``thr-te0.5-tb0.3``."""
+    """Dispatch a prior by its strategy id.
+
+    ``ucm-k0.3`` | ``swst-n40-m30-t0.5`` | ``iterh-a20000`` | ``thr-te0.5-tb0.3``
+    | ``owt-l0.6-h0.05``
+    """
     kind, *args = name.split("-")
     kv = {
         a[:1] if a[:2] not in ("te", "tb") else a[:2]: a[1:]
@@ -179,4 +183,8 @@ def run_prior(
         return iterh(fg, seg, (8.0, 4.0, 2.0, 1.0), int(kv["a"]))
     if kind == "thr":
         return thr(prob, float(kv["te"]), float(kv["tb"]))
+    if kind == "owt":
+        from .priors_recent import owt
+
+        return owt(fg, seg, prob, float(kv["l"]), float(kv.get("h", 0.05)))
     raise ValueError(name)
