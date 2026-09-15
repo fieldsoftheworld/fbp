@@ -184,8 +184,12 @@ predictions, so the comparison isolates the split/merge rule (`owt` lives in
 | `owt` | Zhu et al. (IJDE 2024): oriented boundary signal (mean `p_bnd` along 5-px lines at 8 orientations), watershed of its maximum seeded at `h`-minima, arcs weighted by the signal at their own orientation, greedy merge below level `l` | `l`, `h` |
 
 Each grid is extended past its first optimum (`hpc/variants_extra.sbatch` with
-`TAG=priors2` holds the second round), its setting is chosen on the
-**validation** split, and the same setting is reported on test for every run.
+`TAG=priors2` holds the second round and `TAG=priors3` the small-`h` owt
+settings), its setting is chosen on the **validation** split, and the same
+setting is reported on test for every run. `owt` alone is selected with the
+`+A900` step in place (`transfer.FAMILIES`): its over-segmentation leaves
+slivers that put the bare method under 8 PQ, so ranking the bare grid would
+rank sliver counts.
 The vote's line statistic has three alternatives for the supplement:
 `nbg-ssup-*` (mean probability share), `nbg-asup-*` (mean `p_bnd`, an absolute
 threshold) and `nbg-dsup-*` (mean margin `p_bnd - p_field`), all at `h=2`.

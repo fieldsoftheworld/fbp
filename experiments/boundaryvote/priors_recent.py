@@ -15,7 +15,7 @@
 import numpy as np
 from scipy.ndimage import convolve, label
 from skimage import graph
-from skimage.morphology import h_minima
+from skimage.morphology import h_minima, local_minima
 from skimage.segmentation import watershed
 
 from .priors import lines_from_labels, merge_boundary, relabel_dense, weight_boundary
@@ -105,7 +105,9 @@ def owt(
     sig = oriented_signal(prob[2].astype(np.float32))
     surf = sig.max(axis=0)
     surf = np.where(fg, surf, surf.max() + 1.0).astype(np.float32)
-    markers, n = label(h_minima(surf, h=h) & fg)
+    # h = 0 seeds every regional minimum, the end point of the depth grid
+    minima = h_minima(surf, h=h) if h > 0 else local_minima(surf)
+    markers, n = label(minima & fg)
     if n == 0:
         out, _ = label(fg)
         return out.astype(np.int32)

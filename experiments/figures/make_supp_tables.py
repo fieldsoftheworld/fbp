@@ -7,6 +7,7 @@ Writes tables/supp_*.tex:
   supp_size_rows     PQ and RQ in FTP's hectare bins, all four runs
   supp_country_rows  per-country PQ, FTP pipeline and BoundaryVote, all four runs
   supp_timing_rows   median ms/patch in four density bins, both sensors
+  supp_bootstrap_rows patch-bootstrap intervals for both pipelines and the gain
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_supp_tables.py
 """
@@ -36,6 +37,8 @@ OURS_ROW = r"\rowcolor{oursbg}"
 # baseline.
 COUNTRY_BASE = "raw:v:arg-ws2+A900"
 OURS_NOFILTER = "raw:v:nbg-sup-h2-t0.7"
+# Zhu et al. at its validation-chosen setting, scored on PS B3 and S2 B7 only.
+OWT = "raw:v:nbg-owt-l0.5-h0+A900"
 NAMES = {
     "belgium": "Belgium",
     "cambodia": "Cambodia",
@@ -109,8 +112,9 @@ FOREGROUND = {"arg": "field", "nbg": "not-background"}
 
 
 def natural_key(s: str) -> list[object]:
-    """Split digits out so numbers in a strategy id sort by value."""
-    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", s)]
+    """Split numbers out so a strategy id sorts by value, 0.05 before 0.2."""
+    parts = re.split(r"(\d+(?:\.\d+)?)", s)
+    return [float(p) if re.fullmatch(r"\d+(?:\.\d+)?", p) else p for p in parts]
 
 
 def thousands(x: str) -> str:
@@ -120,7 +124,7 @@ def thousands(x: str) -> str:
 
 def prior_label(key: str) -> str:
     """A prior method's setting in the letter's notation, not its strategy id."""
-    s = key.replace("raw:v:", "")
+    s = key.replace("raw:v:", "").replace("+A900", "")
     m = re.fullmatch(r"(?:arg|nbg)-thr-te([\d.]+)-tb([\d.]+)", s)
     if m:
         return f"$t_e{{=}}{m[1]}$, $t_b{{=}}{m[2]}$"
@@ -133,6 +137,9 @@ def prior_label(key: str) -> str:
     m = re.fullmatch(r"(?:arg|nbg)-swst-n(\d+)-m(\d+)-t([\d.]+)", s)
     if m:
         return f"$n{{=}}{m[1]}$, $m{{=}}{m[2]}$, $t{{=}}{m[3]}$"
+    m = re.fullmatch(r"(?:arg|nbg)-owt-l([\d.]+)-h([\d.]+)", s)
+    if m:
+        return f"$\\lambda{{=}}{m[1]}$, $h{{=}}{m[2]}$"
     return f"\\texttt{{{s}}}"
 
 
@@ -144,20 +151,22 @@ def priors_rows() -> list[str]:
     )
     test = macro("planet_b3", "test")
     fams = [
-        ("Extent/Boundary Thresholds", "raw:v:arg-thr-"),
-        ("Hierarchical Merging", "raw:v:nbg-ucm-"),
-        ("Iterative Marker Depth", "raw:v:"),
-        ("Stochastic Watershed", "raw:v:nbg-swst-"),
+        ("Extent/Boundary Thresholds", "raw:v:arg-thr-", False),
+        ("Hierarchical Merging", "raw:v:nbg-ucm-", False),
+        ("Iterative Marker Depth", "raw:v:", False),
+        ("Stochastic Watershed", "raw:v:nbg-swst-", False),
+        ("Oriented Watershed, With Minimum Size", "raw:v:nbg-owt-", True),
     ]
     rows = []
-    for title, prefix in fams:
-        # The grid is searched without the minimum-size step, which is added
-        # to the chosen setting afterwards, so +A900 rows are not part of it.
+    for title, prefix, with_min in fams:
+        # A grid is searched without the minimum-size step, which is added to
+        # the chosen setting afterwards, except for the oriented watershed,
+        # whose slivers make the bare grid meaningless (see transfer.FAMILIES).
         keys = [
             k
             for k in test.index
             if k.startswith(prefix)
-            and "+A" not in k
+            and (("+A900" in k) if with_min else ("+A" not in k))
             and ("iterh" in k if "Iterative" in title else True)
         ]
         # Natural order, so a=5000 sorts before a=20000 rather than after it.
@@ -211,6 +220,24 @@ def variants_rows() -> list[str]:
             ],
         ),
         (
+            "Line Statistic for the Vote ($h=2$)",
+            [
+                ("Vote Share, $\\tau=0.7$ (BoundaryVote)", ours),
+            ]
+            + [
+                (f"Mean Share, $\\tau={t}$", f"raw:v:nbg-ssup-h2-t{t}")
+                for t in ("0.5", "0.6", "0.7")
+            ]
+            + [("Mean Margin at Least 0", "raw:v:nbg-dsup-h2-t0.5")]
+            + [
+                (
+                    f"Mean $p_{{\\mathrm{{bnd}}}}$ at Least {t}",
+                    f"raw:v:nbg-asup-h2-t{t}",
+                )
+                for t in ("0.3", "0.4", "0.5", "0.6", "0.7")
+            ],
+        ),
+        (
             "Steps Added to BoundaryVote",
             [
                 ("Kept Line at Least 3 px", f"{ours}+l3"),
@@ -254,6 +281,7 @@ def size_rows() -> list[str]:
     methods = [
         ("FTP, $h{=}2$", BASE),
         ("FTP + Min Size", "raw:v:arg-ws2+A900"),
+        ("Oriented Watershed + Min Size", OWT),
         (OURS_LABEL, OURS),
     ]
     rows = []
@@ -307,6 +335,7 @@ def timing_rows() -> list[str]:
         "ucm": "Hierarchical Merging",
         "iterh": "Iterative Marker Depth",
         "swst": "Stochastic Watershed",
+        "owt": "Oriented Watershed",
         "ours": OURS_LABEL,
     }
     frames = {}
@@ -317,11 +346,29 @@ def timing_rows() -> list[str]:
             frames[label] = df.groupby(["method", "bin"]).ms.median().unstack()[order]
     rows = []
     for meth, label in labels.items():
+        if not all(meth in fr.index for fr in frames.values()):
+            continue  # not profiled yet
         cells: list[str] = []
         for _, fr in frames.items():
             cells += [f"{fr.loc[meth, b]:.0f}" for b in order]
         lead = OURS_ROW if meth == "ours" else ""
         rows.append(f"{lead}{label} & " + " & ".join(cells) + r" \\")
+    return rows
+
+
+def bootstrap_rows() -> list[str]:
+    """Point estimate and 95% patch-bootstrap interval per run, both pipelines and gain."""
+    rows = []
+    for run, _sub, label in RUNS:
+        f = RES / "bootstrap" / f"{run}.csv"
+        if not f.exists():
+            continue
+        b = pd.read_csv(f).set_index("quantity")
+        cells = [
+            f"{b.loc[q].point:.1f} [{b.loc[q].lo:.1f}, {b.loc[q].hi:.1f}]"
+            for q in ("ftp_min_size", "ours", "gain")
+        ]
+        rows.append(f"{label} & " + " & ".join(cells) + r" \\")
     return rows
 
 
@@ -334,6 +381,7 @@ def main() -> None:
         ("size", size_rows),
         ("country", country_rows),
         ("timing", timing_rows),
+        ("bootstrap", bootstrap_rows),
     ):
         lines = fn()
         (OUT / f"supp_{name}_rows.tex").write_text("\n".join(lines) + "\n")

@@ -36,10 +36,11 @@ from .variants import foreground, run_variant
 METHODS = [
     ("released", "arg-none-ws"),
     ("ours", "nbg-sup-h2-t0.7+A900"),
-    ("ucm", "nbg-ucm-k0.5"),
+    ("ucm", "nbg-ucm-k0.7"),
     ("swst", "nbg-swst-n80-m30-t0.3"),
-    ("iterh", "arg-iterh-a20000"),
-    ("thr", "arg-thr-te0.5-tb0.5"),
+    ("iterh", "arg-iterh-a200000"),
+    ("thr", "arg-thr-te0.4-tb0.7"),
+    ("owt", "nbg-owt-l0.5-h0+A900"),
 ]
 BINS = [(1, 10), (10, 30), (30, 100), (100, 10**9)]
 BIN_NAMES = ["1-9", "10-29", "30-99", "100+"]

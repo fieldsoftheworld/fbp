@@ -34,7 +34,9 @@ FAMILIES = {
     "swst": r"^raw:v:nbg-swst-[^+]+$",
     "iterh": r"^raw:v:(nbg|arg)-iterh-[^+]+$",
     "thr": r"^raw:v:arg-thr-[^+]+$",
-    "owt": r"^raw:v:nbg-owt-l[\d.]+$",
+    # searched with the minimum-size step: its over-segmentation leaves slivers
+    # that only that step removes, so the bare grid ranks settings by sliver count
+    "owt": r"^raw:v:nbg-owt-l[\d.]+-h[\d.]+\+A900$",
     "depth": r"^rt:h[\d.p]+$",
 }
 

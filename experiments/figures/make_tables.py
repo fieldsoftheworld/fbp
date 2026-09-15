@@ -4,6 +4,7 @@ Writes tables/rev_main_rows.tex, tables/rev_ablation_rows.tex, tables/rev_values
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_tables.py
 """
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -67,8 +68,16 @@ COMPARE = [
         "swst",
         None,
     ),
+    (
+        "Oriented Watershed~\\cite{zhu2024gfafd}",
+        "$\\lambda$, $h$",
+        "owt",
+        "owt",
+        None,
+    ),
     (OURS_LABEL, "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
 ]
+PRIOR_FAMILIES = ("thr", "ucm", "iterh", "swst", "owt")
 
 
 def with_filter(strat: str, m: pd.DataFrame) -> str:
@@ -94,6 +103,8 @@ def compare_rows() -> list[str]:
     ms2 = macro_vec("s2_b7", "test/pixel")
     lines = []
     for label, knobs, fam, meth, strat in COMPARE:
+        if fam not in tr.index:
+            continue  # a family whose grid has not been scored yet
         resolved_strat = tr.loc[fam].val_choice if strat is None else strat
         s3, s2 = with_filter(resolved_strat, mb3), with_filter(resolved_strat, ms2)
         pq3, pq2 = (
@@ -108,12 +119,13 @@ def compare_rows() -> list[str]:
             else tr.loc[fam].gap_per_minus_val
         )
         gap = f"{gap_val:+.1f}"
+        timed = meth in ms.index
         cells = [
             pq3,
             pq2,
             gap,
-            f"{ms.loc[meth, '10-29']:.0f}",
-            f"{ms.loc[meth, '100+']:.0f}",
+            f"{ms.loc[meth, '10-29']:.0f}" if timed else "--",
+            f"{ms.loc[meth, '100+']:.0f}" if timed else "--",
         ]
         if fam == "ours":
             cells = [f"\\textbf{{{c}}}" for c in cells[:2]] + cells[
@@ -131,7 +143,7 @@ def compare_macros() -> dict[str, str]:
     ).set_index("family")
     pr = pd.read_csv(ROOT / "experiments" / "out" / "profile" / "planet_b3_test.csv")
     ms = pr.groupby(["method", "bin"]).ms.median().unstack()
-    priors = [f for f in ("thr", "ucm", "iterh", "swst") if f in tr.index]
+    priors = [f for f in PRIOR_FAMILIES if f in tr.index]
     gaps = tr.loc[priors].gap_per_minus_val
     dense = "100+"
     return {
@@ -149,6 +161,8 @@ def main() -> None:
     main_rows: list[str] = []
     vals: dict[str, str] = {}
     gains: dict[str, float] = {}
+    merge_up: list[float] = []
+    merge_vs_min: list[float] = []
     for run, sub, sensor, enc in RUNS:
         m = macro_vec(run, sub)
         c = country_vec(run, sub)
@@ -208,6 +222,9 @@ def main() -> None:
         vals[f"Worst{tag}"] = f"{100 * dc.min():+.1f}"
         vals[f"OracleGain{tag}"] = f"{100 * (m.loc[ORACLE].pq - m.loc[BASE].pq):.1f}"
         gains[tag] = d
+        # merge rate against the raw FTP output and against its minimum-size row
+        merge_up.append(100 * (m.loc[OURS].merge_rate - m.loc[BASE].merge_rate))
+        merge_vs_min.append(100 * (m.loc[OURS].merge_rate - m.loc[ref].merge_rate))
         if run == "planet_b3":
             for k, s in (("Base", BASE), ("Ours", OURS)):
                 vals[f"{k}Miss"] = f(m.loc[s].miss_rate)
@@ -276,6 +293,31 @@ def main() -> None:
         (OUT / "rev_compare_rows.tex").write_text("\n".join(cmp_lines) + "\n")
         vals.update(compare_macros())
 
+    # each alternative line statistic at its own validation-best threshold,
+    # and how far it falls short of the vote share on test
+    val_b3 = macro_vec("planet_b3", "val")
+    losses = []
+    for fam in ("ssup", "asup", "dsup"):
+        cands = [
+            k
+            for k in val_b3.index
+            if re.match(rf"^raw:v:nbg-{fam}-h2-t[\d.]+$", k) and k in mb3.index
+        ]
+        if cands:
+            best = max(cands, key=lambda k: val_b3.loc[k].pq)
+            losses.append(100 * (mb3.loc[OURS_NOFILTER].pq - mb3.loc[best].pq))
+    if losses:
+        vals["LineStatLossMin"] = f"{min(losses):.1f}"
+        vals["LineStatLossMax"] = f"{max(losses):.1f}"
+    tr_f = ROOT / "experiments" / "out" / "transfer" / "planet_b3.csv"
+    if tr_f.exists():
+        tr = pd.read_csv(tr_f).set_index("family")
+        if "owt" in tr.index:
+            owt = tr.loc["owt"].val_choice
+            vals["OwtNoFilterPQ"] = f(mb3.loc[owt.replace("+A900", "")].pq)
+            vals["OwtGapPS"] = f(mb3.loc[OURS].pq - mb3.loc[owt].pq)
+            if owt in ms2.index:
+                vals["OwtGapSS"] = f(ms2.loc[OURS].pq - ms2.loc[owt].pq)
     vals["ArgSupGain"] = delta(mb3, "raw:v:arg-sup-h2-t0.7")
     if RELEASED_FILTER in mb3.index:
         vals["BaseAreaGain"] = (
@@ -288,6 +330,13 @@ def main() -> None:
     vals["NbgNonePQ"] = f(mb3.loc["raw:v:nbg-none"].pq)
     vals["GainMin"] = f(min(gains.values()))
     vals["GainMax"] = f(max(gains.values()))
+    vals["MergeUpMin"] = f"{min(merge_up):.1f}"
+    vals["MergeUpMax"] = f"{max(merge_up):.1f}"
+    vals["MergeVsMinAbsMax"] = f"{max(abs(x) for x in merge_vs_min):.1f}"
+    boot = pd.concat(pd.read_csv(g) for g in sorted((RES / "bootstrap").glob("*.csv")))
+    gain_ci = boot[boot.quantity == "gain"]
+    vals["GainCILow"] = f"{gain_ci.lo.min():.1f}"
+    vals["GainCIHigh"] = f"{gain_ci.hi.max():.1f}"
     total_up = sum(int(vals[f"Up{t}"]) for t in gains)
     vals["UpTotal"] = str(total_up)
     vals["WorstAll"] = f"{min(float(vals[f'Worst{t}']) for t in gains):+.1f}"

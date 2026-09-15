@@ -54,6 +54,8 @@ def test_owt_level_monotone_and_dispatch() -> None:
     assert low.max() >= 2  # the strong boundary survives a low level
     out = run_variant("nbg-owt-l0.5-h0.2+A9", seg, prob, px_m2=1.0)
     assert out.dtype == np.int32 and out.max() >= 1
+    zero = run_variant("nbg-owt-l0.5-h0", seg, prob)
+    assert zero.max() >= 2  # every regional minimum seeds; the strong column stays
 
 
 def test_line_statistics_dispatch() -> None:
