@@ -31,7 +31,7 @@ def ftw_planet_repo() -> Path:
 def out_root() -> Path:
     """Root of every stage's output tree."""
     default = Path(__file__).resolve().parents[1] / "out"
-    return Path(os.environ.get("FIELDVOTE_OUT", default)).resolve()
+    return Path(os.environ.get("BOUNDARYVOTE_OUT", default)).resolve()
 
 
 def h_tag(h: float) -> str:

@@ -1,21 +1,24 @@
-"""Stage 2 (CPU): watershed depth sweep from cached softmax -> per-instance polygons.
+"""Stage 2 (CPU): polygon candidates from the cached softmax.
 
 For every cached patch: ``seg = argmax(prob)``, ``dist = EDT(seg != boundary)``,
 then for each depth ``h`` in ``H_SWEEP`` run FTP's ``watershed_instances`` and
 polygonize **each instance label separately** (pixel coordinates of the eval
 grid, identity transform, same frame as FTP's ``_extract_shapes``). The raw
-field-mask connected components are stored as depth tag ``cc``.
+field-mask connected components are stored as depth tag ``cc``. Variants
+(``boundaryvote.variants``) are stored under ``v:<name>``.
 
 Per country under ``out/candidates/<run>/<split>/<country>/``:
 
-* ``polys_<htag>.parquet``  columns ``patch_id, inst_id, geometry`` (GeoParquet,
-                            crs=None)
-* ``manifest.csv``          one row per (patch, depth): field pixels, marker count,
-                            whether the connected-component fallback fired, instance
-                            and polygon counts, wall time.
+* ``polys_<tag>.parquet``  columns ``patch_id, inst_id, geometry`` (GeoParquet,
+                           crs=None)
+* ``manifest.csv``         one row per (patch, tag): field pixels, marker count,
+                           whether the connected-component fallback fired, instance
+                           and polygon counts, wall time.
 
 Example:
     python -m boundaryvote.candidates --run planet_b3 --split test --workers 8
+    python -m boundaryvote.candidates --run planet_b3 --split test --workers 8 \
+        --variants-only --grids main sweep
 """
 
 import argparse
@@ -34,6 +37,7 @@ from skimage.morphology import h_maxima
 from skimage.segmentation import watershed
 
 from . import variants as v
+from .grids import names as grid_names
 from .paths import DENSE10, H_SWEEP, cache_dir, candidates_dir, h_tag
 
 
@@ -120,15 +124,11 @@ def process_patch(
     px_m2: float | None = None,
     gmm_thr: tuple[float, float] | None = None,
 ) -> tuple[dict[str, list], list[tuple]]:
-    """Returns ``({depth_tag: [(patch_id, inst_id, geom), ...]}, manifest_rows)``."""
+    """Returns ``({tag: [(patch_id, inst_id, geom), ...]}, manifest_rows)``."""
     pid = npz_path.stem
     with np.load(npz_path) as d:
         prob = d["prob"].astype(np.float32)
-        if "seg" in d:
-            seg = d["seg"].astype(np.uint8)
-        else:  # legacy smoke caches without the float32 argmax
-            seg = prob.argmax(axis=0).astype(np.uint8)
-        markers = d["markers"].astype(np.int32) if "markers" in d else None
+        seg = d["seg"].astype(np.uint8)
     field = seg == 1
     boundary = seg == 2
     dist = distance_transform_edt(~boundary).astype(np.float32)
@@ -136,28 +136,9 @@ def process_patch(
     polys: dict[str, list] = {}
     rows: list[tuple] = []
 
-    t0 = time.perf_counter()
-    cc = binary_polygons(field)
-    polys["cc"] = [(pid, i, g) for i, g in cc]
-    rows.append(
-        (
-            pid,
-            "cc",
-            int(field.sum()),
-            int(boundary.sum()),
-            0,
-            False,
-            len(cc),
-            len(cc),
-            time.perf_counter() - t0,
-        )
-    )
-
-    for h in depths:
-        t0 = time.perf_counter()
-        inst, n_markers, fallback = watershed_with_meta(seg, dist, h)
-        pp = instance_polygons(inst)
-        tag = h_tag(h)
+    def record(
+        tag: str, pp: list, n_markers: int, fallback: bool, n_inst: int, t0: float
+    ) -> None:
         polys[tag] = [(pid, i, g) for i, g in pp]
         rows.append(
             (
@@ -167,31 +148,25 @@ def process_patch(
                 int(boundary.sum()),
                 n_markers,
                 fallback,
-                int(inst.max()),
+                n_inst,
                 len(pp),
                 time.perf_counter() - t0,
             )
         )
 
+    t0 = time.perf_counter()
+    cc = binary_polygons(field)
+    record("cc", cc, 0, False, len(cc), t0)
+    for h in depths:
+        t0 = time.perf_counter()
+        inst, n_markers, fallback = watershed_with_meta(seg, dist, h)
+        record(
+            h_tag(h), instance_polygons(inst), n_markers, fallback, int(inst.max()), t0
+        )
     for name in variant_names:
         t0 = time.perf_counter()
-        inst = v.run_variant(name, seg, prob, markers, px_m2, gmm_thr)
-        pp = instance_polygons(inst)
-        tag = f"v:{name}"
-        polys[tag] = [(pid, i, g) for i, g in pp]
-        rows.append(
-            (
-                pid,
-                tag,
-                int(field.sum()),
-                int(boundary.sum()),
-                0,
-                False,
-                int(inst.max()),
-                len(pp),
-                time.perf_counter() - t0,
-            )
-        )
+        inst = v.run_variant(name, seg, prob, px_m2, gmm_thr)
+        record(f"v:{name}", instance_polygons(inst), 0, False, int(inst.max()), t0)
     return polys, rows
 
 
@@ -292,8 +267,11 @@ def main() -> int:
     p.add_argument(
         "--variants",
         nargs="*",
-        default=None,
-        help="model-free variants (boundaryvote.variants); no value = all defaults",
+        default=(),
+        help="variant names (boundaryvote.variants)",
+    )
+    p.add_argument(
+        "--grids", nargs="*", default=(), help="variant groups from boundaryvote.grids"
     )
     p.add_argument(
         "--variants-only",
@@ -302,11 +280,7 @@ def main() -> int:
     )
     args = p.parse_args()
     depths = () if args.variants_only else tuple(args.depths)
-    variant_names: tuple[str, ...] = ()
-    if args.variants is not None:
-        variant_names = (
-            tuple(args.variants) if args.variants else tuple(v.default_variants())
-        )
+    variant_names = tuple(dict.fromkeys([*args.variants, *grid_names(args.grids)]))
     gmm: dict[str, tuple[float, float]] = {}
     if any(n.split("+")[0].endswith("-gmm") for n in variant_names):
         from .gmm_thresholds import ensure

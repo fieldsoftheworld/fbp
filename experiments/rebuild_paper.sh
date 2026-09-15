@@ -1,29 +1,41 @@
 #!/usr/bin/env bash
-# Rebuild every input of main_grsl_revised.tex from experiments/out, then the PDF.
-# Assumes the cache, candidates and scores are already on disk (see README).
+# Rebuild every input of main_grsl_revised.tex and supplementary.tex from
+# experiments/out, copy the tracked results, then build both PDFs.
+# Assumes the cache, candidates and scores are already on disk (see README);
+# the profile CSVs come from hpc/profile.sbatch and are copied if present.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 V="${V:-$HOME/github/ftw-planet/.venv/bin/python}"
+OUT=experiments/out
+RES=experiments/results
+
+copy_scores() {  # run split protocol
+  local src="$OUT/scores/$1/$2/$3" dst="$RES/$1/$2/$3"
+  ls "$src"/patches_*.parquet > /dev/null 2>&1 || return 0
+  experiments/run.sh boundaryvote.report --run "$1" --split "$2" --protocol "$3" \
+    | grep -E "^macro PQ ours|^\[report\]" || true
+  mkdir -p "$dst"
+  cp "$src"/{country,macro}.csv "$dst"/
+  [ -f "$src/ftp_gate.csv" ] && cp "$src/ftp_gate.csv" "$dst"/ || true
+  [ -f "$OUT/cache/$1/$2/manifest.json" ] && cp "$OUT/cache/$1/$2/manifest.json" "$RES/$1/$2/cache_manifest.json" || true
+}
 
 echo "== reports and the FTP gate =="
-for spec in "planet_b3 test pixel val" "planet_b7 test pixel val" "s2_b7 test pixel -" "s2_b3 test pixel -"; do
-  set -- $spec
-  args=(--run "$1" --split "$2" --protocol "$3")
-  [ "$4" = "-" ] && args+=(--val-split "") || args+=(--val-split "$4")
-  experiments/run.sh boundaryvote.report "${args[@]}" | grep -E "^macro PQ ours|^\[report\]" || true
-  d="experiments/results/$1/test"; [ "$1" = "${1#s2}" ] || d="$d/pixel"
-  mkdir -p "$d"
-  cp "experiments/out/scores/$1/test/$3"/{country,macro}.csv "$d"/
-  [ -f "experiments/out/scores/$1/test/$3/ftp_gate.csv" ] && cp "experiments/out/scores/$1/test/$3/ftp_gate.csv" "$d"/ || true
+for run in planet_b3 planet_b7 s2_b7 s2_b3; do
+  copy_scores "$run" test pixel
+  copy_scores "$run" test gsd   # Sentinel-2 gate at FTP's 10 m protocol
 done
+copy_scores planet_b3 val pixel
 
-echo "== validation split (supplementary grids) =="
-experiments/run.sh boundaryvote.report --run planet_b3 --split val --protocol pixel --val-split "" > /dev/null
-mkdir -p experiments/results/planet_b3/val
-cp experiments/out/scores/planet_b3/val/pixel/{country,macro}.csv experiments/results/planet_b3/val/
-
-echo "== cost and transfer =="
+echo "== transfer, bootstrap, profile =="
 experiments/run.sh boundaryvote.transfer --run planet_b3 > /dev/null
+mkdir -p "$RES/transfer" "$RES/bootstrap" "$RES/profile"
+cp "$OUT/transfer/planet_b3.csv" "$RES/transfer/"
+for run in planet_b3 planet_b7 s2_b7 s2_b3; do
+  experiments/run.sh boundaryvote.bootstrap --run "$run" > /dev/null
+  cp "$OUT/bootstrap/$run.csv" "$RES/bootstrap/"
+done
+for f in "$OUT"/profile/*_test.csv; do [ -f "$f" ] && cp "$f" "$RES/profile/"; done
 
 echo "== tables =="
 "$V" experiments/figures/make_tables.py > /dev/null

@@ -4,16 +4,12 @@ import numpy as np
 import pytest
 
 from boundaryvote.variants import (
-    apply_post_steps,
-    default_variants,
     drop_small,
     foreground,
     gap_close,
-    link_weak_lines,
     run_variant,
     run_variants,
     supported_split,
-    widen_gaps,
 )
 
 
@@ -70,10 +66,21 @@ def test_foreground_modes_and_close() -> None:
     assert inst.max() == 2
 
 
-def test_all_default_variants_run() -> None:
+def test_every_foreground_and_rule_runs() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    out = run_variants(seg, prob, default_variants())
-    assert len(out) == len(default_variants())
+    names = [
+        *(f"{f}-none" for f in ("arg", "nbg", "pf50", "otsu")),
+        "arg-ws2",
+        "arg-close1",
+        "nbg-sup-h2-t0.7",
+        "nbg-pb-h0.01-t0.3",
+        "nbg-osup-h0-t0.7",
+        "nbg-ssup-h2-t0.6",
+        "nbg-asup-h2-t0.5",
+        "nbg-dsup-h2-t0.5",
+    ]
+    out = run_variants(seg, prob, names)
+    assert len(out) == len(names)
     for v in out.values():
         assert v.dtype == np.int32 and v.shape == seg.shape and v.min() >= 0
 
@@ -106,25 +113,12 @@ def test_kept_splits_are_gaps_on_real_patch() -> None:
             assert touching_pairs(inst) == 0, name
 
 
-def test_widen_gaps_keeps_two_fields_and_grows_gap() -> None:
-    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    one = run_variants(seg, prob, ["nbg-sup-h1-t0.5"])["nbg-sup-h1-t0.5"]
-    two = run_variants(seg, prob, ["nbg-sup-h1-t0.5+w2"])["nbg-sup-h1-t0.5+w2"]
-    assert one.max() == two.max() == 2
-    fg = seg != 0
-    assert (fg & (two == 0)).sum() > (fg & (one == 0)).sum()
-    # exterior untouched: foreground pixels lost only next to existing gaps
-    assert ((one > 0) & (two == 0)).sum() == (fg & (two == 0)).sum() - (
-        fg & (one == 0)
-    ).sum()
-    assert touching_pairs(two) == 0
-
-
 def test_empty_patch() -> None:
     seg = np.zeros((8, 8), dtype=np.uint8)
     prob = np.zeros((3, 8, 8), dtype=np.float32)
     prob[0] = 1.0
-    for name, v in run_variants(seg, prob, default_variants()).items():
+    names = ("arg-none", "nbg-none", "arg-ws2", "nbg-sup-h2-t0.7", "nbg-pb-h0.01-t0.3")
+    for name, v in run_variants(seg, prob, names).items():
         assert v.max() == 0, name
 
 
@@ -157,8 +151,6 @@ def test_no_adjacent_labels_on_many_real_patches() -> None:
 
 
 def test_min_line_and_min_area_and_band() -> None:
-    from boundaryvote.variants import drop_small
-
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
     base = run_variants(seg, prob, ["nbg-sup-h1-t0.5"])["nbg-sup-h1-t0.5"]
     assert base.max() == 2
@@ -248,32 +240,6 @@ def test_supported_split_empty_foreground_returns_zeros() -> None:
     assert inst.max() == 0 and not lines.any() and not kept.any()
 
 
-def test_link_weak_lines_chains_through_touching_pixel() -> None:
-    """A weak line touching a strong one in its group is kept; a far one is not."""
-    shape = (5, 5)
-    rr = np.array([1, 1, 3])
-    cc = np.array([1, 2, 3])
-    inv = np.array([0, 1, 2])
-    strong = np.array([True, False, False])
-    eligible = np.array([True, True, False])
-    linked = link_weak_lines(strong, eligible, inv, rr, cc, shape)
-    assert linked.tolist() == [True, True, False]
-
-    far_cc = np.array([1, 4, 3])  # line 1 no longer 8-adjacent to line 0
-    unlinked = link_weak_lines(strong, eligible, inv, rr, far_cc, shape)
-    assert unlinked.tolist() == [True, False, False]
-
-
-def test_link_weak_lines_early_exits() -> None:
-    one = np.array([0])
-    assert link_weak_lines(
-        np.array([True]), np.array([False]), one, one, one, (3, 3)
-    ).tolist() == [True]
-    assert link_weak_lines(
-        np.array([True]), np.array([True]), one, one, one, (3, 3)
-    ).tolist() == [True]
-
-
 def test_supported_split_falls_back_when_no_markers_found() -> None:
     """`h` bigger than the EDT surface leaves no h-maxima -> one component."""
     seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
@@ -317,23 +283,6 @@ def test_soft_score_falls_back_to_hard_test_under_band() -> None:
     soft = supported_split(fg, seg, prob, h=1.0, tau=0.5, score="soft", band=1)
     frac = supported_split(fg, seg, prob, h=1.0, tau=0.5, score="frac", band=1)
     np.testing.assert_array_equal(soft, frac)
-
-
-def test_hysteresis_modifier_matches_direct_call() -> None:
-    """`+H50` must thread tau_lo=0.5 into supported_split exactly."""
-    seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    fg = foreground(seg, prob, "nbg")
-    wired = run_variant("nbg-sup-h1-t0.9+H50", seg, prob)
-    split = supported_split(fg, seg, prob, 1.0, 0.9, tau_lo=0.5)
-    direct = apply_post_steps(
-        widen_gaps(split, fg, 1),
-        0,
-        0,
-        0,
-        seg,
-        None,
-    )
-    np.testing.assert_array_equal(wired, direct)
 
 
 def test_oriented_surface_proposals() -> None:

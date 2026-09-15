@@ -12,7 +12,6 @@ from boundaryvote.scoring import (
     macro,
     pool_country,
     select_depth,
-    select_depth_global,
 )
 
 
@@ -124,34 +123,6 @@ def test_select_depth_test_and_val() -> None:
     assert ws_val.loc["a", "pq"] == pytest.approx(
         test.set_index(["country", "strategy"]).loc[("a", "raw:h8"), "pq"]
     )
-
-
-def test_select_depth_global_loco() -> None:
-    test = country_scores(
-        "test",
-        {
-            c: {"raw:h2": (2, 0, 0, 1.8), "raw:h8": (1, 1, 1, 0.9)}
-            for c in ("a", "b", "c")
-        },
-    )
-    # val: h8 wins in a and b, h2 wins in c by a landslide
-    val = country_scores(
-        "val",
-        {
-            "a": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},
-            "b": {"raw:h2": (1, 1, 1, 0.6), "raw:h8": (2, 0, 0, 1.9)},
-            "c": {"raw:h2": (5, 0, 0, 4.9), "raw:h8": (0, 5, 5, 0.0)},
-        },
-    )
-    loco = select_depth_global(
-        test, val, "raw", "ws_loco", ("a", "b", "c"), exclude_target=True
-    ).set_index("country")
-    # for c, the other two both prefer h8; for a, {b: h8, c: h2} -> mean PQ decides
-    assert loco.loc["c", "selected_depth"] == "raw:h8"
-    gval = select_depth_global(
-        test, val, "raw", "ws_gval", ("a", "b", "c"), exclude_target=False
-    )
-    assert (gval.selected_depth == gval.selected_depth.iloc[0]).all()
 
 
 def test_load_patches_missing_pattern_raises(tmp_path: Path) -> None:

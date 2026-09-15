@@ -1,19 +1,14 @@
-"""Stage 4: pool scores, add depth-selection baselines, gate against FTP, print tables.
+"""Stage 4: pool scores, add the test-selected depth, gate against FTP, print tables.
 
 Writes under ``out/scores/<run>/<split>/<protocol>/``:
 
-* ``country.csv``  every (reference, strategy, country) incl. selection rows
-* ``macro.csv``    dense-10 macro for every (reference, strategy)
+* ``country.csv``  every (strategy, country), plus ``rt_test``
+* ``macro.csv``    dense-10 macro for every strategy
 * ``ftp_gate.csv`` per-country comparison of ``rt:h2`` (== FTP's ``inst>0``
                    components) against FTP's published per-country CSV
 
-Selection rows (single watershed depth, one per country):
-* ``ws_test``  raw per-instance polygons, depth chosen on the *test* split
-               (retrospective; the letter's current baseline)
-* ``ws_val``   same, depth chosen on that country's *val* split
-* ``ws_loco``  depth chosen on the val split of the *other* nine countries
-* ``ws_gval``  one depth for all countries chosen on dense-10 val macro
-* ``rt_*``     the same four choices for the rasterize->polygonize control
+``rt_test`` is the FTP pipeline at the watershed depth that scores best on each
+country's own test labels, the depth-tuning ceiling the letter quotes.
 
 Example:
     python -m boundaryvote.report --run planet_b3 --split test
@@ -24,13 +19,7 @@ import argparse
 import pandas as pd
 
 from .paths import DENSE10, ftw_planet_repo, scores_dir
-from .scoring import (
-    load_patches,
-    macro,
-    pool_country,
-    select_depth,
-    select_depth_global,
-)
+from .scoring import load_patches, macro, pool_country, select_depth
 
 # Published per-country numbers exist under one scoring protocol per sensor:
 # PlanetScope in the prediction (pixel) frame, Sentinel-2 capped to 10 m.
@@ -41,54 +30,7 @@ FTP_CONDITION = {
     "s2_b3": ("s2b3_10m", "gsd"),
 }
 
-HEADLINE = [
-    "cc",
-    "rt:h2",
-    "raw:h2",
-    "ws_test",
-    "rt_test",
-    "ws_val",
-    "rt_val",
-    "ws_loco",
-    "rt_loco",
-    "ws_gval",
-    "vote:t0.5",
-    "vote:t0.5:k6",
-    "nms",
-    "elbow",
-]
-
-
-def add_selection_rows(
-    country: pd.DataFrame, val_country: pd.DataFrame | None, countries: tuple[str, ...]
-) -> pd.DataFrame:
-    """Append the ws_*/rt_* single-depth-selection rows described in the module docs."""
-    parts = [country]
-    for prefix, lab in (("raw", "ws"), ("rt", "rt")):
-        parts.append(select_depth(country, country, prefix, f"{lab}_test"))
-        if val_country is not None:
-            parts.append(select_depth(country, val_country, prefix, f"{lab}_val"))
-            parts.append(
-                select_depth_global(
-                    country,
-                    val_country,
-                    prefix,
-                    f"{lab}_loco",
-                    countries,
-                    exclude_target=True,
-                )
-            )
-            parts.append(
-                select_depth_global(
-                    country,
-                    val_country,
-                    prefix,
-                    f"{lab}_gval",
-                    countries,
-                    exclude_target=False,
-                )
-            )
-    return pd.concat(parts, ignore_index=True)
+HEADLINE = ["cc", "raw:h2", "rt:h2", "rt_test"]
 
 
 def ftp_gate(country: pd.DataFrame, run: str, protocol: str) -> pd.DataFrame | None:
@@ -137,26 +79,17 @@ def main() -> int:
     p.add_argument("--run", required=True)
     p.add_argument("--split", default="test")
     p.add_argument("--protocol", default="pixel")
-    p.add_argument(
-        "--val-split", default="val", help="split used for depth selection; '' to skip"
-    )
     p.add_argument("--countries", nargs="*", default=list(DENSE10))
     args = p.parse_args()
     countries = tuple(args.countries)
 
     root = scores_dir(f"{args.run}/{args.split}/{args.protocol}")
     country = pool_country(load_patches(root))
-    val_country = None
-    vroot = (
-        scores_dir(f"{args.run}/{args.val_split}/{args.protocol}")
-        if args.val_split
-        else None
-    )
-    if vroot is not None and any(vroot.glob("patches_*.parquet")):
-        val_country = pool_country(load_patches(vroot))
-    else:
-        print(f"[report] no val scores under {vroot}; skipping val/loco selection")
-    country = add_selection_rows(country, val_country, countries)
+    if country.strategy.str.startswith("rt:h").any():
+        country = pd.concat(
+            [country, select_depth(country, country, "rt", "rt_test")],
+            ignore_index=True,
+        )
     country.to_csv(root / "country.csv", index=False)
     # A strategy scored for only some countries, because a job is still running or
     # was run on a subset, cannot be macro-averaged; drop it and say so.
@@ -174,7 +107,8 @@ def main() -> int:
     mac = macro(country, countries)
     mac.to_csv(root / "macro.csv", index=False)
 
-    gate = ftp_gate(country, args.run, args.protocol)
+    # FTP publishes test-split numbers only
+    gate = ftp_gate(country, args.run, args.protocol) if args.split == "test" else None
     if gate is not None and len(gate):
         gate.to_csv(root / "ftp_gate.csv", index=False)
         pd.set_option("display.width", 200)
@@ -189,7 +123,6 @@ def main() -> int:
 
     print(f"\n== {args.run}/{args.split}/{args.protocol}: dense-10 macro ==")
     cols = [
-        "reference",
         "strategy",
         "pq",
         "sq",
@@ -208,14 +141,7 @@ def main() -> int:
     ]
     show = mac[mac.strategy.isin(HEADLINE)].copy()
     show["strategy"] = pd.Categorical(show.strategy, HEADLINE, ordered=True)
-    show = show.sort_values(["reference", "strategy"])
-    print(show[cols].round(4).to_string(index=False))
-
-    print("\n== tau sweep / depth subsets (reference=vector) ==")
-    sw = mac[(mac.reference == "vector") & mac.strategy.str.startswith("vote:")][
-        ["strategy", "pq", "sq", "rq", "count_bias"]
-    ]
-    print(sw.round(4).to_string(index=False))
+    print(show.sort_values("strategy")[cols].round(4).to_string(index=False))
     return 0
 
 

@@ -140,8 +140,8 @@ def select_depth(
 ) -> pd.DataFrame:
     """Per-country single-depth selection.
 
-    ``by`` supplies the scores used for the choice (same schema as ``country_df``,
-    e.g. the val split); ``country_df`` supplies the scores reported. ``prefix`` is
+    ``by`` supplies the scores used for the choice (same schema as
+    ``country_df``); ``country_df`` supplies the scores reported. ``prefix`` is
     ``raw`` or ``rt``. Returns rows with strategy renamed to ``label`` and a
     ``selected_depth`` column.
     """
@@ -153,37 +153,6 @@ def select_depth(
     best = best.rename(columns={"strategy": "selected_depth"})
     merge_on = [k for k in sel_keys if k in country_df.columns and k != "split"]
     out = country_df.merge(best.drop(columns=["split"]), on=merge_on, how="inner")
-    out = out[out.strategy == out.selected_depth].copy()
-    out["strategy"] = label
-    return out
-
-
-def select_depth_global(
-    country_df: pd.DataFrame,
-    by: pd.DataFrame,
-    prefix: str,
-    label: str,
-    countries: tuple[str, ...],
-    exclude_target: bool,
-) -> pd.DataFrame:
-    """One depth for all countries, chosen by macro PQ over ``by``.
-
-    ``exclude_target=True`` gives leave-one-country-out selection: the depth for
-    country c maximizes mean PQ over the other countries in ``by``.
-    """
-    sel_keys = [k for k in KEYS if k not in ("strategy", "country")]
-    cand = by[by.strategy.str.startswith(prefix + ":h") & by.country.isin(countries)]
-    rows = []
-    for key, g in cand.groupby(sel_keys, sort=False):
-        for c in countries:
-            pool = g[g.country != c] if exclude_target else g
-            depth = pool.groupby("strategy").pq.mean().idxmax()
-            rows.append(
-                dict(zip(sel_keys, key, strict=True), country=c, selected_depth=depth)
-            )
-    best = pd.DataFrame(rows).drop(columns=["split"])
-    merge_on = [k for k in best.columns if k != "selected_depth"]
-    out = country_df.merge(best, on=merge_on, how="inner")
     out = out[out.strategy == out.selected_depth].copy()
     out["strategy"] = label
     return out

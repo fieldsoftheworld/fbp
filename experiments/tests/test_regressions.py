@@ -1,6 +1,5 @@
-"""Regression tests for the four unbound-name bugs the type checkers caught."""
+"""Regression tests for unbound-name bugs the type checkers caught."""
 
-import json
 import sys
 from pathlib import Path
 
@@ -8,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 
-from boundaryvote import ensemble, ftp_compat, profile_methods, references
+from boundaryvote import ftp_compat, profile_methods, references
 from boundaryvote.paths import DENSE10, cache_dir
 
 
@@ -16,7 +15,7 @@ def test_sample_patches_rows_unpack_into_five_fields(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """sample_patches rows are (country, patch_id, n_gt, path, bin_name), not 4."""
-    monkeypatch.setenv("FIELDVOTE_OUT", str(tmp_path))
+    monkeypatch.setenv("BOUNDARYVOTE_OUT", str(tmp_path))
     country = DENSE10[0]
     src = cache_dir("run/test") / country
     src.mkdir(parents=True)
@@ -44,48 +43,6 @@ def test_profile_methods_rejects_zero_repeats(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(sys, "argv", ["profile_methods", "--repeats", "0"])
     with pytest.raises(ValueError, match="--repeats"):
         profile_methods.main()
-
-
-def test_ensemble_binds_gt_transform_crs_from_first_run(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """gt/transform/crs come from the first --runs source, not left unbound."""
-    monkeypatch.setenv("FIELDVOTE_OUT", str(tmp_path))
-    country = "belgium"
-    gt = np.array([[1, 1], [3, 1]], dtype=np.uint8)
-    transform = np.arange(6, dtype=np.float64)
-    for i, run in enumerate(("run_a", "run_b")):
-        d = cache_dir(f"{run}/test") / country
-        d.mkdir(parents=True)
-        prob = np.zeros((3, 2, 2), dtype=np.float32)
-        prob[i] = 1.0
-        np.savez(d / "p0.npz", prob=prob, gt=gt, transform=transform, crs="EPSG:4326")
-        (d / "index.csv").write_text("patch_id\np0\n")
-        with (cache_dir(f"{run}/test") / "manifest.json").open("w") as f:
-            json.dump({"run": run}, f)
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "ensemble",
-            "--runs",
-            "run_a",
-            "run_b",
-            "--out",
-            "merged",
-            "--split",
-            "test",
-            "--countries",
-            country,
-        ],
-    )
-    assert ensemble.main() == 0
-
-    with np.load(cache_dir("merged/test") / country / "p0.npz") as d:
-        assert np.array_equal(d["gt"], gt)
-        assert np.array_equal(d["transform"], transform)
-        assert str(d["crs"]) == "EPSG:4326"
 
 
 class FakeTask:

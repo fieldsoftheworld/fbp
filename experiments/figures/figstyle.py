@@ -1,31 +1,22 @@
-"""Publication figure style for matplotlib.
+"""Publication figure style for matplotlib, shared by the three figure scripts.
 
-Vendor this file next to the figure scripts that import it, so a figure stays
-reproducible after the session that made it ends.
+from figstyle import COLUMN, PALETTE, figure, save, use_style
 
-    from figstyle import COLUMN, PALETTE, figure, save, use_style
-
-    use_style()
-    fig, ax = figure(width=COLUMN)
-    ax.plot(x, y, color=PALETTE["blue"])
-    save(fig, "figs/loss_curve")
+use_style()
+fig, ax = figure(width=COLUMN)
+ax.plot(x, y, color=PALETTE["blue"])
+save(fig, "figures/rev_percountry")
 """
 
-import math
 import sys
-import warnings
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
-from matplotlib.image import AxesImage
-from matplotlib.lines import Line2D
-from numpy import ndarray
 
 # Final printed widths in inches. Build every figure at the size it will be
 # printed at: rescaling in LaTeX rescales the text with it.
@@ -48,53 +39,20 @@ PALETTE = {
 }
 CYCLE = [PALETTE[k] for k in ("blue", "orange", "green", "red", "purple", "cyan")]
 
-# Reference elements (baselines, chance level, targets) are grey, never a
-# palette color: the colors belong to the things being compared. BASELINE is
-# the line weight of grey; MUTED is the fill weight, light enough that a dark
-# edge still reads as the outline.
+# Reference elements (baselines, chance level) are grey, never a palette
+# color: the colors belong to the things being compared.
 BASELINE = "#7F7F7F"
-MUTED = "#CFCFCF"
 
 # Image-panel furniture shared by the gallery and worked pipeline.
 PANEL_EDGE = "#888888"
 PANEL_LINEWIDTH = 0.35
 LABEL_BBOX = {"boxstyle": "square,pad=0.15", "fc": "white", "ec": "none", "alpha": 0.95}
 # Signed text needs darker colors than large categorical fills.
-GAIN = "#1B7837"
 LOSS = "#B2182B"
 
-SEQUENTIAL = "viridis"
-DIVERGING = "RdBu_r"
-
-# Two-sided 95% t critical values by degrees of freedom. Seed counts are small
-# enough that the normal approximation understates the interval.
-_T95 = {
-    1: 12.706,
-    2: 4.303,
-    3: 3.182,
-    4: 2.776,
-    5: 2.571,
-    6: 2.447,
-    7: 2.365,
-    8: 2.306,
-    9: 2.262,
-    10: 2.228,
-    12: 2.179,
-    15: 2.131,
-    20: 2.086,
-    30: 2.042,
-    40: 2.021,
-    60: 2.000,
-    120: 1.980,
-}
-
-
-# Figure text is sans by default. It is what Nature and Science require in
-# figures, it holds its strokes at the 5-8pt sizes tick labels actually print
-# at, and a figure is scanned rather than read linearly. Each stack runs from
-# best to always-present: Helvetica metrics where the machine has them, the
-# TeX/Linux clones next, and matplotlib's bundled fonts last so a script still
-# renders on a bare box.
+# Each stack runs from best to always-present: Helvetica metrics where the
+# machine has them, the TeX/Linux clones next, and matplotlib's bundled fonts
+# last so a script still renders on a bare box.
 SANS = [
     "Helvetica Neue",
     "Helvetica",
@@ -104,9 +62,6 @@ SANS = [
     "Liberation Sans",
     "DejaVu Sans",
 ]
-# STIXGeneral leads the serif stack over Times New Roman deliberately: it has
-# the same metrics, ships with matplotlib, and so renders identically on every
-# machine instead of silently depending on what is installed.
 SERIF = [
     "Times New Roman",
     "Nimbus Roman",
@@ -129,10 +84,7 @@ def available_font(stack: list[str]) -> str | None:
 def use_style(family: str = "sans") -> None:
     """Apply the house rcParams. Call once, before creating any figure.
 
-    Sans is the default. Pass `family="serif"` to match a serif-set document
-    when the figure carries heavy math and you want it to read as part of the
-    body text; for a plain `article` in Computer Modern, set
-    `mathtext.fontset` to `"cm"` afterwards.
+    Pass `family="serif"` to match a serif-set document.
     """
     # Figure scripts only ever write files, and often run where no display
     # exists; picking Agg up front avoids a backend failure at import.
@@ -193,48 +145,6 @@ def figure(
         figsize=(width, width * ratio), layout="constrained", **kwargs
     )
     return fig, ax
-
-
-def figure_grid(
-    nrows: int = 1,
-    ncols: int = 2,
-    width: float = TEXT,
-    ratio: float = 0.4,
-    **kwargs: Any,
-) -> tuple[Figure, Axes | ndarray]:
-    """A panel grid at a final printed size, sharing one constrained layout."""
-    fig, axes = plt.subplots(
-        nrows, ncols, figsize=(width, width * ratio), layout="constrained", **kwargs
-    )
-    return fig, axes
-
-
-def panel_labels(
-    axes: Axes | ndarray,
-    labels: list[str] | None = None,
-    weight: str = "bold",
-    pad: float = 2.0,
-) -> None:
-    """Label panels (a), (b), ... above each axes' top-left corner.
-
-    Panel letters are how prose names a part of a figure ("as Fig. 2b shows").
-    Without them a multi-panel figure can only be referred to by position,
-    which breaks the moment a panel moves.
-    """
-    flat = np.ravel(np.asarray(axes, dtype=object)).tolist()
-    labels = labels or [f"({chr(ord('a') + i)})" for i in range(len(flat))]
-    for ax, text in zip(flat, labels, strict=True):
-        ax.annotate(
-            text,
-            xy=(0, 1),
-            xycoords="axes fraction",
-            xytext=(0, pad),
-            textcoords="offset points",
-            ha="left",
-            va="bottom",
-            fontweight=weight,
-            fontsize=mpl.rcParams["axes.labelsize"],
-        )
 
 
 def looks_numeric(label: str) -> bool:
@@ -332,12 +242,12 @@ def text_collisions(fig: Figure) -> list[str]:
     invisible until the figure is drawn.
     """
     fig.canvas.draw()
-    try:
-        renderer = fig.canvas.get_renderer()
-    except AttributeError:
+    canvas = fig.canvas
+    if not isinstance(canvas, FigureCanvasAgg):
         return [
             "text could not be inspected: no Agg-family canvas — call use_style() first"
         ]
+    renderer = canvas.get_renderer()
 
     # A locator can emit ticks just past the view limits; their label artists
     # exist and carry a position but are never drawn. Exclude them by tick
@@ -443,235 +353,3 @@ def save(
     else:
         print(f"figure audit {stem}: clean", file=sys.stderr)
     return paths
-
-
-def mean_ci(
-    runs: ndarray, confidence: float = 0.95
-) -> tuple[ndarray, ndarray, ndarray]:
-    """Mean and 95% t-interval across seeds. `runs` is (n_seeds, n_points).
-
-    Returns `(mean, lo, hi)`. Report the interval, not the standard deviation:
-    a band of +/- 1 SD says how spread the seeds are, not how well the mean is
-    resolved.
-    """
-    if confidence != 0.95:
-        raise ValueError("only the 95% interval is tabulated; use scipy for others")
-    runs = np.asarray(runs, dtype=float)
-    n = runs.shape[0]
-    mean = runs.mean(axis=0)
-    if n < 2:
-        warnings.warn(
-            "one seed: the band is a line, not an interval — say 'single seed' in the caption",
-            stacklevel=2,
-        )
-        return mean, mean, mean
-    sem = runs.std(axis=0, ddof=1) / math.sqrt(n)
-    crit = t95(n - 1)
-    return mean, mean - crit * sem, mean + crit * sem
-
-
-def family(name: str, n: int, lightest: float = 0.55) -> list[str]:
-    """`n` shades of one palette color, lightest first.
-
-    Hue names the method family, shade names the variant within it, so a
-    reader separates "prior work" from "ours" before reading the legend.
-    """
-    base = np.array(mpl.colors.to_rgb(PALETTE[name]))
-    if n == 1:
-        return [mpl.colors.to_hex(tuple(base))]
-    steps = np.linspace(lightest, 0.0, n)
-    return [mpl.colors.to_hex(tuple(base + (1.0 - base) * step)) for step in steps]
-
-
-def pareto_front(
-    x: ndarray, y: ndarray, minimize_x: bool = True, maximize_y: bool = True
-) -> ndarray:
-    """Indices of the non-dominated points, ordered along the frontier.
-
-    A point is on the frontier when no other point is at least as good on both
-    axes and strictly better on one.
-    """
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    cost_x = x if minimize_x else -x
-    cost_y = -y if maximize_y else y
-    best = np.inf
-    front = []
-    for i in np.lexsort((cost_y, cost_x)):
-        if cost_y[i] < best:
-            front.append(i)
-            best = cost_y[i]
-    return np.array(front, dtype=int)
-
-
-def t95(df: int) -> float:
-    # Round the degrees of freedom down, never to the nearest key: a smaller df
-    # gives a larger t, so the interval errs wide rather than overstating how
-    # well a handful of seeds resolves the mean.
-    covered = [k for k in _T95 if k <= df]
-    return _T95[max(covered)] if covered else _T95[1]
-
-
-def diff_ci(
-    treatment: ndarray, baseline: ndarray
-) -> tuple[np.floating, np.floating, np.floating]:
-    """Mean difference (treatment - baseline) and its 95% Welch interval.
-
-    An ablation claims a difference, so the figure has to show the interval of
-    the difference. Two overlapping per-variant intervals do not mean the
-    difference is indistinguishable from zero.
-    """
-    treatment = np.asarray(treatment, dtype=float)
-    baseline = np.asarray(baseline, dtype=float)
-    delta = treatment.mean() - baseline.mean()
-    n_t, n_b = treatment.size, baseline.size
-    if n_t < 2 or n_b < 2:
-        warnings.warn(
-            "one seed per arm: the difference has no interval — say so in the caption",
-            stacklevel=2,
-        )
-        return delta, delta, delta
-    var_t = treatment.var(ddof=1) / n_t
-    var_b = baseline.var(ddof=1) / n_b
-    sem = math.sqrt(var_t + var_b)
-    if sem == 0:
-        return delta, delta, delta  # every seed identical: the interval is a point
-    df = (var_t + var_b) ** 2 / (var_t**2 / (n_t - 1) + var_b**2 / (n_b - 1))
-    half = t95(int(df)) * sem
-    return delta, delta - half, delta + half
-
-
-def band(
-    ax: Axes,
-    x: ndarray,
-    runs: ndarray,
-    label: str | None = None,
-    color: str | None = None,
-    **kwargs: Any,
-) -> Line2D:
-    """Plot the seed mean as a line with its 95% interval as a matching band."""
-    mean, lo, hi = mean_ci(runs)
-    (line,) = ax.plot(x, mean, label=label, color=color, **kwargs)
-    ax.fill_between(x, lo, hi, color=line.get_color(), alpha=0.18, linewidth=0)
-    return line
-
-
-def label_ends(
-    ax: Axes,
-    lines: Sequence[Line2D],
-    labels: Sequence[str],
-    pad: float = 3.0,
-    min_gap: float = 7.0,
-    **kwargs: Any,
-) -> None:
-    """Label each line at its right end, in the line's own color.
-
-    Direct labels beat a legend up to ~5 series: the reader never has to match
-    a color to a key. Labels whose lines converge are nudged apart by `min_gap`
-    points so they stay readable, and the right x-limit is extended by exactly
-    the width the labels need.
-    """
-    ax.figure.canvas.draw()  # constrained layout settles the transform at draw
-    renderer = ax.figure.canvas.get_renderer()
-    pad_px = pad * ax.figure.dpi / 72
-
-    labels = list(labels)
-    if not labels:
-        return
-    size = kwargs.pop("fontsize", mpl.rcParams["legend.fontsize"])
-    widths: list[float] = []
-    heights: list[float] = []
-    for text in labels:
-        probe = ax.text(0, 0, text, fontsize=size)
-        extent = probe.get_window_extent(renderer)
-        widths.append(extent.width)
-        heights.append(extent.height)
-        probe.remove()
-    # Separate by the labels' own height, not a fixed point value: the right
-    # gap depends on the font, and a constant tuned for one is wrong for another.
-    gap_px = max(min_gap * ax.figure.dpi / 72, max(heights) * 1.15)
-    # Setting xlim changes the data-to-pixel scale, so the room cannot be
-    # measured in the old scale: solve for the limit at which the original span
-    # occupies (axes width - label width) pixels.
-    x_lo, x_hi = ax.get_xlim()
-    need = max(widths) + 2 * pad_px
-    axes_px = ax.bbox.width
-    if need < axes_px:
-        scale = ax.xaxis.get_transform()
-        s_lo, s_hi = scale.transform([x_lo, x_hi])
-        room = scale.inverted().transform(
-            [s_lo + (s_hi - s_lo) * axes_px / (axes_px - need)]
-        )[0]
-        ax.set_xlim(x_lo, room)
-
-    ends = []
-    for line, text in zip(lines, labels, strict=True):
-        xy = (line.get_xdata()[-1], line.get_ydata()[-1])
-        ends.append((ax.transData.transform(xy)[1], xy, line, text))
-    ends.sort(key=lambda end: end[0])
-    ys = [end[0] for end in ends]
-    for i in range(1, len(ys)):
-        ys[i] = max(ys[i], ys[i - 1] + gap_px)
-    for y_px, (_, xy, line, text) in zip(ys, ends, strict=True):
-        offset = (y_px - ax.transData.transform(xy)[1]) * 72 / ax.figure.dpi
-        ax.annotate(
-            text,
-            xy=xy,
-            xytext=(pad, offset),
-            textcoords="offset points",
-            color=line.get_color(),
-            va="center",
-            fontsize=size,
-            clip_on=False,
-            **kwargs,
-        )
-
-
-def si_ticks(ax: Axes, which: str = "x") -> None:
-    """Format ticks as 1.2k / 340M / 7B instead of 1.2e3 / 3.4e8.
-
-    Call it after the limits are final. On a log axis spanning less than a
-    decade the minor ticks carry the labels, so they get the same format —
-    otherwise matplotlib prints them as `1.85 x 10^0`.
-    """
-
-    def fmt(value: float, _pos: int | None) -> str:
-        for scale, suffix in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "k")):
-            if abs(value) >= scale:
-                trimmed = f"{value / scale:.1f}".rstrip("0").rstrip(".")
-                return f"{trimmed}{suffix}"
-        return f"{value:g}"
-
-    axis = ax.xaxis if which == "x" else ax.yaxis
-    axis.set_major_formatter(mpl.ticker.FuncFormatter(fmt))
-    scale = ax.get_xscale() if which == "x" else ax.get_yscale()
-    lo, hi = sorted(ax.get_xlim() if which == "x" else ax.get_ylim())
-    if scale == "log" and lo > 0 and hi / lo < 10:
-        axis.set_minor_formatter(mpl.ticker.FuncFormatter(fmt))
-
-
-def annotate_matrix(
-    ax: Axes,
-    values: ndarray,
-    fmt: str = "{:.2f}",
-    image: AxesImage | None = None,
-    threshold: float = 0.6,
-) -> None:
-    """Write each cell's value on a heatmap, in the more legible of black or white."""
-    values = np.asarray(values, dtype=float)
-    image = ax.images[-1] if image is None else image
-    norm, cmap = image.norm, image.cmap
-    for (row, col), value in np.ndenumerate(values):
-        if not np.isfinite(value):
-            continue
-        rgba = cmap(norm(value))
-        luminance = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
-        ax.text(
-            col,
-            row,
-            fmt.format(value),
-            ha="center",
-            va="center",
-            fontsize=6,
-            color="black" if luminance > threshold else "white",
-        )

@@ -18,10 +18,10 @@ from boundaryvote.shipped import OURS  # noqa: E402
 
 RES = ROOT / "experiments" / "results"
 RUNS = [
-    ("planet_b3", "test", "PS B3", PALETTE["blue"], "o"),
-    ("planet_b7", "test", "PS B7", PALETTE["cyan"], "s"),
-    ("s2_b7", "test/pixel", "S2 B7", PALETTE["red"], "D"),
-    ("s2_b3", "test/pixel", "S2 B3", PALETTE["orange"], "^"),
+    ("planet_b3", "PS B3", PALETTE["blue"], "o"),
+    ("planet_b7", "PS B7", PALETTE["cyan"], "s"),
+    ("s2_b7", "S2 B7", PALETTE["red"], "D"),
+    ("s2_b3", "S2 B3", PALETTE["orange"], "^"),
 ]
 NAMES = {
     "south_africa": "South Africa",
@@ -37,8 +37,8 @@ NAMES = {
 }
 
 
-def deltas(run: str, sub: str) -> pd.Series:
-    c = pd.read_csv(RES / run / sub / "country.csv")
+def deltas(run: str) -> pd.Series:
+    c = pd.read_csv(RES / run / "test" / "pixel" / "country.csv")
     c = c[c.reference == "vector"]
     base = c[c.strategy == BASE].set_index("country").pq
     ours = c[c.strategy == OURS].set_index("country").pq
@@ -47,14 +47,14 @@ def deltas(run: str, sub: str) -> pd.Series:
 
 def main() -> None:
     use_style(family="serif")
-    table = pd.DataFrame({label: deltas(run, sub) for run, sub, label, _, _ in RUNS})
+    table = pd.DataFrame({label: deltas(run) for run, label, _, _ in RUNS})
     order = table.mean(axis=1).sort_values().index  # smallest mean gain at the bottom
     table = table.loc[order]
 
     fig, ax = figure(width=COLUMN, ratio=0.6)
     ax.axvline(0, color=BASELINE, linewidth=0.8, zorder=1)
     y = np.arange(len(order))
-    for _run, _sub, label, color, marker in RUNS:
+    for _run, label, color, marker in RUNS:
         ax.scatter(
             table[label].to_numpy(),
             y,

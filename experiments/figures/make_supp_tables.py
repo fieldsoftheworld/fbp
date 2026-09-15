@@ -1,4 +1,4 @@
-"""Generate the supplementary tables from experiments/out and experiments/results.
+"""Generate the supplementary tables from experiments/results.
 
 Writes tables/supp_*.tex:
   supp_sweep_rows    every tau and h setting, all four model/sensor runs
@@ -24,8 +24,8 @@ OUT = ROOT / "tables"
 RUNS = [
     ("planet_b3", "test", "PS B3"),
     ("planet_b7", "test", "PS B7"),
-    ("s2_b7", "test/pixel", "S2 B7"),
-    ("s2_b3", "test/pixel", "S2 B3"),
+    ("s2_b7", "test", "S2 B7"),
+    ("s2_b3", "test", "S2 B3"),
 ]
 sys.path.insert(0, str(ROOT / "experiments"))
 from boundaryvote.shipped import FTP as BASE  # noqa: E402
@@ -56,8 +56,8 @@ NAMES = {
 }
 
 
-def macro(run: str, sub: str) -> pd.DataFrame:
-    m = pd.read_csv(RES / run / sub / "macro.csv")
+def macro(run: str, split: str) -> pd.DataFrame:
+    m = pd.read_csv(RES / run / split / "pixel" / "macro.csv")
     return m[m.reference == "vector"].set_index("strategy")
 
 
@@ -157,11 +157,7 @@ def prior_label(key: str) -> str:
 
 
 def priors_rows() -> list[str]:
-    val = (
-        macro("planet_b3", "val")
-        if (RES / "planet_b3" / "val" / "macro.csv").exists()
-        else None
-    )
+    val = macro("planet_b3", "val")
     test = macro("planet_b3", "test")
     fams = [
         ("Extent/Boundary Thresholds", "raw:v:arg-thr-", False),
@@ -191,12 +187,7 @@ def priors_rows() -> list[str]:
             rows.append(r"\addlinespace[2pt]")
         rows.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for k in keys:
-            v = (
-                f"{100 * val.loc[k].pq:.1f}"
-                if val is not None and k in val.index
-                else "--"
-            )
-            rows.append(f"{prior_label(k)} & {v} & {100 * test.loc[k].pq:.1f} \\\\")
+            rows.append(f"{prior_label(k)} & {pq(val, k)} & {pq(test, k)} \\\\")
     return rows
 
 
@@ -361,7 +352,7 @@ def size_rows() -> list[str]:
 def country_rows() -> list[str]:
     tabs = {}
     for run, sub, label in RUNS:
-        c = pd.read_csv(RES / run / sub / "country.csv")
+        c = pd.read_csv(RES / run / sub / "pixel" / "country.csv")
         c = c[c.reference == "vector"]
         base = c[c.strategy == COUNTRY_BASE].set_index("country").pq
         ours = c[c.strategy == OURS].set_index("country").pq
@@ -394,14 +385,10 @@ def timing_rows() -> list[str]:
     }
     frames = {}
     for run, label in (("planet_b3", "PS"), ("s2_b7", "S2")):
-        f = RES / "cost" / f"{run}_test.csv"
-        if f.exists():
-            df = pd.read_csv(f)
-            frames[label] = df.groupby(["method", "bin"]).ms.median().unstack()[order]
+        df = pd.read_csv(RES / "profile" / f"{run}_test.csv")
+        frames[label] = df.groupby(["method", "bin"]).ms.median().unstack()[order]
     rows = []
     for meth, label in labels.items():
-        if not all(meth in fr.index for fr in frames.values()):
-            continue  # not profiled yet
         cells: list[str] = []
         for _, fr in frames.items():
             cells += [f"{fr.loc[meth, b]:.0f}" for b in order]
@@ -414,10 +401,7 @@ def bootstrap_rows() -> list[str]:
     """Point estimate and 95% patch-bootstrap interval per run, both pipelines and gain."""
     rows = []
     for run, _sub, label in RUNS:
-        f = RES / "bootstrap" / f"{run}.csv"
-        if not f.exists():
-            continue
-        b = pd.read_csv(f).set_index("quantity")
+        b = pd.read_csv(RES / "bootstrap" / f"{run}.csv").set_index("quantity")
         cells = [
             f"{b.loc[q].point:.1f} [{b.loc[q].lo:.1f}, {b.loc[q].hi:.1f}]"
             for q in ("ftp_min_size", "ours", "gain")

@@ -1,11 +1,17 @@
-"""Stage 3 (CPU): score every strategy x reference per patch -> long-form parquet.
+"""Stage 3 (CPU): score every strategy per patch -> long-form parquet.
 
-For each cached patch the candidate polygon sets (stage 2) are combined by every
-strategy in ``build_strategies`` and matched against each requested reference
-with FTP's greedy rule. One row per (patch, reference, strategy) holding the
-raw tallies needed to pool PQ/SQ/RQ/F1 at any level, per-size-bin tallies, and
-split/merge/miss/spurious diagnostics. Nothing is averaged here; see
-``scoring.py``.
+For each cached patch the candidate polygon sets (stage 2) are matched against
+the reference parcels with FTP's greedy rule. One row per (patch, strategy)
+holding the raw tallies needed to pool PQ/SQ/RQ/F1 at any level, per-size-bin
+tallies, and split/merge/miss/spurious diagnostics. Nothing is averaged here;
+see ``scoring.py``.
+
+Strategies:
+* ``cc``            connected components of the field class
+* ``raw:h{h}``      per-instance watershed polygons at depth ``h``
+* ``rt:h{h}``       the same after rasterize -> polygonize, which is what FTP
+                    scores (``rt:h2`` is the FTP pipeline)
+* ``raw:v:<name>``  a ``variants.run_variant`` result (``rt:v:`` likewise)
 
 Protocols:
 * ``pixel``  match in the eval-grid pixel frame (FTP Table 1 Planet rows)
@@ -14,7 +20,8 @@ Protocols:
 
 Example:
     python -m boundaryvote.run_eval --run planet_b3 --split test --workers 16
-    python -m boundaryvote.run_eval --run s2_b7 --split test --protocol gsd --gsd-m 10
+    python -m boundaryvote.run_eval --run planet_b3 --split test --workers 16 \
+        --sets variants --tag sweep --grids sweep
 """
 
 import argparse
@@ -30,29 +37,12 @@ from . import ftp_compat as ftp
 from . import references as refs
 from . import strategies as s
 from .candidates import file_to_tag
+from .grids import names as grid_names
 from .matching import THRESHOLDS, diagnostics, match
 from .paths import DENSE10, H_SWEEP, cache_dir, candidates_dir, h_tag, scores_dir
 
 BINS = ("small", "medium", "large")
 AREA_EDGES = (0.5, 2.0)  # ha, FTP's --area-bins 0.5,2
-
-SUBSETS: dict[str, tuple[float, ...]] = {
-    "k6": (
-        2.0,
-        4.0,
-        8.0,
-        12.0,
-        16.0,
-        24.0,
-    ),  # legacy 6-depth sweep (02_consensus, 05_global)
-    "k4": (2.0, 4.0, 8.0, 12.0),  # legacy figure export set
-    "k3": (1.0, 4.0, 16.0),
-    "lo7": H_SWEEP[:7],
-    "hi7": H_SWEEP[7:],
-    "odd": H_SWEEP[0::2],
-    "even": H_SWEEP[1::2],
-    "uniform7": (0.5, 4.0, 8.0, 12.0, 16.0, 24.0, 32.0),
-}
 
 # Module globals populated before forking the worker pool.
 _CANDS: dict[str, dict[str, list]] = {}
@@ -62,7 +52,7 @@ _OPTS: dict = {}
 def build_strategies(
     cand: dict[str, list], shape: tuple[int, int], opts: dict
 ) -> dict[str, list]:
-    """Return {strategy_name: polygons}. Order of ``H_SWEEP`` defines K."""
+    """Return {strategy_name: polygons} for the requested strategy sets."""
     out: dict[str, list] = {}
     if "variants" in opts["sets"]:
         wanted = opts.get("variant_tags")
@@ -73,23 +63,11 @@ def build_strategies(
             out[f"rt:{tag}"] = s.roundtrip(cand[tag], shape)
     if "base" not in opts["sets"]:
         return out
-    sweep = [cand[h_tag(h)] for h in H_SWEEP]
     out["cc"] = cand["cc"]
     for h in H_SWEEP:
         tag = h_tag(h)
         out[f"raw:{tag}"] = cand[tag]
         out[f"rt:{tag}"] = s.roundtrip(cand[tag], shape)
-    for tau in opts["taus"]:
-        out[f"vote:t{tau:g}"] = s.vote(sweep, shape, tau)
-    for name, hs in SUBSETS.items():
-        out[f"vote:t0.5:{name}"] = s.vote([cand[h_tag(h)] for h in hs], shape, 0.5)
-    if opts["drop_one"]:
-        for h in H_SWEEP:
-            out[f"vote:t0.5:drop{h_tag(h)}"] = s.vote(
-                [cand[h_tag(g)] for g in H_SWEEP if g != h], shape, 0.5
-            )
-    out["nms"] = s.nms_pool(sweep, 0.5)
-    out["elbow"] = s.elbow(sweep)
     return out
 
 
@@ -135,7 +113,7 @@ def tally(
 
 
 def score_patch(job: tuple[str, str, str]) -> list[dict]:
-    """Every (strategy, reference) row for one cached patch."""
+    """Every strategy row for one cached patch, against the vector reference."""
     country, pid, npz = job
     grid = refs.load_grid(Path(npz), country)
     cand = _CANDS[pid]
@@ -146,39 +124,29 @@ def score_patch(job: tuple[str, str, str]) -> list[dict]:
 
     utm = refs.utm_crs(grid)
     px_ha = refs.pixel_area_ha(grid, utm)
-    gts: dict[str, tuple[list, list[float]]] = {}
-    if "vector" in opts["references"]:
-        if opts["protocol"] == "gsd":
-            g, a, _ = refs.vector_utm(grid)
-        else:
-            g, a = refs.vector(grid)
-        gts["vector"] = (g, a)
-    if "mask" in opts["references"]:
-        g = refs.mask(grid)
-        gts["mask"] = (g, [p.area * px_ha for p in g])
-    if "instance" in opts["references"]:
-        g = refs.instance(grid)
-        gts["instance"] = (g, [p.area * px_ha for p in g])
+    if opts["protocol"] == "gsd":
+        gt, areas, _ = refs.vector_utm(grid)
+    else:
+        gt, areas = refs.vector(grid)
 
     rows = []
     for sname, pred in strategies.items():
-        for rname, (gt, areas) in gts.items():
-            if rname == "vector" and opts["protocol"] == "gsd":
-                pred_s = ftp.cap_pred_to_gsd(
-                    pred, grid.transform, grid.crs, utm, opts["gsd_m"]
-                )
-                row = tally(gt, areas, pred_s, None)
-            else:
-                row = tally(gt, areas, pred, px_ha)
-            row.update(
-                country=country,
-                patch_id=pid,
-                reference=rname,
-                strategy=sname,
-                px_ha=px_ha,
-                t_build=t_build,
+        if opts["protocol"] == "gsd":
+            pred_s = ftp.cap_pred_to_gsd(
+                pred, grid.transform, grid.crs, utm, opts["gsd_m"]
             )
-            rows.append(row)
+            row = tally(gt, areas, pred_s, None)
+        else:
+            row = tally(gt, areas, pred, px_ha)
+        row.update(
+            country=country,
+            patch_id=pid,
+            reference="vector",
+            strategy=sname,
+            px_ha=px_ha,
+            t_build=t_build,
+        )
+        rows.append(row)
     return rows
 
 
@@ -218,9 +186,6 @@ def run_country(args: Namespace, country: str) -> pd.DataFrame:
         "variant_tags": (
             {f"v:{v}" for v in args.variants} if args.variants is not None else None
         ),
-        "taus": tuple(args.taus),
-        "drop_one": args.drop_one,
-        "references": tuple(args.references),
         "protocol": args.protocol,
         "gsd_m": args.gsd_m,
     }
@@ -244,31 +209,29 @@ def main() -> int:
     p.add_argument("--run", required=True)
     p.add_argument("--split", default="test", choices=["test", "val"])
     p.add_argument("--countries", nargs="*", default=list(DENSE10))
-    p.add_argument(
-        "--references", nargs="*", default=["vector", "mask"], choices=refs.REFERENCES
-    )
     p.add_argument("--protocol", default="pixel", choices=["pixel", "gsd"])
     p.add_argument("--gsd-m", type=float, default=3.0)
-    p.add_argument("--taus", nargs="*", type=float, default=[0.3, 0.4, 0.5, 0.6, 0.7])
-    p.add_argument(
-        "--drop-one", action="store_true", help="add leave-one-depth-out votes"
-    )
     p.add_argument("--workers", type=int, default=8)
     p.add_argument(
         "--sets",
         nargs="*",
         default=["base"],
         choices=["base", "variants"],
-        help="base = depth sweep/vote/nms/elbow; variants = boundaryvote.variants tags",
+        help="base = cc and the depth sweep; variants = boundaryvote.variants tags",
     )
-    p.add_argument("--tag", default="", help="output file infix, e.g. 'variants'")
+    p.add_argument("--tag", default="", help="output file infix, e.g. 'sweep'")
     p.add_argument(
         "--variants",
         nargs="*",
         default=None,
         help="score only these variant names (default: every v: tag on disk)",
     )
+    p.add_argument(
+        "--grids", nargs="*", default=(), help="variant groups from boundaryvote.grids"
+    )
     args = p.parse_args()
+    if args.grids:
+        args.variants = [*(args.variants or []), *grid_names(args.grids)]
 
     out = scores_dir(f"{args.run}/{args.split}/{args.protocol}")
     out.mkdir(parents=True, exist_ok=True)
@@ -283,8 +246,7 @@ def main() -> int:
         n_pat = df.patch_id.nunique()
         n_str = df.strategy.nunique()
         print(
-            f"{c}: {n_pat} patches x {n_str} strategies x "
-            f"{df.reference.nunique()} refs in {time.time() - t0:.0f}s",
+            f"{c}: {n_pat} patches x {n_str} strategies in {time.time() - t0:.0f}s",
             flush=True,
         )
     return 0

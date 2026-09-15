@@ -1,8 +1,7 @@
-"""Reference-loading path construction and pure-array reference extraction.
+"""Reference-loading path construction and pixel-area arithmetic.
 
 Vector ground truth (``vector``/``vector_utm``) needs the real FTW parcel
-data and is not covered here; everything below is testable with ``tmp_path``
-and ``monkeypatch``, following the pattern in ``test_load_candidates.py``.
+data and is not covered here.
 """
 
 from pathlib import Path
@@ -11,16 +10,12 @@ import geopandas as gpd
 import numpy as np
 import pyproj
 import pytest
-import rasterio
 import shapely.geometry
 from rasterio.transform import Affine
 
 from boundaryvote.references import (
     PatchGrid,
-    ftw_root,
-    instance,
     load_prob,
-    mask,
     pixel_area_ha,
     polygons_root,
     utm_crs,
@@ -46,12 +41,11 @@ def make_grid(
     )
 
 
-def test_polygons_root_and_ftw_root_honour_env_override(
+def test_polygons_root_honours_env_override(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("FTW_PLANET_REPO", str(tmp_path))
     assert polygons_root() == tmp_path.resolve() / "data" / "ftw_polygons_clipped"
-    assert ftw_root() == tmp_path.resolve() / "data" / "ftw"
 
 
 def test_load_prob_reads_npz(tmp_path: Path) -> None:
@@ -78,60 +72,6 @@ def test_utm_crs_missing_and_present(
     crs = utm_crs(grid)
     assert crs is not None
     assert crs.to_epsg() == 32633
-
-
-def test_mask_extracts_field_class_components() -> None:
-    grid = make_grid()
-    grid.gt[2:6, 2:6] = 1  # field
-    grid.gt[7, 7] = 2  # boundary, not field -> excluded
-    shapes = mask(grid)
-    assert len(shapes) == 1
-    assert shapes[0].area == pytest.approx(16.0)
-
-
-def write_instance_tif(
-    tif_dir: Path, patch_id: str, transform: Affine, crs: str
-) -> None:
-    tif_dir.mkdir(parents=True, exist_ok=True)
-    arr = np.zeros((10, 10), dtype=np.int32)
-    arr[2:5, 2:5] = 1
-    arr[6:9, 6:9] = 2
-    with rasterio.open(
-        tif_dir / f"{patch_id}.tif",
-        "w",
-        driver="GTiff",
-        height=10,
-        width=10,
-        count=1,
-        dtype="int32",
-        crs=crs,
-        transform=transform,
-    ) as dst:
-        dst.write(arr, 1)
-
-
-def test_instance_reprojects_and_polygonizes(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("FTW_PLANET_REPO", str(tmp_path))
-    grid = make_grid()
-    write_instance_tif(
-        ftw_root() / grid.country / "label_masks" / "instance",
-        grid.patch_id,
-        grid.transform,
-        grid.crs,
-    )
-    shapes = instance(grid)
-    assert len(shapes) == 2
-    assert sum(s.area for s in shapes) == pytest.approx(18.0)
-
-
-def test_instance_missing_file_returns_empty(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("FTW_PLANET_REPO", str(tmp_path))
-    grid = make_grid(country="yy", patch_id="missing")
-    assert instance(grid) == []
 
 
 def test_pixel_area_ha_planet_grid_uses_transform_directly() -> None:

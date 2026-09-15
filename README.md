@@ -1,41 +1,40 @@
-# FieldVote paper
+# BoundaryVote
 
-**The submission is `main_grsl_revised.tex`, with `supplementary.tex` alongside
-it.** Earlier iterations (`main.tex`, `main_grsl.tex`) and the legacy `scripts/`
-tree that generated their figures were removed; recover them from git history if
-needed.
+Source, experiment code, and results for the GRSL letter
+*BoundaryVote* (`main_grsl_revised.tex`) and its supplement
+(`supplementary.tex`). BoundaryVote is a post-processing step for three-class
+field-boundary networks: it over-segments the predicted boundary probability
+with a watershed and keeps a split only where the pixels along the watershed
+line vote for the boundary class.
 
-The [GRSL author checklist](https://www.grss-ieee.org/publications/checklist-for-authors/)
-limits the entire manuscript to **five pages, including references**. Use the
-standard IEEEtran journal format; do not shrink fonts or margins to fit.
+## Layout
 
-## Build
+| path | what |
+|---|---|
+| `main_grsl_revised.tex`, `supplementary.tex`, `references.bib` | the letter (5 pages incl. references, IEEEtran) and the supplement |
+| `tables/*.tex` | generated table rows and value macros the two documents `\input` |
+| `figures/rev_*.pdf` | generated figures |
+| `experiments/` | the code and SLURM jobs that produce every number and figure; see `experiments/README.md` |
+| `experiments/results/` | tracked copies of the scored results the tables and figures are built from |
+
+## Build the PDFs
 
 ```sh
 latexmk -pdf -interaction=nonstopmode -halt-on-error main_grsl_revised.tex
 latexmk -pdf -interaction=nonstopmode -halt-on-error supplementary.tex
 ```
 
-Output: `main_grsl_revised.pdf` (5 pages) and `supplementary.pdf` (2 pages).
-Bare `latexmk -pdf` builds both through `.latexmkrc`. In Overleaf, set **Main
-document** to `main_grsl_revised.tex`.
+The figure PDFs and table fragments are tracked, so this needs only LaTeX,
+BibTeX, and IEEEtran. Bare `latexmk -pdf` builds both through `.latexmkrc`.
 
-The figure PDFs and generated table fragments are tracked, so compiling requires
-only LaTeX, BibTeX, and IEEEtran.
-
-## Regenerating figures and tables
-
-`experiments/` holds the self-contained rerun behind the letter: cached
-predictions, polygon candidates, scoring, and the scripts that write every
-`figures/rev_*.pdf` and `tables/{rev,supp}_*.tex`. One command rebuilds all of
-them and both PDFs:
+## Regenerate tables and figures
 
 ```sh
 experiments/rebuild_paper.sh
 ```
 
-It needs the sibling `~/github/ftw-planet` checkout and its venv. See
-`experiments/README.md` for the stages, the SLURM jobs, and the results.
-
-See `REVISION_NOTES.md` for revision details and `BIBLIOGRAPHY_AUDIT.md` for
-verified reference metadata and the comparisons motivated by that literature.
+This pools the scored patches, copies the results into `experiments/results/`,
+writes `tables/` and `figures/`, and compiles both PDFs. It needs the
+prediction cache and scores under `experiments/out/` (gitignored), which the
+SLURM jobs in `experiments/hpc/` produce; `experiments/README.md` walks through
+that from the released checkpoints.

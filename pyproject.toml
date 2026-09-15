@@ -198,9 +198,6 @@ preset = "strict"
 # Third-party geo/array stack is largely unstubbed; treat the missing pieces as
 # Any instead of drowning real findings in import errors.
 replace-untyped-imports-with-any = ["*"]
-# ultralytics is an optional dep: only cache_da.py (the DelineateAnything
-# baseline) imports it, and it is not installed in ftw-planet's venv.
-ignore-missing-imports = ["ultralytics"]
 use-ignore-files = true
 
 [tool.pyrefly.errors]

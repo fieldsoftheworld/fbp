@@ -7,7 +7,7 @@ from numpy.random._generator import Generator
 
 from boundaryvote import ftp_compat as ftp
 from boundaryvote.matching import THRESHOLDS, diagnostics, greedy, iou_matrix, match
-from boundaryvote.strategies import elbow, nms_pool, roundtrip, vote
+from boundaryvote.strategies import roundtrip
 
 
 def random_boxes(
@@ -48,32 +48,11 @@ def test_diagnostics_split_merge() -> None:
     assert d["gt_missed"] == 1 and d["pred_spurious"] == 1
 
 
-def test_vote_majority_and_ties() -> None:
-    shape = (20, 20)
-    a = [shapely.geometry.box(0, 0, 10, 10)]
-    b = [shapely.geometry.box(0, 0, 10, 10), shapely.geometry.box(12, 12, 18, 18)]
-    # K=2, tau=0.5 -> k_min=1: union (ties to foreground)
-    out = vote([a, b], shape)
-    assert len(out) == 2
-    # K=3 -> k_min=2: only the box present twice survives
-    out = vote([a, b, []], shape)
-    assert len(out) == 1 and out[0].area == 100
-
-
 def test_roundtrip_merges_touching_polygons() -> None:
     shape = (20, 20)
     left = shapely.geometry.box(0, 0, 5, 10)
     right = shapely.geometry.box(5, 0, 10, 10)
     assert len(roundtrip([left, right], shape)) == 1
-
-
-def test_nms_and_elbow_smoke() -> None:
-    a = shapely.geometry.box(0, 0, 10, 10)
-    b = shapely.geometry.box(0, 0, 10, 9)  # IoU 0.9 with a
-    c = shapely.geometry.box(20, 20, 25, 25)
-    out = nms_pool([[a, c], [b], [a]])
-    assert len(out) == 2
-    assert elbow([[a], [a, c], [a, c]]) == [a, c]
 
 
 def test_iou_matrix_empty_gt_or_pred() -> None:

@@ -51,27 +51,12 @@ def test_build_strategies_base_set_has_expected_keys() -> None:
     cand = {"cc": [box]}
     for h in H_SWEEP:
         cand[h_tag(h)] = [box]
-    opts = {"sets": ("base",), "taus": (0.5,), "drop_one": False}
-    out = build_strategies(cand, shape, opts)
+    out = build_strategies(cand, shape, {"sets": ("base",)})
     assert "cc" in out
     for h in H_SWEEP:
         assert f"raw:{h_tag(h)}" in out and f"rt:{h_tag(h)}" in out
-    assert "vote:t0.5" in out
-    assert "vote:t0.5:k6" in out
-    assert "nms" in out and "elbow" in out
+    assert len(out) == 1 + 2 * len(H_SWEEP)
     assert not any(k.startswith("raw:v:") for k in out)  # no variant set requested
-
-
-def test_build_strategies_drop_one_adds_leave_one_out_votes() -> None:
-    shape = (30, 30)
-    box = shapely.geometry.box(2, 2, 10, 10)
-    cand = {"cc": [box]}
-    for h in H_SWEEP:
-        cand[h_tag(h)] = [box]
-    opts = {"sets": ("base",), "taus": (), "drop_one": True}
-    out = build_strategies(cand, shape, opts)
-    dropped = f"vote:t0.5:drop{h_tag(H_SWEEP[0])}"
-    assert dropped in out
 
 
 def test_build_strategies_variant_set_filters_by_tag() -> None:

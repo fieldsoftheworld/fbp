@@ -14,7 +14,7 @@ from boundaryvote.run_eval import load_candidates
 def test_missing_tag_filled_with_empty_list(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("FIELDVOTE_OUT", str(tmp_path))
+    monkeypatch.setenv("BOUNDARYVOTE_OUT", str(tmp_path))
     cdir = paths.candidates_dir("r/test") / "xx"
     cdir.mkdir(parents=True)
     box = shapely.geometry.box(0, 0, 2, 2)

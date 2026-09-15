@@ -1,17 +1,9 @@
-"""Reference (ground-truth) polygon sets for one cached patch.
+"""Reference (ground-truth) parcels for one cached patch.
 
-Three conventions, all returned in the eval-grid pixel frame unless noted:
-
-* ``vector``   true FTW parcels from ``data/ftw_polygons_clipped`` mapped into the
-               pixel frame with FTP's ``_true_gt_shapes`` (FTP Table 1 protocol for
-               Planet). ``areas_ha`` are true UTM areas.
-* ``mask``     connected components of the semantic field class in the label raster
-               (FTP's default mode; the legacy ICVR "semantic-mask" footing).
-* ``instance`` FTW instance label raster (S2 grid) reprojected nearest-neighbour
-               onto the eval grid and polygonized per id (legacy ICVR
-               ``rescore_instance_gt``).
-
-``vector_utm`` returns the parcels in their UTM CRS for FTP's native-GSD mode.
+``vector`` returns the true FTW parcels from ``data/ftw_polygons_clipped``
+mapped into the eval-grid pixel frame with FTP's ``_true_gt_shapes`` (FTP
+Table 1 protocol for Planet); ``areas_ha`` are true UTM areas. ``vector_utm``
+returns the same parcels in their UTM CRS for FTP's native-GSD mode.
 """
 
 from dataclasses import dataclass
@@ -20,15 +12,11 @@ from pathlib import Path
 import numpy as np
 import pyproj
 import rasterio
-import rasterio.features
-import rasterio.warp
 import shapely.geometry
 from rasterio.transform import Affine
 
 from . import ftp_compat as ftp
 from .paths import ftw_planet_repo
-
-REFERENCES = ("vector", "mask", "instance")
 
 
 @dataclass(frozen=True)
@@ -77,11 +65,6 @@ def polygons_root() -> Path:
     return ftw_planet_repo() / "data" / "ftw_polygons_clipped"
 
 
-def ftw_root() -> Path:
-    """Root of the FTW (S2) dataset."""
-    return ftw_planet_repo() / "data" / "ftw"
-
-
 def vector(grid: PatchGrid) -> tuple[list, list[float]]:
     """True FTW parcels in the eval-grid pixel frame, FTP Table 1 protocol."""
     return ftp.true_gt_shapes(
@@ -102,36 +85,6 @@ def utm_crs(grid: PatchGrid) -> pyproj.CRS | None:
     if not p.exists():
         return None
     return gpd.read_parquet(p, columns=["geometry"]).crs
-
-
-def mask(grid: PatchGrid) -> list:
-    """Connected components of the field class in the label raster."""
-    return ftp.extract_shapes((grid.gt == 1).astype(np.uint8))
-
-
-def instance(grid: PatchGrid) -> list:
-    """FTW instance raster reprojected onto the eval grid and polygonized."""
-    src_path = (
-        ftw_root() / grid.country / "label_masks" / "instance" / f"{grid.patch_id}.tif"
-    )
-    if not src_path.exists():
-        return []
-    with rasterio.open(src_path) as src:
-        inst = src.read(1)
-        dst = np.zeros(grid.shape, dtype=inst.dtype)
-        rasterio.warp.reproject(
-            inst,
-            dst,
-            src_transform=src.transform,
-            src_crs=src.crs,
-            dst_transform=grid.transform,
-            dst_crs=grid.crs,
-            resampling=rasterio.warp.Resampling.nearest,
-        )
-    shapes = []
-    for geom, _val in rasterio.features.shapes(dst.astype(np.int32), mask=dst > 0):
-        shapes.append(shapely.geometry.shape(geom))
-    return shapes
 
 
 def pixel_area_ha(grid: PatchGrid, utm: pyproj.CRS | None) -> float:

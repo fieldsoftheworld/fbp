@@ -1,4 +1,4 @@
-"""Model-free post-processing variants built from (seg, prob) only.
+"""Post-processing variants built from (seg, prob) only.
 
 Every variant returns an int32 instance image on the eval grid; instances are
 separated by 1-px background lines where a split is kept, so per-instance
@@ -14,25 +14,30 @@ Split rules:
 * ``none``            connected components of the foreground
 * ``ws{h}``           the FTP pipeline: watershed at depth ``h`` on the field
                       class, then connected components of the union of its instances
-* ``sup-h{h}-t{tau}`` EDT-of-boundary watershed with h-maxima markers at depth ``h``
-                      and watershed lines; a line between two regions is kept only if
-                      at least ``tau`` of its pixels have p_boundary >= p_field
-                      ("boundary-supported split"); otherwise the regions merge
-* ``pb-h{h}-t{tau}``  same, but the watershed surface is 1 - p_boundary and ``h`` is
-                      in probability units
-* ``osup-h{h}-t{tau}`` same, on 1 - the oriented boundary signal of Zhu et al.
-                      (``priors_recent.oriented_signal``); ``h = 0`` seeds every maximum
+* ``pb-h{h}-t{tau}``  BoundaryVote: watershed of 1 - p_boundary seeded at its
+                      regional maxima deeper than ``h`` (probability units), with
+                      watershed lines; a line between two regions is kept only if
+                      at least ``tau`` of its pixels have p_boundary >= p_field,
+                      otherwise the regions merge
+* ``sup-h{h}-t{tau}`` the same vote on the EDT-of-boundary surface with ``h`` in
+                      pixels (the distance-map form)
+* ``osup-h{h}-t{tau}`` the same on 1 - the oriented boundary signal of Zhu et al.
+                      (``priors_recent.oriented_signal``)
+* ``ssup``/``asup``/``dsup``  the distance form with another line statistic
+                      (``LINE_SCORE``): mean probability share, mean p_boundary,
+                      mean margin
 * ``close{r}``        boundary class closed with a (2r+1)^2 square and subtracted
                       from the foreground before taking components (classic gap closing)
+* ``ucm``, ``swst``, ``iterh``, ``thr``, ``owt``, ``gmm``  prior methods, see
+                      ``priors`` and ``priors_recent``
 
-Modifiers are appended with ``+``: ``+l{L}`` requires a kept line to be at least
-``L`` px long, ``+b{R}`` lets a line pixel count as supported when any pixel
-within ``R`` favours boundary, ``+a{A}`` drops parcels under ``A`` px, and
-``+w{k}`` widens kept lines to ``k`` px for scoring on a coarser grid, and
+``h = 0`` seeds every regional maximum. Modifiers are appended with ``+``:
+``+l{L}`` requires a kept line to be at least ``L`` px long, ``+b{R}`` lets a
+line pixel count as supported when any pixel within ``R`` favours boundary,
+``+f{A}`` fills holes under ``A`` px (``-1`` fills all), ``+m{A}`` merges parcels
+under ``A`` px into the neighbour they share the longest border with, and
 ``+A{m2}`` drops parcels under ``m2`` square metres, converted with the patch's
 own pixel area so the threshold means the same on either sensor.
-``+f{A}`` fills holes under ``A`` px (``-1`` fills all) and ``+m{A}`` merges parcels
-under ``A`` px into the neighbour they share the longest border with.
 """
 
 from collections.abc import Iterable
@@ -62,6 +67,7 @@ LINE_SCORE = {
 }
 # Rule kind -> watershed surface the split proposals come from.
 SURFACE = {"pb": "pb", "osup": "owt"}
+PRIORS = ("ucm", "swst", "iterh", "thr", "owt")
 
 
 def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
@@ -124,42 +130,44 @@ class UnionFind:
             self.parent[max(ra, rb)] = min(ra, rb)
 
 
-def link_weak_lines(
-    strong: ndarray,
-    eligible: ndarray,
-    inv: ndarray,
-    rr: ndarray,
-    cc: ndarray,
-    shape: tuple[int, int],
-) -> ndarray:
-    """Hysteresis over the watershed lines.
+def split_surface(
+    fg: np.ndarray, seg: np.ndarray, prob: np.ndarray, surface: str
+) -> np.ndarray:
+    """The surface whose regional maxima seed the over-segmentation."""
+    if surface == "edt":
+        return distance_transform_edt(seg != 2).astype(np.float32) * fg
+    if surface == "pb":
+        return (1.0 - prob[2]).astype(np.float32) * fg
+    if surface == "owt":
+        # Zhu et al.'s oriented boundary signal as the proposal surface
+        from .priors_recent import oriented_signal
 
-    ``strong`` lines are kept outright. An ``eligible`` line is kept when a chain
-    of eligible lines connects it to a strong one, which is decided by grouping
-    eligible lines that touch in the 8-neighbourhood and keeping every group that
-    holds at least one strong line.
-    """
-    if not eligible.any() or strong.all():
-        return strong
-    # paint each line's id where its pixels are, restricted to eligible lines
-    ids = np.full(shape, -1, dtype=np.int64)
-    ok = eligible[inv]
-    ids[rr[ok], cc[ok]] = inv[ok]
-    uf = UnionFind(int(inv.max()) + 1)
-    pad = np.pad(ids, 1, constant_values=-1)
-    here = ids[rr[ok], cc[ok]]
-    for dr, dc in ((0, 1), (1, 0), (1, 1), (1, -1)):  # 8-neighbourhood, once each
-        nb = pad[rr[ok] + 1 + dr, cc[ok] + 1 + dc]
-        both = nb >= 0
-        for a, b in zip(here[both], nb[both], strict=True):
-            if a != b:
-                uf.union(int(a), int(b))
-    roots = np.array([uf.find(i) for i in range(len(eligible))], dtype=np.int64)
-    seeded = set(roots[strong & eligible].tolist())
-    linked = (
-        eligible & np.isin(roots, list(seeded)) if seeded else np.zeros_like(strong)
-    )
-    return strong | linked
+        return (1.0 - oriented_signal(prob[2].astype(np.float32)).max(axis=0)) * fg
+    raise ValueError(surface)
+
+
+def line_support(
+    prob: np.ndarray, r: np.ndarray, c: np.ndarray, score: str, band: int
+) -> np.ndarray:
+    """Per line pixel, its vote in [0, 1] under the chosen statistic."""
+    is_bnd = prob[2] >= prob[1]
+    if band > 0:
+        # a line can sit a pixel off the predicted boundary; count a pixel as
+        # supported when any pixel within `band` of it favours boundary
+        is_bnd = binary_dilation(
+            is_bnd, structure=np.ones((2 * band + 1, 2 * band + 1), dtype=bool)
+        )
+    pb, pf = prob[2][r, c].astype(np.float64), prob[1][r, c].astype(np.float64)
+    if score == "frac" or (score == "soft" and band > 0):
+        # the band is a spatial rule, so the soft score falls back to the hard test
+        return is_bnd[r, c].astype(np.float64)
+    if score == "soft":
+        return np.divide(pb, pb + pf, out=np.full(pb.shape, 0.5), where=(pb + pf) > 0)
+    if score == "mean":
+        return pb
+    if score == "diff":
+        return (pb - pf + 1.0) / 2.0
+    raise ValueError(score)
 
 
 @overload
@@ -170,11 +178,9 @@ def supported_split(
     h: float,
     tau: float,
     surface: str = ...,
-    markers: np.ndarray | None = ...,
     return_lines: Literal[False] = ...,
     min_line: int = ...,
     band: int = ...,
-    tau_lo: float | None = ...,
     score: str = ...,
 ) -> np.ndarray: ...
 
@@ -187,12 +193,10 @@ def supported_split(
     h: float,
     tau: float,
     surface: str = ...,
-    markers: np.ndarray | None = ...,
     *,
     return_lines: Literal[True],
     min_line: int = ...,
     band: int = ...,
-    tau_lo: float | None = ...,
     score: str = ...,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
@@ -204,21 +208,17 @@ def supported_split(
     h: float,
     tau: float,
     surface: str = "edt",
-    markers: np.ndarray | None = None,
     return_lines: bool = False,
     min_line: int = 0,
     band: int = 0,
-    tau_lo: float | None = None,
     score: str = "frac",
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Boundary-supported split: watershed, then keep or merge lines by support.
+    """Boundary-supported split: watershed, then keep or merge lines by vote.
 
-    ``markers`` (int label image) replaces the h-maxima seeds when given, e.g.
-    an instance model's own partition; ``h`` is then ignored. With
-    ``return_lines`` also return ``(lines_all, lines_kept)`` boolean masks of the
-    watershed lines before and after the support test (figures).
+    With ``return_lines`` also return ``(lines_all, lines_kept)`` boolean masks
+    of the watershed lines before and after the vote (figures).
 
-    ``score`` picks how a line's support is measured: ``"frac"`` is the fraction
+    ``score`` picks how a line's support is measured: ``"frac"`` is the share
     of its pixels where the boundary class outscores the field class, and
     ``"soft"`` averages ``p_bnd / (p_bnd + p_field)`` instead, so a pixel that
     barely favours boundary counts for less than one that favours it strongly.
@@ -226,37 +226,14 @@ def supported_split(
     ``p_bnd`` along the line, so ``tau`` becomes an absolute threshold as in
     hierarchical merging, and ``"diff"`` is the mean of ``(p_bnd - p_field + 1) / 2``,
     so ``tau = 0.5`` keeps a line whose mean margin favours boundary.
-
-    ``tau_lo`` turns the single threshold into hysteresis, as in edge linking: a
-    line at or above ``tau`` is kept outright, and a line at or above ``tau_lo``
-    is kept when it connects to one that was. Field boundaries form connected
-    networks, so a weak segment between two strong ones is usually real.
     """
     if not fg.any():
         z = np.zeros(fg.shape, dtype=np.int32)
         return (z, np.zeros_like(fg), np.zeros_like(fg)) if return_lines else z
-    boundary = seg == 2
-    if surface == "edt":
-        surf = distance_transform_edt(~boundary).astype(np.float32) * fg
-    elif surface == "pb":
-        surf = (1.0 - prob[2]).astype(np.float32) * fg
-    elif surface == "owt":
-        # Zhu et al.'s oriented boundary signal as the proposal surface
-        from .priors_recent import oriented_signal
-
-        surf = (1.0 - oriented_signal(prob[2].astype(np.float32)).max(axis=0)) * fg
-    else:
-        raise ValueError(surface)
-    if markers is None:
-        # h = 0 seeds every regional maximum, the end point of a depth grid
-        peaks = h_maxima(surf, h=h) if h > 0 else local_maxima(surf) & fg
-        markers, n = label(peaks)
-    else:
-        # drop contested (boundary-class) pixels from the seeds so adjacent
-        # instances leave room for a watershed line the support test can judge
-        _, markers = np.unique(markers * (fg & ~boundary), return_inverse=True)
-        markers = markers.reshape(fg.shape).astype(np.int32)
-        n = int(markers.max())
+    surf = split_surface(fg, seg, prob, surface)
+    # h = 0 seeds every regional maximum, the end point of a depth grid
+    peaks = h_maxima(surf, h=h) if h > 0 else local_maxima(surf) & fg
+    markers, n = label(peaks)
     if n == 0:
         out, _ = label(fg)
         out = out.astype(np.int32)
@@ -269,44 +246,12 @@ def supported_split(
         return (inst, lines, lines) if return_lines else inst
     r, c, pairs = pairs_at_lines(inst, lines)
     valid = pairs[:, 0] > 0
-    is_bnd = prob[2] >= prob[1]
-    if band > 0:
-        # a line can sit a pixel off the predicted boundary; count a pixel as
-        # supported when any pixel within `band` of it favours boundary
-        is_bnd = binary_dilation(
-            is_bnd, structure=np.ones((2 * band + 1, 2 * band + 1), dtype=bool)
-        )
-    if score == "frac":
-        support = is_bnd[r, c].astype(np.float64)
-    elif score == "soft":
-        pb, pf = prob[2][r, c].astype(np.float64), prob[1][r, c].astype(np.float64)
-        support = np.divide(
-            pb, pb + pf, out=np.full(pb.shape, 0.5), where=(pb + pf) > 0
-        )
-        if band > 0:  # the band is a spatial rule; fall back to the hard test
-            support = is_bnd[r, c].astype(np.float64)
-    elif score == "mean":
-        support = prob[2][r, c].astype(np.float64)
-    elif score == "diff":
-        pb, pf = prob[2][r, c].astype(np.float64), prob[1][r, c].astype(np.float64)
-        support = (pb - pf + 1.0) / 2.0
-    else:
-        raise ValueError(score)
+    support = line_support(prob, r, c, score, band)
     keys = pairs[valid, 0].astype(np.int64) * (inst.max() + 1) + pairs[valid, 1]
     uniq, inv = np.unique(keys, return_inverse=True)
     n_px = np.bincount(inv, minlength=len(uniq))
     n_sup = np.bincount(inv, weights=support[valid], minlength=len(uniq))
-    s_line = n_sup / n_px
-    keep_line = (s_line >= tau) & (n_px >= min_line)
-    if tau_lo is not None and tau_lo < tau:
-        keep_line = link_weak_lines(
-            keep_line,
-            (s_line >= tau_lo) & (n_px >= min_line),
-            inv,
-            r[valid],
-            c[valid],
-            fg.shape,
-        )
+    keep_line = (n_sup / n_px >= tau) & (n_px >= min_line)
     uf = UnionFind(int(inst.max()))
     base = inst.max() + 1
     for k, keep in zip(uniq, keep_line, strict=True):
@@ -357,113 +302,11 @@ def components(fg: np.ndarray) -> np.ndarray:
     return out.astype(np.int32)
 
 
-def default_variants() -> list[str]:
-    """The variant names scored by default (see ``candidates.py --variants``)."""
-    v: list[str] = [f"{f}-none" for f in FG]
-    for f in ("arg", "nbg"):
-        for h in (1.0, 2.0, 4.0):
-            v.append(f"{f}-sup-h{h:g}-t0.5")
-        for t in (0.3, 0.7):
-            v.append(f"{f}-sup-h2-t{t:g}")
-        for h in (0.1, 0.2):
-            v.append(f"{f}-pb-h{h:g}-t0.5")
-        for r in (1, 2):
-            v.append(f"{f}-close{r}")
-    # second round: push the support threshold and depth for the promising family
-    for t in (0.8, 0.9, 1.0):
-        v.append(f"nbg-sup-h2-t{t:g}")
-    for h in (1.0, 4.0, 8.0):
-        v.append(f"nbg-sup-h{h:g}-t0.7")
-    v.append("arg-sup-h4-t0.7")
-    return v
-
-
-def widen_gaps(inst: np.ndarray, fg: np.ndarray, width_px: int) -> np.ndarray:
-    """Grow the kept split lines (foreground pixels labelled 0) to ``width_px``.
-
-    Gaps must span at least one sensor ground-sample distance to survive FTP's
-    native-GSD scoring (``_cap_pred_to_gsd``): 1 px on the 3 m Planet grid, 2 px on
-    the 5 m/px upsampled S2 grid scored at 10 m. Only pixels adjacent to an
-    existing gap are cleared, so region exteriors are untouched.
-    """
-    if width_px <= 1:
-        return inst
-    gaps = fg & (inst == 0)
-    if not gaps.any():
-        return inst
-    grown = binary_dilation(
-        gaps, structure=np.ones((3, 3), dtype=bool), iterations=width_px - 1
-    )
-    out = inst.copy()
-    out[grown & fg] = 0
-    return out
-
-
 def apply_post_steps(
-    inst: ndarray,
-    min_area: int,
-    hole_area: int,
-    merge_area: int,
-    seg: ndarray | None = None,
-    keep_tau: float | None = None,
+    inst: ndarray, min_area: int, hole_area: int, merge_area: int
 ) -> ndarray:
-    """Post-steps in a fixed order: fill holes, merge slivers, drop what is left.
-
-    With ``keep_tau`` the last step spares small parcels whose outline the
-    network predicts as boundary (see ``drop_small_unsupported``).
-    """
-    out = merge_small(fill_holes(inst, hole_area), merge_area)
-    if keep_tau is not None and seg is not None:
-        return drop_small_unsupported(out, min_area, seg, keep_tau)
-    return drop_small(out, min_area)
-
-
-def drop_small_unsupported(
-    inst: np.ndarray, min_area: int, seg: np.ndarray, keep_tau: float
-) -> np.ndarray:
-    """Drop parcels under ``min_area`` px unless their own outline is predicted.
-
-    The flat minimum-size step removes every small polygon, including the real
-    smallholder fields that are the point of the method. A parcel whose outline
-    the network itself calls boundary along at least ``keep_tau`` of its border
-    is kept regardless of size; the rest are dropped as before.
-    """
-    if min_area <= 0:
-        return inst
-    ids, counts = np.unique(inst[inst > 0], return_counts=True)
-    small = ids[counts < min_area]
-    if not len(small):
-        return inst
-    is_bnd = seg == 2
-    p = np.pad(inst, 1)
-    r, c = np.nonzero(np.isin(inst, small))
-    # a parcel pixel is on its border when a 4-neighbour holds a different label
-    nb = np.stack([p[r, c + 1], p[r + 2, c + 1], p[r + 1, c], p[r + 1, c + 2]], axis=1)
-    on_border = (nb != inst[r, c][:, None]).any(axis=1)
-    rb, cb, lab = r[on_border], c[on_border], inst[r, c][on_border]
-    if not len(lab):
-        return drop_small(inst, min_area)
-    # supported when the border pixel itself, or a 4-neighbour of it, is boundary
-    q = np.pad(is_bnd, 1)
-    sup = (
-        is_bnd[rb, cb]
-        | q[rb, cb + 1]
-        | q[rb + 2, cb + 1]
-        | q[rb + 1, cb]
-        | q[rb + 1, cb + 2]
-    )
-    order = np.unique(lab)
-    idx = np.searchsorted(order, lab)
-    frac = np.bincount(idx, weights=sup, minlength=len(order)) / np.bincount(
-        idx, minlength=len(order)
-    )
-    doomed = order[frac < keep_tau]
-    if not len(doomed):
-        return inst
-    out = inst.copy()
-    out[np.isin(out, doomed)] = 0
-    dense, _ = label(out > 0)
-    return dense.astype(np.int32)
+    """Post-steps in a fixed order: fill holes, merge slivers, drop what is left."""
+    return drop_small(merge_small(fill_holes(inst, hole_area), merge_area), min_area)
 
 
 def drop_small(inst: np.ndarray, min_area: int) -> np.ndarray:
@@ -547,50 +390,21 @@ def merge_small(inst: np.ndarray, min_area: int) -> np.ndarray:
     return dense.astype(np.int32)
 
 
-def run_variant(
-    name: str,
-    seg: np.ndarray,
-    prob: np.ndarray,
-    markers: np.ndarray | None = None,
-    px_m2: float | None = None,
-    gmm_thr: tuple[float, float] | None = None,
-) -> np.ndarray:
-    """Dispatch a variant name to its split rule.
-
-    ``<fg>-none`` | ``<fg>-close{r}`` | ``<fg>-{sup|pb}-h{h}-t{tau}`` |
-    ``<fg>-msup-t{tau}`` (markers = supplied instance partition) | ``nbg-gmm``
-    (``gmm_thr`` = the region's fitted extent and boundary thresholds).
-
-    Optional modifiers are appended with ``+``: ``+l{L}`` minimum kept-line
-    length, ``+b{R}`` support tolerance band, ``+a{A}`` minimum parcel area,
-    ``+w{k}`` kept-line width, ``+H{t}`` hysteresis low bar (hundredths, so
-    ``+H45`` is 0.45), and ``+K{t}`` the outline-support bar that spares a small
-    parcel from the minimum-size step. Rule kinds ``ssup``, ``asup`` and ``dsup``
-    score a line by the average probability share, the mean boundary
-    probability, and the mean margin instead of a pixel count (``LINE_SCORE``).
-    They never collide with a rule's own parameters.
-    """
-    width_px, min_line, band, min_area, hole_area, merge_area = 1, 0, 0, 0, 0, 0
-    tau_lo, keep_tau = None, None
-    name, *mods = name.split("+")
+def parse_modifiers(
+    mods: list[str], name: str, px_m2: float | None
+) -> tuple[int, int, int, int, int]:
+    """``(min_line, band, min_area, hole_area, merge_area)`` from ``+`` suffixes."""
+    min_line, band, min_area, hole_area, merge_area = 0, 0, 0, 0, 0
     for mod in mods:
         key, val = mod[0], int(mod[1:])
-        if key == "w":
-            width_px = val
-        elif key == "a":
-            min_area = val
+        if key == "l":
+            min_line = val
         elif key == "b":
             band = val
-        elif key == "l":
-            min_line = val
         elif key == "f":
             hole_area = val
         elif key == "m":
             merge_area = val
-        elif key == "H":
-            tau_lo = val / 100.0
-        elif key == "K":
-            keep_tau = val / 100.0
         elif key == "A":
             # ground area in m^2, so one setting means the same parcel size on
             # grids with different pixel sizes
@@ -599,89 +413,70 @@ def run_variant(
             min_area = max(1, int(round(val / px_m2)))
         else:
             raise ValueError(f"unknown modifier {mod!r} in {name!r}")
+    return min_line, band, min_area, hole_area, merge_area
+
+
+def run_variant(
+    name: str,
+    seg: np.ndarray,
+    prob: np.ndarray,
+    px_m2: float | None = None,
+    gmm_thr: tuple[float, float] | None = None,
+) -> np.ndarray:
+    """Dispatch a variant name to its split rule (see the module docstring).
+
+    ``gmm_thr`` is the region's fitted extent and boundary thresholds, needed
+    only by ``nbg-gmm``.
+    """
+    name, *mods = name.split("+")
+    min_line, band, min_area, hole_area, merge_area = parse_modifiers(mods, name, px_m2)
     fg_mode, _, rest = name.partition("-")
     fg = foreground(seg, prob, fg_mode)
-    if rest in ("none", "gmm"):
-        if rest == "gmm":
-            # Amin et al.: thresholds fitted per region arrive from outside
-            if gmm_thr is None:
-                raise ValueError(f"{name!r} needs the region's fitted (te, tb)")
-            from .priors_recent import gmm_split
+    if rest == "none":
+        inst = components(fg)
+    elif rest == "gmm":
+        # Amin et al.: thresholds fitted per region arrive from outside
+        if gmm_thr is None:
+            raise ValueError(f"{name!r} needs the region's fitted (te, tb)")
+        from .priors_recent import gmm_split
 
-            inst = gmm_split(prob, *gmm_thr)
-        else:
-            inst = components(fg)
-        return apply_post_steps(inst, min_area, hole_area, merge_area, seg, keep_tau)
-    if rest.startswith("ws"):
+        inst = gmm_split(prob, *gmm_thr)
+    elif rest.startswith("ws"):
         # the FTP pipeline: watershed at depth h, then components of the union
         from .ftp_compat import watershed_instances
 
         dist = distance_transform_edt(seg != 2).astype(np.float32)
-        inst = watershed_instances(seg, dist, h_min=float(rest[2:]), field_class=1)
-        comp, _ = label(inst > 0)
-        return apply_post_steps(
-            comp.astype(np.int32), min_area, hole_area, merge_area, seg, keep_tau
-        )
-    if rest.startswith("close"):
-        return apply_post_steps(
-            gap_close(fg, seg, int(rest[5:])),
-            min_area,
-            hole_area,
-            merge_area,
-            seg,
-            keep_tau,
-        )
-    if rest.split("-")[0] in ("ucm", "swst", "iterh", "thr", "owt"):
+        ws = watershed_instances(seg, dist, h_min=float(rest[2:]), field_class=1)
+        comp, _ = label(ws > 0)
+        inst = comp.astype(np.int32)
+    elif rest.startswith("close"):
+        inst = gap_close(fg, seg, int(rest[5:]))
+    elif rest.split("-")[0] in PRIORS:
         from .priors import run_prior
 
         inst = run_prior(rest, fg, seg, prob)
-        return apply_post_steps(
-            widen_gaps(inst, fg, width_px),
-            min_area,
-            hole_area,
-            merge_area,
+    else:
+        kind, h_s, t_s = rest.split("-")
+        inst = supported_split(
+            fg,
             seg,
-            keep_tau,
+            prob,
+            float(h_s[1:]),
+            float(t_s[1:]),
+            surface=SURFACE.get(kind, "edt"),
+            min_line=min_line,
+            band=band,
+            score=LINE_SCORE.get(kind, "frac"),
         )
-    if rest.startswith("msup-t"):
-        if markers is None:
-            raise ValueError(f"{name} needs an instance marker image")
-        inst = supported_split(fg, seg, prob, 0.0, float(rest[6:]), markers=markers)
-        return apply_post_steps(
-            widen_gaps(inst, fg, width_px),
-            min_area,
-            hole_area,
-            merge_area,
-            seg,
-            keep_tau,
-        )
-    kind, h_s, t_s = rest.split("-")
-    h = float(h_s[1:])
-    tau = float(t_s[1:])
-    inst = supported_split(
-        fg,
-        seg,
-        prob,
-        h,
-        tau,
-        surface=SURFACE.get(kind, "edt"),
-        min_line=min_line,
-        band=band,
-        tau_lo=tau_lo,
-        score=LINE_SCORE.get(kind, "frac"),
-    )
-    return apply_post_steps(
-        widen_gaps(inst, fg, width_px), min_area, hole_area, merge_area, seg, keep_tau
-    )
+    return apply_post_steps(inst, min_area, hole_area, merge_area)
 
 
 def run_variants(
     seg: np.ndarray,
     prob: np.ndarray,
     names: Iterable[str],
-    markers: np.ndarray | None = None,
     px_m2: float | None = None,
     gmm_thr: tuple[float, float] | None = None,
 ) -> dict[str, np.ndarray]:
     """``run_variant`` for every name in ``names``."""
-    return {n: run_variant(n, seg, prob, markers, px_m2, gmm_thr) for n in names}
+    return {n: run_variant(n, seg, prob, px_m2, gmm_thr) for n in names}
