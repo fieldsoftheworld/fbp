@@ -11,7 +11,7 @@
 #SBATCH --error=experiments/out/slurm/var_%j.err
 
 # Build and score variant candidates for one cached run/split. Variants come
-# from named groups in boundaryvote.grids (GRIDS) and/or an explicit list
+# from named groups in fbp.paper.grids (GRIDS) and/or an explicit list
 # (VARIANTS); TAG is the scores-file infix, so groups run as separate jobs land
 # in separate files and `report` merges them.
 #   sbatch --export=ALL,RUN=planet_b3,SPLIT=test,TAG=sweep,GRIDS="main sweep ablation" experiments/hpc/variants.sbatch
@@ -32,10 +32,10 @@ W="$SLURM_CPUS_PER_TASK"
 
 echo "=== candidates ($TAG) $RUN/$SPLIT ==="
 # shellcheck disable=SC2086
-experiments/run.sh boundaryvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants-only \
+experiments/run.sh fbp.eval.candidates --run "$RUN" --split "$SPLIT" --workers "$W" --variants-only \
     --grids $GRIDS --variants $VARIANTS
 echo "=== scores ($TAG) $RUN/$SPLIT protocol=$PROTOCOL ==="
 # shellcheck disable=SC2086
-experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
+experiments/run.sh fbp.eval.score --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
     --workers "$W" --sets variants --tag "$TAG" --grids $GRIDS --variants $VARIANTS
 echo "done."

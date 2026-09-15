@@ -23,8 +23,8 @@ GSD="${GSD:-3}"
 W="$SLURM_CPUS_PER_TASK"
 
 echo "=== candidates $RUN/$SPLIT ==="
-experiments/run.sh boundaryvote.candidates --run "$RUN" --split "$SPLIT" --workers "$W"
+experiments/run.sh fbp.eval.candidates --run "$RUN" --split "$SPLIT" --workers "$W"
 echo "=== scores $RUN/$SPLIT protocol=$PROTOCOL ==="
-experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
+experiments/run.sh fbp.eval.score --run "$RUN" --split "$SPLIT" --protocol "$PROTOCOL" --gsd-m "$GSD" \
     --workers "$W"
 echo "done."

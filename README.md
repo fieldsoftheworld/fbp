@@ -14,7 +14,8 @@ line vote for the boundary class.
 | `main_grsl_revised.tex`, `supplementary.tex`, `references.bib` | the letter (5 pages incl. references, IEEEtran) and the supplement |
 | `tables/*.tex` | generated table rows and value macros the two documents `\input` |
 | `figures/rev_*.pdf` | generated figures |
-| `experiments/` | the code and SLURM jobs that produce every number and figure; see `experiments/README.md` |
+| `experiments/fbp/` | the `fbp` package: BoundaryVote, the FTP pipeline, and six prior post-processing strategies behind one interface, the scoring harness, and the table and figure generators; see `experiments/README.md` |
+| `experiments/hpc/` | SLURM jobs that produce every number |
 | `experiments/results/` | tracked copies of the scored results the tables and figures are built from |
 
 ## Build the PDFs

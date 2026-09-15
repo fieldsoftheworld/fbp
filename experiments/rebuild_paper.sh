@@ -5,14 +5,14 @@
 # the profile CSVs come from hpc/profile.sbatch and are copied if present.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-V="${V:-$HOME/github/ftw-planet/.venv/bin/python}"
+RUN=experiments/run.sh
 OUT=experiments/out
 RES=experiments/results
 
 copy_scores() {  # run split protocol
   local src="$OUT/scores/$1/$2/$3" dst="$RES/$1/$2/$3"
   ls "$src"/patches_*.parquet > /dev/null 2>&1 || return 0
-  experiments/run.sh boundaryvote.report --run "$1" --split "$2" --protocol "$3" \
+  $RUN fbp.eval.report --run "$1" --split "$2" --protocol "$3" \
     | grep -E "^macro PQ ours|^\[report\]" || true
   mkdir -p "$dst"
   cp "$src"/{country,macro}.csv "$dst"/
@@ -28,23 +28,23 @@ done
 copy_scores planet_b3 val pixel
 
 echo "== transfer, bootstrap, profile =="
-experiments/run.sh boundaryvote.transfer --run planet_b3 > /dev/null
+$RUN fbp.eval.transfer --run planet_b3 > /dev/null
 mkdir -p "$RES/transfer" "$RES/bootstrap" "$RES/profile"
 cp "$OUT/transfer/planet_b3.csv" "$RES/transfer/"
 for run in planet_b3 planet_b7 s2_b7 s2_b3; do
-  experiments/run.sh boundaryvote.bootstrap --run "$run" > /dev/null
+  $RUN fbp.eval.bootstrap --run "$run" > /dev/null
   cp "$OUT/bootstrap/$run.csv" "$RES/bootstrap/"
 done
 for f in "$OUT"/profile/*_test.csv; do [ -f "$f" ] && cp "$f" "$RES/profile/"; done
 
 echo "== tables =="
-"$V" experiments/figures/make_tables.py > /dev/null
-"$V" experiments/figures/make_supp_tables.py > /dev/null
+$RUN fbp.paper.tables > /dev/null
+$RUN fbp.paper.supp_tables > /dev/null
 
 echo "== figures =="
-"$V" experiments/figures/per_country.py 2>&1 | grep -E "audit|clean" || true
-"$V" experiments/figures/gallery.py 2>&1 | grep -E "audit|clipped" || true
-"$V" experiments/figures/method_fig.py 2>&1 | grep -E "audit|clipped" || true
+$RUN fbp.paper.figures.per_country 2>&1 | grep -E "audit|clean" || true
+$RUN fbp.paper.figures.gallery 2>&1 | grep -E "audit|clipped" || true
+$RUN fbp.paper.figures.method_fig 2>&1 | grep -E "audit|clipped" || true
 
 echo "== pdf =="
 for doc in main_grsl_revised supplementary; do
