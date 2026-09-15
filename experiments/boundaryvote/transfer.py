@@ -37,6 +37,7 @@ FAMILIES = {
     # searched with the minimum-size step: its over-segmentation leaves slivers
     # that only that step removes, so the bare grid ranks settings by sliver count
     "owt": r"^raw:v:nbg-owt-l[\d.]+-h[\d.]+\+A900$",
+    "gmm": r"^raw:v:nbg-gmm$",  # one setting: its thresholds are fitted
     "depth": r"^rt:h[\d.p]+$",
 }
 

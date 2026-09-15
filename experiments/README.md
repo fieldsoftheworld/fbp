@@ -171,9 +171,9 @@ default is `nbg-sup-h2-t0.7`; "best depth" rows are `rt_test` restricted to
 
 ## Prior post-processing baselines (`boundaryvote/priors.py`)
 
-Five label-free post-processing pipelines re-implemented on the same cached
-predictions, so the comparison isolates the split/merge rule (`owt` lives in
-`boundaryvote/priors_recent.py`):
+Six label-free post-processing pipelines re-implemented on the same cached
+predictions, so the comparison isolates the split/merge rule (`owt` and `gmm`
+live in `boundaryvote/priors_recent.py`):
 
 | name | method | knobs |
 |---|---|---|
@@ -182,6 +182,7 @@ predictions, so the comparison isolates the split/merge rule (`owt` lives in
 | `iterh` | iterative marker depth: watershed at `h=8`, re-segment regions over `a` px at 4, 2, 1 | `a` |
 | `thr` | extent/boundary thresholds `p_field >= te`, `p_bnd < tb`, then components | `te`, `tb` |
 | `owt` | Zhu et al. (IJDE 2024): oriented boundary signal (mean `p_bnd` along 5-px lines at 8 orientations), watershed of its maximum seeded at `h`-minima, arcs weighted by the signal at their own orientation, greedy merge below level `l` | `l`, `h` |
+| `gmm` | Amin et al. (Sci. Remote Sens. 2025): two-component 1-D mixtures fitted per country to `1 - p_bg` and `p_bnd` (`boundaryvote.gmm_thresholds`, numpy EM, `out/gmm/<run>_<split>.json`), thresholds = weight-averaged component means, boundary mask thinned and subtracted from the extent mask, then components | none (fitted) |
 
 Each grid is extended past its first optimum (`hpc/variants_extra.sbatch` with
 `TAG=priors2` holds the second round and `TAG=priors3` the small-`h` owt

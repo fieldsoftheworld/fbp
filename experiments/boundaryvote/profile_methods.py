@@ -27,6 +27,7 @@ import pandas as pd
 
 from . import references as refs
 from .candidates import pixel_area_m2
+from .gmm_thresholds import ensure
 from .paths import DENSE10, cache_dir, out_root
 from .variants import foreground, run_variant
 
@@ -41,6 +42,7 @@ METHODS = [
     ("iterh", "arg-iterh-a200000"),
     ("thr", "arg-thr-te0.4-tb0.7"),
     ("owt", "nbg-owt-l0.5-h0+A900"),
+    ("gmm", "nbg-gmm+A900"),
 ]
 BINS = [(1, 10), (10, 30), (30, 100), (100, 10**9)]
 BIN_NAMES = ["1-9", "10-29", "30-99", "100+"]
@@ -59,12 +61,16 @@ def ftp_pipeline(seg: np.ndarray, _prob: np.ndarray) -> np.ndarray:
 
 
 def call(
-    name: str, seg: np.ndarray, prob: np.ndarray, px_m2: float | None = None
+    name: str,
+    seg: np.ndarray,
+    prob: np.ndarray,
+    px_m2: float | None = None,
+    gmm_thr: tuple[float, float] | None = None,
 ) -> np.ndarray:
     """Dispatch to the FTP pipeline or a model-free variant by name."""
     if name == "arg-none-ws":
         return ftp_pipeline(seg, prob)
-    return run_variant(name, seg, prob, px_m2=px_m2)
+    return run_variant(name, seg, prob, px_m2=px_m2, gmm_thr=gmm_thr)
 
 
 class RSSSampler:
@@ -144,26 +150,26 @@ def main() -> int:
 
     patches = sample_patches(args.run, args.split, args.per_bin, args.seed)
     print(f"{len(patches)} patches sampled", flush=True)
+    gmm = ensure(args.run, args.split, DENSE10)  # Amin et al.'s per-country fit
     rows = []
     for country, pid, n_gt, path, bin_name in patches:
+        thr = gmm.get(country)
         with np.load(path) as d:
             prob, seg = d["prob"].astype(np.float32), d["seg"].astype(np.uint8)
         n_px = int(foreground(seg, prob, "nbg").sum())
         px_m2 = pixel_area_m2(Path(path), country)
         for label_name, method in METHODS:
-            call(
-                method, seg, prob, px_m2
-            )  # warm-up: first call pays import and cache costs
+            call(method, seg, prob, px_m2, thr)  # warm-up pays import costs
             times = []
             out = None
             for _ in range(args.repeats):
                 t0 = time.perf_counter()
-                out = call(method, seg, prob, px_m2)
+                out = call(method, seg, prob, px_m2, thr)
                 times.append(time.perf_counter() - t0)
             if out is None:
                 raise RuntimeError("no timed calls ran; --repeats must be >= 1")
             with RSSSampler() as s:
-                call(method, seg, prob, px_m2)
+                call(method, seg, prob, px_m2, thr)
             rows.append(
                 {
                     "run": args.run,

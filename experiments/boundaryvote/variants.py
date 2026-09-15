@@ -20,6 +20,8 @@ Split rules:
                       ("boundary-supported split"); otherwise the regions merge
 * ``pb-h{h}-t{tau}``  same, but the watershed surface is 1 - p_boundary and ``h`` is
                       in probability units
+* ``osup-h{h}-t{tau}`` same, on 1 - the oriented boundary signal of Zhu et al.
+                      (``priors_recent.oriented_signal``); ``h = 0`` seeds every maximum
 * ``close{r}``        boundary class closed with a (2r+1)^2 square and subtracted
                       from the foreground before taking components (classic gap closing)
 
@@ -45,7 +47,7 @@ from scipy.ndimage import (
     label,
 )
 from skimage.filters import threshold_otsu
-from skimage.morphology import h_maxima
+from skimage.morphology import h_maxima, local_maxima
 from skimage.segmentation import watershed
 
 FG = ("arg", "nbg", "pf50", "otsu")
@@ -53,10 +55,13 @@ FG = ("arg", "nbg", "pf50", "otsu")
 LINE_SCORE = {
     "sup": "frac",
     "pb": "frac",
+    "osup": "frac",
     "ssup": "soft",
     "asup": "mean",
     "dsup": "diff",
 }
+# Rule kind -> watershed surface the split proposals come from.
+SURFACE = {"pb": "pb", "osup": "owt"}
 
 
 def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
@@ -235,10 +240,17 @@ def supported_split(
         surf = distance_transform_edt(~boundary).astype(np.float32) * fg
     elif surface == "pb":
         surf = (1.0 - prob[2]).astype(np.float32) * fg
+    elif surface == "owt":
+        # Zhu et al.'s oriented boundary signal as the proposal surface
+        from .priors_recent import oriented_signal
+
+        surf = (1.0 - oriented_signal(prob[2].astype(np.float32)).max(axis=0)) * fg
     else:
         raise ValueError(surface)
     if markers is None:
-        markers, n = label(h_maxima(surf, h=h))
+        # h = 0 seeds every regional maximum, the end point of a depth grid
+        peaks = h_maxima(surf, h=h) if h > 0 else local_maxima(surf) & fg
+        markers, n = label(peaks)
     else:
         # drop contested (boundary-class) pixels from the seeds so adjacent
         # instances leave room for a watershed line the support test can judge
@@ -541,11 +553,13 @@ def run_variant(
     prob: np.ndarray,
     markers: np.ndarray | None = None,
     px_m2: float | None = None,
+    gmm_thr: tuple[float, float] | None = None,
 ) -> np.ndarray:
     """Dispatch a variant name to its split rule.
 
     ``<fg>-none`` | ``<fg>-close{r}`` | ``<fg>-{sup|pb}-h{h}-t{tau}`` |
-    ``<fg>-msup-t{tau}`` (markers = supplied instance partition).
+    ``<fg>-msup-t{tau}`` (markers = supplied instance partition) | ``nbg-gmm``
+    (``gmm_thr`` = the region's fitted extent and boundary thresholds).
 
     Optional modifiers are appended with ``+``: ``+l{L}`` minimum kept-line
     length, ``+b{R}`` support tolerance band, ``+a{A}`` minimum parcel area,
@@ -587,10 +601,17 @@ def run_variant(
             raise ValueError(f"unknown modifier {mod!r} in {name!r}")
     fg_mode, _, rest = name.partition("-")
     fg = foreground(seg, prob, fg_mode)
-    if rest == "none":
-        return apply_post_steps(
-            components(fg), min_area, hole_area, merge_area, seg, keep_tau
-        )
+    if rest in ("none", "gmm"):
+        if rest == "gmm":
+            # Amin et al.: thresholds fitted per region arrive from outside
+            if gmm_thr is None:
+                raise ValueError(f"{name!r} needs the region's fitted (te, tb)")
+            from .priors_recent import gmm_split
+
+            inst = gmm_split(prob, *gmm_thr)
+        else:
+            inst = components(fg)
+        return apply_post_steps(inst, min_area, hole_area, merge_area, seg, keep_tau)
     if rest.startswith("ws"):
         # the FTP pipeline: watershed at depth h, then components of the union
         from .ftp_compat import watershed_instances
@@ -643,7 +664,7 @@ def run_variant(
         prob,
         h,
         tau,
-        surface="pb" if kind == "pb" else "edt",
+        surface=SURFACE.get(kind, "edt"),
         min_line=min_line,
         band=band,
         tau_lo=tau_lo,
@@ -660,6 +681,7 @@ def run_variants(
     names: Iterable[str],
     markers: np.ndarray | None = None,
     px_m2: float | None = None,
+    gmm_thr: tuple[float, float] | None = None,
 ) -> dict[str, np.ndarray]:
     """``run_variant`` for every name in ``names``."""
-    return {n: run_variant(n, seg, prob, markers, px_m2) for n in names}
+    return {n: run_variant(n, seg, prob, markers, px_m2, gmm_thr) for n in names}

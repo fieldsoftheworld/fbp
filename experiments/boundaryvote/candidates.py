@@ -118,6 +118,7 @@ def process_patch(
     depths: tuple[float, ...],
     variant_names: tuple[str, ...] = (),
     px_m2: float | None = None,
+    gmm_thr: tuple[float, float] | None = None,
 ) -> tuple[dict[str, list], list[tuple]]:
     """Returns ``({depth_tag: [(patch_id, inst_id, geom), ...]}, manifest_rows)``."""
     pid = npz_path.stem
@@ -174,7 +175,7 @@ def process_patch(
 
     for name in variant_names:
         t0 = time.perf_counter()
-        inst = v.run_variant(name, seg, prob, markers, px_m2)
+        inst = v.run_variant(name, seg, prob, markers, px_m2, gmm_thr)
         pp = instance_polygons(inst)
         tag = f"v:{name}"
         polys[tag] = [(pid, i, g) for i, g in pp]
@@ -195,7 +196,13 @@ def process_patch(
 
 
 def run_patch_job(
-    args: tuple[Path, tuple[float, ...], tuple[str, ...], float | None],
+    args: tuple[
+        Path,
+        tuple[float, ...],
+        tuple[str, ...],
+        float | None,
+        tuple[float, float] | None,
+    ],
 ) -> tuple[dict[str, list], list[tuple]]:
     """``process_patch(*args)``, unpacked for ``Pool.imap_unordered``."""
     return process_patch(*args)
@@ -208,6 +215,7 @@ def process_country(
     depths: tuple[float, ...],
     workers: int,
     variant_names: tuple[str, ...] = (),
+    gmm_thr: tuple[float, float] | None = None,
 ) -> int:
     """Run the depth sweep and/or variants for one country; returns patch count."""
     src = cache_dir(f"{run}/{split}") / country
@@ -225,7 +233,13 @@ def process_country(
     manifest: list[tuple] = []
     needs_area = any("+A" in n for n in variant_names)
     jobs = [
-        (p, depths, variant_names, pixel_area_m2(p, country) if needs_area else None)
+        (
+            p,
+            depths,
+            variant_names,
+            pixel_area_m2(p, country) if needs_area else None,
+            gmm_thr,
+        )
         for p in npzs
     ]
     if workers > 1:
@@ -293,10 +307,15 @@ def main() -> int:
         variant_names = (
             tuple(args.variants) if args.variants else tuple(v.default_variants())
         )
+    gmm: dict[str, tuple[float, float]] = {}
+    if any(n.split("+")[0].endswith("-gmm") for n in variant_names):
+        from .gmm_thresholds import ensure
+
+        gmm = ensure(args.run, args.split, tuple(args.countries))
     for c in args.countries:
         t0 = time.time()
         n = process_country(
-            args.run, args.split, c, depths, args.workers, variant_names
+            args.run, args.split, c, depths, args.workers, variant_names, gmm.get(c)
         )
         n_tags = (len(depths) + 1 if depths else 0) + len(variant_names)
         print(

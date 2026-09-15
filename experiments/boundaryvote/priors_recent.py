@@ -10,12 +10,18 @@
            merged borders by pixel count, while the weakest border stays below
            one global level ``lvl``. Higra is not installed here, so the
            hierarchy cut is skimage's greedy merge at that level.
+* ``gmm``  Gaussian-mixture thresholds, as Amin et al. (2025, Sci. Remote
+           Sens.) refine a multi-task network's output: the extent and boundary
+           probabilities are thresholded at values fitted per region
+           (``gmm_thresholds``), the boundary mask is thinned to one pixel,
+           subtracted from the extent mask, and the remainder labelled by
+           connected components.
 """
 
 import numpy as np
 from scipy.ndimage import convolve, label
 from skimage import graph
-from skimage.morphology import h_minima, local_minima
+from skimage.morphology import h_minima, local_minima, thin
 from skimage.segmentation import watershed
 
 from .priors import lines_from_labels, merge_boundary, relabel_dense, weight_boundary
@@ -137,3 +143,11 @@ def owt(
     merged[~fg] = 0
     merged[fg] += 1  # merge_hierarchical may hand out label 0
     return relabel_dense(lines_from_labels(merged, fg))
+
+
+def gmm_split(prob: np.ndarray, te: float, tb: float) -> np.ndarray:
+    """Extent at least ``te`` minus the thinned boundary mask at least ``tb``."""
+    extent = (1.0 - prob[0]) >= te
+    boundary = thin(prob[2] >= tb)
+    out, _ = label(extent & ~boundary)
+    return out.astype(np.int32)

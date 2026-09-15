@@ -75,9 +75,16 @@ COMPARE = [
         "owt",
         None,
     ),
+    (
+        "GMM Thresholds~\\cite{amin2025earlyseason}",
+        "fitted",
+        "gmm",
+        "gmm",
+        None,
+    ),
     (OURS_LABEL, "$h$, $\\tau$", "ours", "ours", OURS_NOFILTER),
 ]
-PRIOR_FAMILIES = ("thr", "ucm", "iterh", "swst", "owt")
+PRIOR_FAMILIES = ("thr", "ucm", "iterh", "swst", "owt", "gmm")
 
 
 def with_filter(strat: str, m: pd.DataFrame) -> str:

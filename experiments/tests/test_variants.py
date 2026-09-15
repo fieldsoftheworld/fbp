@@ -334,3 +334,13 @@ def test_hysteresis_modifier_matches_direct_call() -> None:
         None,
     )
     np.testing.assert_array_equal(wired, direct)
+
+
+def test_oriented_surface_proposals() -> None:
+    """The vote on oriented-signal proposals keeps the strong boundary, h=0 included."""
+    from test_priors import two_field_scene
+
+    seg, prob = two_field_scene()
+    for name in ("nbg-osup-h0.05-t0.7", "nbg-osup-h0-t0.7", "nbg-pb-h0.1-t0.7+A9"):
+        out = run_variant(name, seg, prob, px_m2=1.0)
+        assert out.dtype == np.int32 and out.max() >= 2

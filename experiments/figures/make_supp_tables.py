@@ -140,7 +140,8 @@ def prior_label(key: str) -> str:
     m = re.fullmatch(r"(?:arg|nbg)-owt-l([\d.]+)-h([\d.]+)", s)
     if m:
         return f"$\\lambda{{=}}{m[1]}$, $h{{=}}{m[2]}$"
-    return f"\\texttt{{{s}}}"
+    fixed = {"nbg-gmm": "$t_e$, $t_b$ fitted per country"}
+    return fixed.get(s, f"\\texttt{{{s}}}")
 
 
 def priors_rows() -> list[str]:
@@ -156,6 +157,7 @@ def priors_rows() -> list[str]:
         ("Iterative Marker Depth", "raw:v:", False),
         ("Stochastic Watershed", "raw:v:nbg-swst-", False),
         ("Oriented Watershed, With Minimum Size", "raw:v:nbg-owt-", True),
+        ("Gaussian-Mixture Thresholds", "raw:v:nbg-gmm", False),
     ]
     rows = []
     for title, prefix, with_min in fams:
@@ -235,6 +237,23 @@ def variants_rows() -> list[str]:
                     f"raw:v:nbg-asup-h2-t{t}",
                 )
                 for t in ("0.3", "0.4", "0.5", "0.6", "0.7")
+            ],
+        ),
+        (
+            "Split Proposals for the Vote, With Minimum Size ($\\tau=0.7$)",
+            [
+                ("Distance to Predicted Boundary, $h=2$ px (BoundaryVote)", OURS),
+                ("Boundary Probability, $h=0.1$", "raw:v:nbg-pb-h0.1-t0.7+A900"),
+                ("Boundary Probability, $h=0.2$", "raw:v:nbg-pb-h0.2-t0.7+A900"),
+                (
+                    "Oriented Boundary Signal, $h=0.05$",
+                    "raw:v:nbg-osup-h0.05-t0.7+A900",
+                ),
+                (
+                    "Oriented Boundary Signal, $h=0.02$",
+                    "raw:v:nbg-osup-h0.02-t0.7+A900",
+                ),
+                ("Oriented Boundary Signal, $h=0$", "raw:v:nbg-osup-h0-t0.7+A900"),
             ],
         ),
         (
@@ -336,6 +355,7 @@ def timing_rows() -> list[str]:
         "iterh": "Iterative Marker Depth",
         "swst": "Stochastic Watershed",
         "owt": "Oriented Watershed",
+        "gmm": "GMM Thresholds",
         "ours": OURS_LABEL,
     }
     frames = {}
