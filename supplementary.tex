@@ -46,8 +46,9 @@ Setting (PQ $\uparrow$) & PS B3 & PS B7 & S2 B7 & S2 B3 \\
 \section{Complete Grids for Prior Methods}
 We choose each prior method's parameters by validation PQ on PlanetScope B3, then apply the 900~m$^2$ minimum-size step for the letter's comparison.
 Table~\ref{tab:supp_priors} includes every setting we tried and its validation and test scores.
-The best settings for probability thresholds, iterative marker depth, and stochastic watershed lie at the search grid's edge.
+Each grid was extended past its first best setting; the thresholds and stochastic watershed now peak inside their grids, and iterative marker depth sits on a plateau where $a$ between 50,000 and 200,000 pixels changes PQ by less than 0.1.
 Iterative marker depth and stochastic watershed stay more than nine points below the FTP pipeline across all settings tried.
+The oriented watershed is searched with the minimum-size step, because its fine over-segmentation leaves slivers that only that step removes, and it scores below 8 PQ without it.
 
 \begin{table}[h]
 \centering
@@ -69,7 +70,8 @@ Parameter names match Table~I of the letter.
 $t_e$ is the field probability a pixel must reach and $t_b$ the boundary probability it must stay below.
 $k$ merges borders whose mean boundary probability falls below it.
 $a$ re-segments regions larger than that many pixels, on either the field or the not-background foreground.
-$n$ markers are drawn $m$ times, and a line is cut where its frequency reaches $t$.}
+$n$ markers are drawn $m$ times, and a line is cut where its frequency reaches $t$.
+For the oriented watershed, $h$ is the depth of the minima that seed the over-segmentation and $\lambda$ the hierarchy level below which borders merge, both in probability units.}
 \end{table}
 
 \section{Alternatives Named in the Ablation}
@@ -91,12 +93,17 @@ Variant & Val PQ & Test PQ \\
 \tablebody{tables/supp_variants_rows.tex}
 \bottomrule
 \end{tabular}
+\smallskip
+
+\parbox{\columnwidth}{\footnotesize
+The line statistics score each watershed line by the share of its pixels with $p_{\mathrm{bnd}}\geq p_{\mathrm{field}}$ (the vote), by the mean of $p_{\mathrm{bnd}}/(p_{\mathrm{bnd}}+p_{\mathrm{field}})$, by the mean margin $p_{\mathrm{bnd}}-p_{\mathrm{field}}$, or by the mean $p_{\mathrm{bnd}}$ alone, which makes $\tau$ an absolute threshold.}
 \end{table}
 
 \section{Scores by Field Size}
 BoundaryVote gains most on small fields in every run, between 3.5 and 4.8 PQ points, and least on large fields, between 1.1 and 1.7 (Table~\ref{tab:supp_size}).
 We group PQ and RQ by reference field area using the Fields of the Planet evaluation code's bins, with small fields below 0.5~ha, medium fields from 0.5 to 2~ha, and large fields above 2~ha.
 On PlanetScope B3, the ten countries contain 29,406 small, 20,884 medium, and 12,173 large reference fields, making the small bin the largest.
+The oriented watershed of Zhu et al., at its validation-chosen setting and with the same minimum-size step, scores above BoundaryVote in the medium and large bins on both sensors and below it in the small bin, where the gap in PQ is 3.3 points on PlanetScope and 2.7 on Sentinel-2.
 
 \begin{table}[h]
 \centering
@@ -117,6 +124,25 @@ Method & $<$0.5 & 0.5--2 & $>$2 & $<$0.5 & 0.5--2 & $>$2 \\
 
 \parbox{\columnwidth}{\footnotesize
 Bold marks the best unrounded score per column within each model.}
+\end{table}
+
+\section{Bootstrap Intervals}
+We resample each country's test patches with replacement 1,000 times, pool PQ within the country as in the letter, and average the ten countries, keeping the official splits fixed so the scores remain comparable with published ones.
+Table~\ref{tab:supp_boot} gives the 2.5 and 97.5 percentiles for both pipelines and for their difference, and every interval on the gain excludes zero.
+
+\begin{table}[h]
+\centering
+\caption{Macro PQ with 95\% patch-bootstrap intervals}
+\label{tab:supp_boot}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Run & FTP + Min Size & BoundaryVote & Gain \\
+\midrule
+\tablebody{tables/supp_bootstrap_rows.tex}
+\bottomrule
+\end{tabular}
 \end{table}
 
 \section{Per-Country Scores}
