@@ -1,11 +1,11 @@
-"""Cross-country gallery (Fig. 1): released pipeline vs. ours on one patch per country.
+"""Cross-country gallery (Fig. 1): FTP pipeline vs. BoundaryVote, one patch per country.
 
-Each example is a triple: image, released components, ours; reference parcels
-are drawn as black outlines on both prediction panels and the numbers are
-polygon counts in the crop. Rows cover all ten dense-label countries on
+Each example is a triple: image, the FTP pipeline, BoundaryVote; reference parcels
+are drawn as black outlines on both prediction panels; titles give crop field
+counts and badges give full-patch PQ. Rows cover all ten dense-label countries on
 PlanetScope B3 except Portugal (two test patches), eight countries on
 Sentinel-2 B7, and one failure case. Patch choice per (model, country): the
-largest per-patch PQ gain (ours minus released) among test patches with 10-120
+largest per-patch PQ gain (BoundaryVote minus FTP pipeline) among test patches with 10-120
 reference parcels whose densest square window shows at least eight of them
 covering at least a quarter of the window;
 the full-patch PQ of each prediction panel is printed on it.
@@ -13,7 +13,6 @@ the full-patch PQ of each prediction panel is printed on it.
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/gallery.py
 """
 
-import glob
 import os
 import sys
 from pathlib import Path
@@ -24,28 +23,41 @@ import pandas as pd
 import rasterio
 import rasterio.features
 from matplotlib import colors as mcolors
+from matplotlib.axes._axes import Axes
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from numpy import ndarray
 from scipy.ndimage import binary_dilation, distance_transform_edt, label
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "experiments"))
 os.environ.setdefault("FTW_PLANET_REPO", str(Path.home() / "github" / "ftw-planet"))
 
-from fieldvote import ftp_compat as ftp  # noqa: E402
-from fieldvote import references as refs  # noqa: E402
-from fieldvote.candidates import pixel_area_m2  # noqa: E402
-from fieldvote.paths import (  # noqa: E402
+from figstyle import (  # noqa: E402
+    LABEL_BBOX,
+    PALETTE,
+    PANEL_EDGE,
+    PANEL_LINEWIDTH,
+    WIDE,
+    save,
+    use_style,
+)
+
+from boundaryvote import ftp_compat as ftp  # noqa: E402
+from boundaryvote import references as refs  # noqa: E402
+from boundaryvote.candidates import pixel_area_m2  # noqa: E402
+from boundaryvote.paths import (  # noqa: E402
     DENSE10,
     cache_dir,
     ftw_planet_repo,
     scores_dir,
 )
-from fieldvote.variants import run_variant  # noqa: E402
-from figstyle import WIDE, save, use_style  # noqa: E402
+from boundaryvote.shipped import FTP as BASE  # noqa: E402
+from boundaryvote.shipped import OURS  # noqa: E402
+from boundaryvote.variants import run_variant  # noqa: E402
 
-TAU, H = 0.7, 2.0
-VARIANT = "nbg-sup-h2-t0.7+A900"
-OURS, BASE = "raw:v:nbg-sup-h2-t0.7+A900", "rt:h2"
+H = 2.0  # the FTP pipeline's watershed depth
+VARIANT = OURS.removeprefix("raw:v:")
 PER_ROW = 3
 NAMES = {
     "south_africa": "South Africa",
@@ -73,7 +85,7 @@ FAILURE = ("planet_b3", "latvia", "g26_00052_7")
 
 
 def per_patch_delta(run: str, proto: str) -> pd.DataFrame:
-    fs = glob.glob(str(scores_dir(f"{run}/test/{proto}") / "patches_*.parquet"))
+    fs = scores_dir(f"{run}/test/{proto}").glob("patches_*.parquet")
     df = pd.concat([pd.read_parquet(f) for f in fs])
     df = df[(df.reference == "vector") & df.strategy.isin([BASE, OURS])].copy()
     tp, fp, fn = df.tp_50, df.fp_50, df.fn_50
@@ -147,12 +159,10 @@ def rgb_for(run: str, country: str, pid: str, shape: tuple[int, int]) -> np.ndar
 def label_colors(inst: np.ndarray, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
     n = int(inst.max())
-    hues = rng.permutation(n) / max(n, 1)
-    cols = (
-        np.stack([mcolors.hsv_to_rgb((h, 0.45, 0.92)) for h in hues])
-        if n
-        else np.zeros((0, 3))
+    palette = np.array(
+        [mcolors.to_rgb(color) for name, color in PALETTE.items() if name != "black"]
     )
+    cols = palette[rng.permutation(n) % len(palette)]
     out = np.ones((*inst.shape, 3))
     m = inst > 0
     out[m] = cols[inst[m] - 1]
@@ -172,7 +182,9 @@ def outlines(inst: np.ndarray) -> np.ndarray:
     return fg & ~same
 
 
-def example(run: str, country: str, pid: str):
+def example(
+    run: str, country: str, pid: str
+) -> tuple[ndarray, ndarray, ndarray, ndarray]:
     npz = cache_dir(f"{run}/test") / country / f"{pid}.npz"
     grid = refs.load_grid(npz, country)
     with np.load(npz) as d:
@@ -212,7 +224,9 @@ def best_window(gt: np.ndarray) -> tuple[slice, slice]:
     return best
 
 
-def draw_pred(ax, inst, gt, seed, pq: float, bold: bool = False):
+def draw_pred(
+    ax: Axes, inst: ndarray, gt: ndarray, seed: int, pq: float, bold: bool = False
+) -> None:
     img = label_colors(inst, seed)
     img[binary_dilation(outlines(gt), iterations=1)] = (0.05, 0.05, 0.05)
     ax.imshow(img, interpolation="nearest")
@@ -225,7 +239,7 @@ def draw_pred(ax, inst, gt, seed, pq: float, bold: bool = False):
         fontweight="bold" if bold else "normal",
         ha="right",
         va="bottom",
-        bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.9),
+        bbox=LABEL_BBOX,
     )
 
 
@@ -234,12 +248,12 @@ def main() -> None:
     wp = per_patch_delta("planet_b3", "pixel")
     ws = per_patch_delta("s2_b7", "pixel")
     examples = [
-        ("planet_b3", c, pick(wp, "planet_b3", c), "Planet B3")
+        ("planet_b3", c, pick(wp, "planet_b3", c), "PS")
         for c in DENSE10
         if c != "portugal"
     ]
-    examples += [("s2_b7", c, pick(ws, "s2_b7", c), "S2 B7") for c in S2_COUNTRIES]
-    examples.append((*FAILURE, "Planet B3, failure"))
+    examples += [("s2_b7", c, pick(ws, "s2_b7", c), "S2") for c in S2_COUNTRIES]
+    examples.append((*FAILURE, "PS, Failure"))
     n_rows = int(np.ceil(len(examples) / PER_ROW))
     ncols = PER_ROW * 3
     panel = (WIDE * 0.985) / (ncols + 0.35 * (PER_ROW - 1))
@@ -261,28 +275,40 @@ def main() -> None:
         pq_b, pq_o = patch_pq(wp if run == "planet_b3" else ws, country, pid)
         axes = [fig.add_subplot(gs[row, col * 3 + j]) for j in range(3)]
         axes[0].imshow(rgb, interpolation="nearest")
-        draw_pred(axes[1], base, gt, 1, pq_b)
+        draw_pred(axes[1], base, gt, 1, pq_b, bold=pq_b > pq_o)
         draw_pred(axes[2], ours, gt, 2, pq_o, bold=pq_o > pq_b)
         for ax in axes:
             ax.set_xticks([])
             ax.set_yticks([])
             ax.grid(False)
             for s in ax.spines.values():
-                s.set_linewidth(0.3)
-                s.set_color("#999999")
+                s.set_linewidth(PANEL_LINEWIDTH)
+                s.set_color(PANEL_EDGE)
         n_gt = len(np.unique(gt[gt > 0]))
         axes[1].text(
             0.5,
-            1.03,
-            f"{NAMES[country]}, {tag}, {n_gt} parcels",
+            1.055,
+            f"{NAMES[country]}, {tag}, {n_gt} Fields",
             transform=axes[1].transAxes,
             fontsize=6,
             ha="center",
             va="bottom",
         )
+        # rule under the title, spanning the triple, so each title visibly
+        # belongs to the three panels beneath it rather than floating between
+        left, right = axes[0].get_position(), axes[2].get_position()
+        fig.add_artist(
+            Line2D(
+                [left.x0, right.x1],
+                [left.y1 + 0.0045, left.y1 + 0.0045],
+                transform=fig.transFigure,
+                color="#444444",
+                linewidth=0.5,
+            )
+        )
         if k == 0:
             # inside the panels, so the labels cost no vertical space
-            for ax, t in zip(axes, ("image", "released", "ours"), strict=True):
+            for ax, t in zip(axes, ("Image", "FTP", "BoundaryVote"), strict=True):
                 ax.text(
                     0.03,
                     0.97,
@@ -291,15 +317,15 @@ def main() -> None:
                     fontsize=5.5,
                     ha="left",
                     va="top",
-                    bbox=dict(
-                        boxstyle="square,pad=0.15", fc="white", ec="none", alpha=0.85
-                    ),
+                    bbox=LABEL_BBOX,
                 )
     handles = [
         Patch(
-            facecolor="#cfe8d8", edgecolor="#999999", label="predicted parcel (fill)"
+            facecolor=PALETTE["green"],
+            edgecolor=PANEL_EDGE,
+            label="Predicted Field (Color Fill)",
         ),
-        Patch(facecolor="white", edgecolor="black", label="reference parcel (outline)"),
+        Patch(facecolor="white", edgecolor="black", label="Reference Field (Outline)"),
     ]
     fig.legend(
         handles=handles,

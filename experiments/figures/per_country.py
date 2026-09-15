@@ -1,8 +1,9 @@
-"""Per-country PQ change of ours vs. the component baseline, four model/sensor runs.
+"""Per-country PQ change of BoundaryVote over the FTP pipeline, four model/sensor runs.
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/per_country.py
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -10,15 +11,18 @@ import pandas as pd
 from figstyle import BASELINE, COLUMN, PALETTE, figure, save, use_style
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "experiments"))
+
+from boundaryvote.shipped import FTP_MIN as BASE  # noqa: E402
+from boundaryvote.shipped import OURS  # noqa: E402
+
 RES = ROOT / "experiments" / "results"
 RUNS = [
-    ("planet_b3", "test", "PlanetScope B3", PALETTE["blue"], "o"),
-    ("planet_b7", "test", "PlanetScope B7", PALETTE["cyan"], "s"),
-    ("s2_b7", "test/pixel", "Sentinel-2 B7", PALETTE["red"], "D"),
-    ("s2_b3", "test/pixel", "Sentinel-2 B3", PALETTE["orange"], "^"),
+    ("planet_b3", "test", "PS B3", PALETTE["blue"], "o"),
+    ("planet_b7", "test", "PS B7", PALETTE["cyan"], "s"),
+    ("s2_b7", "test/pixel", "S2 B7", PALETTE["red"], "D"),
+    ("s2_b3", "test/pixel", "S2 B3", PALETTE["orange"], "^"),
 ]
-OURS = "raw:v:nbg-sup-h2-t0.7+A900"
-BASE = "raw:v:arg-ws2+A900"
 NAMES = {
     "south_africa": "South Africa",
     "belgium": "Belgium",
@@ -71,23 +75,24 @@ def main() -> None:
         color="black",
         linewidth=1.0,
         zorder=4,
-        label="mean of four",
+        label="Mean of Four",
     )
     ax.set_yticks(y, [NAMES[c] for c in order])
     ax.set_ylim(-0.6, len(order) - 0.4)
-    ax.set_xlabel("PQ change vs. field components at $h=2$ (points)")
+    ax.set_xlabel("PQ Gain over the FTP Pipeline (Points)")
     ax.grid(axis="x")
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", length=0)
-    ax.legend(
+    legend = ax.legend(
         loc="lower right",
         fontsize=6.5,
         frameon=True,
         framealpha=1.0,
-        edgecolor="black",
+        edgecolor="#AAAAAA",
         borderpad=0.4,
         handletextpad=0.3,
     )
+    legend.get_frame().set_linewidth(0.4)
     ax.margins(x=0.08)
     save(fig, str(ROOT / "figures" / "rev_percountry"))
     print(table.round(2).to_string())

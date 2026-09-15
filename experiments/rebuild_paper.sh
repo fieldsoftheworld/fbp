@@ -10,7 +10,7 @@ for spec in "planet_b3 test pixel val" "planet_b7 test pixel val" "s2_b7 test pi
   set -- $spec
   args=(--run "$1" --split "$2" --protocol "$3")
   [ "$4" = "-" ] && args+=(--val-split "") || args+=(--val-split "$4")
-  experiments/run.sh fieldvote.report "${args[@]}" | grep -E "^macro PQ ours|^\[report\]" || true
+  experiments/run.sh boundaryvote.report "${args[@]}" | grep -E "^macro PQ ours|^\[report\]" || true
   d="experiments/results/$1/test"; [ "$1" = "${1#s2}" ] || d="$d/pixel"
   mkdir -p "$d"
   cp "experiments/out/scores/$1/test/$3"/{country,macro}.csv "$d"/
@@ -18,12 +18,12 @@ for spec in "planet_b3 test pixel val" "planet_b7 test pixel val" "s2_b7 test pi
 done
 
 echo "== validation split (supplementary grids) =="
-experiments/run.sh fieldvote.report --run planet_b3 --split val --protocol pixel --val-split "" > /dev/null
+experiments/run.sh boundaryvote.report --run planet_b3 --split val --protocol pixel --val-split "" > /dev/null
 mkdir -p experiments/results/planet_b3/val
 cp experiments/out/scores/planet_b3/val/pixel/{country,macro}.csv experiments/results/planet_b3/val/
 
 echo "== cost and transfer =="
-experiments/run.sh fieldvote.transfer --run planet_b3 > /dev/null
+experiments/run.sh boundaryvote.transfer --run planet_b3 > /dev/null
 
 echo "== tables =="
 "$V" experiments/figures/make_tables.py > /dev/null

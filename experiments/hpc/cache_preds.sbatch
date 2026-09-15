@@ -41,7 +41,7 @@ for run in $RUNS; do
   esac
   for split in $SPLITS; do
     echo "=== $run / $split :: $CKPT ==="
-    experiments/run.sh fieldvote.cache --run "$run" --split "$split" --ckpt "$CKPT" \
+    experiments/run.sh boundaryvote.cache --run "$run" --split "$split" --ckpt "$CKPT" \
         --gpu 0 --num-workers 4 "${EXTRA[@]}"
   done
 done

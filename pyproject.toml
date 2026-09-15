@@ -1,0 +1,209 @@
+# Tooling config for the ICVR experiment code (no build backend: the repo is a
+# paper, not a distributable package). Everything runs inside ftw-planet's venv:
+#   ~/github/ftw-planet/.venv/bin/{ruff,ty,python}
+# See experiments/run.sh for how the stages are invoked.
+
+[tool.ruff]
+target-version = "py313"
+# 88 matches the existing formatting: at 88 only 9 files reformat, at 100 it is
+# 27 and at 120 it is 32.
+line-length = 88
+# Makes `boundaryvote` resolve as first-party for import sorting, mirroring the
+# PYTHONPATH that run.sh and tests/conftest.py set.
+src = ["experiments"]
+extend-exclude = ["experiments/out"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "PTH",  # flake8-use-pathlib
+    "ARG",  # flake8-unused-arguments
+    "RUF",  # ruff-specific
+    "ANN",  # flake8-annotations
+    "D",    # pydocstyle
+    "PL",   # pylint
+    "TID",  # flake8-tidy-imports
+    "PIE",  # flake8-pie
+    "TRY",  # tryceratops
+    "NPY",  # numpy-specific
+    "PD",   # pandas-vet
+]
+ignore = [
+    # `from __future__ import annotations` is banned in this repo. FA is not in
+    # `select`, but list the two rules that would demand or insert it so the ban
+    # survives someone widening the select set later.
+    "FA100",
+    "FA102",
+    # Research code compares against IoU thresholds, band counts and pixel sizes
+    # inline; naming every one of them as a constant hurts more than it helps.
+    "PLR2004",
+    # Heavy imports (torch, rasterio, ftw-planet internals) are deliberately
+    # deferred into the functions that need them so `-m boundaryvote.<stage> --help`
+    # and the pure-geometry tests stay fast.
+    "PLC0415",
+    # `H, W = arr.shape` is the array-shape convention throughout; forcing
+    # lowercase would make the numeric code harder to read, not easier.
+    "N806",
+    # A raise with an f-string message is the right amount of ceremony for a
+    # single-user research CLI; custom exception classes are not.
+    "TRY003",
+    # `.unstack()` is exactly what the results tables want; `pivot_table` would
+    # silently average duplicate rows instead of surfacing them.
+    "PD010",
+    # `int(round(x))` is not redundant here: `round()` on a numpy scalar returns
+    # a numpy scalar, which then blows up the `:02d` format used to build the
+    # threshold keys. The explicit cast is the guard.
+    "RUF046",
+]
+# Nothing is auto-added on `--fix`; in particular no future import.
+extend-safe-fixes = []
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+# Test bodies are their own documentation, and fixtures/monkeypatch arguments
+# are routinely accepted and not read. D101/D102/D107 cover stub classes that
+# stand in for a real dependency; their method names are the documentation.
+"experiments/tests/**" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D107",
+    "ARG001",
+    "ARG002",
+    "ARG005",
+]
+# Figure/table scripts are top-level executables: module-level constants, long
+# literal LaTeX table rows, and one long linear `main()` per script are the point.
+"experiments/figures/**" = ["D100", "D103", "E501", "PLR0912", "PLR0915"]
+# `_resolved_font` is a module-level cache: `use_style()` resolves the serif
+# family once and `audit()` reads it back. The alternative is making the module
+# a class, and this file is vendored from a shared figure-style skill.
+"experiments/figures/figstyle.py" = ["PLW0603"]
+# `_CANDS`/`_OPTS` are set in the Pool initializer so forked workers inherit the
+# candidate set without re-reading it per patch. That is what a global is for.
+"experiments/boundaryvote/run_eval.py" = ["PLW0603"]
+# `supported_split` is the method the letter proposes and `run_variant` is its
+# name dispatcher. Both are wide and branchy because the algorithm is; splitting
+# them would scatter one contiguous procedure across call sites.
+"experiments/boundaryvote/variants.py" = ["PLR0912", "PLR0913", "PLR0915"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["boundaryvote"]
+# Explicitly empty: this is what would otherwise inject
+# `from __future__ import annotations` into every module.
+required-imports = []
+
+[tool.ruff.lint.flake8-annotations]
+# `**kwargs: Any` is the honest annotation for the thin wrappers that forward
+# straight into matplotlib's own untyped `**kwargs`. Narrower than ignoring
+# ANN401 outright: `Any` is still flagged on ordinary parameters.
+allow-star-arg-any = true
+
+[tool.ruff.lint.pydocstyle]
+# The docstrings here are prose summaries, not Args:/Returns: blocks.
+convention = "google"
+
+[tool.ruff.lint.pylint]
+# Stage entrypoints legitimately take a fistful of experiment knobs.
+max-args = 8
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.pyupgrade]
+# false: on py313 the PEP 585/604 rewrites (`list[int]`, `X | None`) are valid at
+# runtime, so UP006/UP007 can modernise annotations without a future import.
+keep-runtime-typing = false
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = ["experiments/tests"]
+# Same effect as the PYTHONPATH in experiments/run.sh, so pytest can be run from
+# the ftw-planet checkout (dataset paths there are repo-relative).
+pythonpath = ["experiments"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+filterwarnings = ["default"]
+
+[tool.coverage.run]
+source = ["experiments/boundaryvote", "experiments/figures"]
+branch = true
+omit = ["experiments/tests/*", "experiments/out/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ty.environment]
+python-version = "3.13"
+# The stages import ftw-planet, torch, rasterio etc. from the sibling venv.
+python = "../ftw-planet/.venv"
+# `boundaryvote` is importable because experiments/ is on sys.path, not because it
+# is installed.
+extra-paths = ["experiments", "experiments/figures"]
+root = ["experiments", "experiments/figures"]
+
+[tool.ty.src]
+include = ["experiments"]
+exclude = ["experiments/out"]
+
+[tool.ty.rules]
+# Strict: everything ty can prove wrong is an error, including dead type-ignores.
+possibly-unresolved-reference = "error"
+possibly-missing-attribute = "error"
+possibly-missing-implicit-call = "error"
+division-by-zero = "error"
+redundant-cast = "error"
+unused-ignore-comment = "error"
+# Warn only: geopandas/rasterio/shapely ship partial or no stubs, so a missing
+# import here usually means "no stubs", not "broken code".
+unresolved-import = "warn"
+
+[tool.ty.terminal]
+output-format = "concise"
+
+[tool.pyrefly]
+# Pyrefly is not installed in ftw-planet's venv; run it with
+#   uvx pyrefly@latest check
+project-includes = ["experiments"]
+project-excludes = ["**/__pycache__/**", "experiments/out/**"]
+# experiments/figures is a second root: those scripts are run as files and
+# import each other by bare name (`import figstyle`).
+search-path = ["experiments", "experiments/figures"]
+site-package-path = ["../ftw-planet/.venv/lib/python3.13/site-packages"]
+python-interpreter = "../ftw-planet/.venv/bin/python"
+python-version = "3.13.12"
+preset = "strict"
+# Third-party geo/array stack is largely unstubbed; treat the missing pieces as
+# Any instead of drowning real findings in import errors.
+replace-untyped-imports-with-any = ["*"]
+# ultralytics is an optional dep: only cache_da.py (the DelineateAnything
+# baseline) imports it, and it is not installed in ftw-planet's venv.
+ignore-missing-imports = ["ultralytics"]
+use-ignore-files = true
+
+[tool.pyrefly.errors]
+implicitly-defined-attribute = true
+bad-return = true
+bad-assignment = true

@@ -1,10 +1,14 @@
-\multicolumn{3}{@{}l}{\emph{Foreground and split rule}} \\
-Field, components & $-1.1$ & $-1.0$ \\
-Field, watershed instances & $-12.5$ & $-10.4$ \\
-Field, watershed components ($h{=}2$) & $+0.0$ & $+0.0$ \\
-Field, supported splits & $-0.1$ & $-0.0$ \\
-Not-background, components & $-27.8$ & $-24.9$ \\
-Not-background, supported splits & $+3.0$ & $+3.7$ \\
-\multicolumn{3}{@{}l}{\emph{Minimum parcel size of 900~m$^2$}} \\
-Released, with minimum size & $+0.9$ & $+1.7$ \\
-Ours, without minimum size & $+3.0$ & $+3.7$ \\
+\multicolumn{3}{@{}l}{\emph{Foreground, Surface, and Split Rule (With Minimum Size)}} \\
+FTP + Min Size & \gainc{$+0.9$} & \gainc{$+1.7$} \\
+Field, Probability Watershed + Vote & \gainc{$+1.0$} & \gainc{$+1.8$} \\
+Not-Background, Components & \lossc{$-25.8$} & \lossc{$-22.7$} \\
+Not-Background, Distance Watershed + Vote & \gainc{$+4.5$} & \gainc{$+5.7$} \\
+Not-Background, Probability Watershed, No Vote & \gainc{$+6.7$} & \gainc{$+7.6$} \\
+Same, Every Minimum Seeds ($h{=}0$) & \lossc{$-6.6$} & \lossc{$-13.8$} \\
+BoundaryVote, Every Minimum Seeds ($h{=}0$) & \gainc{$+6.6$} & \gainc{$+6.3$} \\
+\rowcolor{oursbg}\textbf{BoundaryVote (Ours)} & \gainc{$\mathbf{+6.8}$} & \gainc{$\mathbf{+7.5}$} \\
+\addlinespace[2pt]
+\multicolumn{3}{@{}l}{\emph{Without the Minimum Parcel Size}} \\
+FTP Pipeline ($h{=}2$) & \flatc{$+0.0$} & \flatc{$+0.0$} \\
+BoundaryVote, Distance Proposals & \gainc{$+3.0$} & \gainc{$+3.7$} \\
+BoundaryVote & \lossc{$-30.0$} & \lossc{$-25.1$} \\

@@ -2,6 +2,11 @@
 
 Audited 9 September 2026. Scope: all 25 original entries in `references.bib`, their publication metadata, and relevant omissions from `main_grsl.tex`. Seven verified entries were added; the GRSL paper now cites 18 works. The shared bibliography contains 32 entries because the expanded `main.tex` uses additional references.
 
+> Historical record. The corrections below are already applied to
+> `references.bib`. The two manuscripts it audits, `main_grsl.tex` and
+> `main.tex`, were superseded by `main_grsl_revised.tex` and removed, so the
+> citation counts quoted here describe those earlier drafts.
+
 ## Findings and corrections
 
 **No fabricated papers, invented authors, or identifiers pointing to unrelated works were found.** All original scholarly references were matched to publisher, conference, or arXiv records. One data-product citation needed correction, and several references needed better publication locators.
@@ -30,7 +35,7 @@ The year-bearing citation keys were preserved. For example, `kerner2024ftw` corr
 
 ## What this literature changes about the experiments
 
-These are recommendations for subsequent work, not experiments performed by this revision. They supplement `EXPERIMENT_REVIEW.md`.
+These are recommendations for subsequent work, not experiments performed by this revision.
 
 1. **Compare with stochastic watershed before making a broad novelty claim about watershed consensus.** Use the same frozen prediction surface, raster grid, evaluation patches, and candidate-generation budget. Random-marker runs would require a new experiment; they cannot be reconstructed faithfully by relabeling the existing depth exports. Report both accuracy and total postprocessing time. The defensible current contribution is the specific foreground aggregation rule and its field-delineation evaluation, not the general idea of combining watershed runs.
 2. **Add a reliability-weighted fusion control if the fusion rule is meant to be the central contribution.** STAPLE on the same binary candidate masks is one interpretable option. It would test whether equal weighting is adequate. Neither fusion method recovers instance identities discarded by binary rasterization, so report merge/split behavior as well as PQ. Do not treat repeated depths from one model as independent evidence without examining that assumption.

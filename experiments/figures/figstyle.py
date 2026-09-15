@@ -12,13 +12,20 @@ reproducible after the session that made it ends.
 """
 
 import math
-import os
 import sys
 import warnings
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from matplotlib.image import AxesImage
+from matplotlib.lines import Line2D
+from numpy import ndarray
 
 # Final printed widths in inches. Build every figure at the size it will be
 # printed at: rescaling in LaTeX rescales the text with it.
@@ -47,6 +54,14 @@ CYCLE = [PALETTE[k] for k in ("blue", "orange", "green", "red", "purple", "cyan"
 # edge still reads as the outline.
 BASELINE = "#7F7F7F"
 MUTED = "#CFCFCF"
+
+# Image-panel furniture shared by the gallery and worked pipeline.
+PANEL_EDGE = "#888888"
+PANEL_LINEWIDTH = 0.35
+LABEL_BBOX = {"boxstyle": "square,pad=0.15", "fc": "white", "ec": "none", "alpha": 0.95}
+# Signed text needs darker colors than large categorical fills.
+GAIN = "#1B7837"
+LOSS = "#B2182B"
 
 SEQUENTIAL = "viridis"
 DIVERGING = "RdBu_r"
@@ -103,7 +118,7 @@ SERIF = [
 _resolved_font: str | None = None
 
 
-def _available_font(stack) -> str | None:
+def available_font(stack: list[str]) -> str | None:
     """The first font in `stack` this machine actually has."""
     import matplotlib.font_manager as fm
 
@@ -123,7 +138,7 @@ def use_style(family: str = "sans") -> None:
     # exists; picking Agg up front avoids a backend failure at import.
     mpl.use("Agg")
     global _resolved_font
-    _resolved_font = _available_font(SERIF if family == "serif" else SANS)
+    _resolved_font = available_font(SERIF if family == "serif" else SANS)
     mpl.rcParams.update(
         {
             "font.family": "serif" if family == "serif" else "sans-serif",
@@ -145,7 +160,7 @@ def use_style(family: str = "sans") -> None:
             "figure.dpi": 200,
             "savefig.dpi": 600,
             "savefig.transparent": False,
-            "axes.prop_cycle": mpl.cycler(color=CYCLE),
+            "axes.prop_cycle": mpl.rcsetup.cycler(color=CYCLE),
             "axes.spines.top": False,
             "axes.spines.right": False,
             "axes.linewidth": 0.6,
@@ -170,7 +185,9 @@ def use_style(family: str = "sans") -> None:
     )
 
 
-def figure(width: float = COLUMN, ratio: float = 0.68, **kwargs):
+def figure(
+    width: float = COLUMN, ratio: float = 0.68, **kwargs: Any
+) -> tuple[Figure, Axes]:
     """One axes at a final printed size. `ratio` is height/width."""
     fig, ax = plt.subplots(
         figsize=(width, width * ratio), layout="constrained", **kwargs
@@ -179,8 +196,12 @@ def figure(width: float = COLUMN, ratio: float = 0.68, **kwargs):
 
 
 def figure_grid(
-    nrows: int = 1, ncols: int = 2, width: float = TEXT, ratio: float = 0.4, **kwargs
-):
+    nrows: int = 1,
+    ncols: int = 2,
+    width: float = TEXT,
+    ratio: float = 0.4,
+    **kwargs: Any,
+) -> tuple[Figure, Axes | ndarray]:
     """A panel grid at a final printed size, sharing one constrained layout."""
     fig, axes = plt.subplots(
         nrows, ncols, figsize=(width, width * ratio), layout="constrained", **kwargs
@@ -188,7 +209,12 @@ def figure_grid(
     return fig, axes
 
 
-def panel_labels(axes, labels=None, weight: str = "bold", pad: float = 2.0):
+def panel_labels(
+    axes: Axes | ndarray,
+    labels: list[str] | None = None,
+    weight: str = "bold",
+    pad: float = 2.0,
+) -> None:
     """Label panels (a), (b), ... above each axes' top-left corner.
 
     Panel letters are how prose names a part of a figure ("as Fig. 2b shows").
@@ -197,7 +223,7 @@ def panel_labels(axes, labels=None, weight: str = "bold", pad: float = 2.0):
     """
     flat = np.ravel(np.asarray(axes, dtype=object)).tolist()
     labels = labels or [f"({chr(ord('a') + i)})" for i in range(len(flat))]
-    for ax, text in zip(flat, labels):
+    for ax, text in zip(flat, labels, strict=True):
         ax.annotate(
             text,
             xy=(0, 1),
@@ -211,17 +237,18 @@ def panel_labels(axes, labels=None, weight: str = "bold", pad: float = 2.0):
         )
 
 
-def _looks_numeric(label: str) -> bool:
+def looks_numeric(label: str) -> bool:
     try:
         float(label.replace("\u2212", "-").replace("%", "").rstrip("kMBT"))
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
-def _audit(fig) -> list[str]:
+def audit(fig: Figure) -> list[str]:
     """Check a figure against the rules the references make non-negotiable."""
-    problems = []
+    problems: list[str] = []
     if mpl.rcParams["pdf.fonttype"] != 42:
         problems.append(
             "use_style() was never called: fonts will embed as Type 3, which arXiv rejects"
@@ -253,9 +280,7 @@ def _audit(fig) -> list[str]:
         # An image panel has pixel coordinates on both axes and no ticks; an
         # axis title over it would name the pixel grid, which is not a quantity
         # the reader reads off the figure.
-        if ax.images and not (
-            ax.xaxis.get_ticklabels() or ax.yaxis.get_ticklabels()
-        ):
+        if ax.images and not (ax.xaxis.get_ticklabels() or ax.yaxis.get_ticklabels()):
             continue
         for axis, name, shared in (
             (ax.xaxis, "x", ax.get_shared_x_axes()),
@@ -281,25 +306,25 @@ def _audit(fig) -> list[str]:
             if (
                 axis.get_scale() == "linear"
                 and ticks
-                and not all(_looks_numeric(t) for t in ticks)
+                and not all(looks_numeric(t) for t in ticks)
             ):
                 continue
             problems.append(f"an axes has no {name} label")
 
     # Anything below 5pt is unreadable in print. Bar value labels sit at 5.
     tiny = {
-        round(t.get_fontsize(), 1)
+        round(float(t.get_fontsize()), 1)
         for t in fig.findobj(mpl.text.Text)
-        if t.get_text().strip() and t.get_fontsize() < 5
+        if t.get_text().strip() and float(t.get_fontsize()) < 5
     }
     if tiny:
         problems.append(f"text below the 5pt floor: sizes {sorted(tiny)}")
 
-    problems.extend(_text_collisions(fig))
+    problems.extend(text_collisions(fig))
     return problems
 
 
-def _text_collisions(fig) -> list[str]:
+def text_collisions(fig: Figure) -> list[str]:
     """Report text that overlaps other text or runs off the canvas.
 
     A label sitting on the axis or through a tick label is the most common way
@@ -347,7 +372,8 @@ def _text_collisions(fig) -> list[str]:
         if box.width > 0 and box.height > 0:
             boxes.append((text, box))
 
-    problems, tolerance = [], 1.5
+    problems: list[str] = []
+    tolerance = 1.5
     clipped = [
         text.get_text()
         for text, box in boxes
@@ -379,24 +405,29 @@ def _text_collisions(fig) -> list[str]:
     return problems
 
 
-def save(fig, stem: str, formats=("pdf", "svg"), close: bool = True) -> list[str]:
-    """Write `stem.pdf` (for \\includegraphics) and `stem.svg` (for preview).
+def save(
+    fig: Figure,
+    stem: str,
+    formats: tuple[str, ...] = ("pdf", "svg"),
+    close: bool = True,
+) -> list[str]:
+    r"""Write `stem.pdf` (for \\includegraphics) and `stem.svg` (for preview).
 
     No `bbox_inches="tight"`: trimming to content changes the physical width
     and defeats building at the final size.
     """
     # Write first: the audit inspects a live canvas and must never be the
     # reason a finished figure is lost.
-    parent = os.path.dirname(stem)
-    if parent:
-        os.makedirs(parent, exist_ok=True)
+    parent = Path(stem).parent
+    if parent != Path():
+        parent.mkdir(parents=True, exist_ok=True)
     paths = []
     for ext in formats:
         path = f"{stem}.{ext}"
         fig.savefig(path, format=ext)
         paths.append(path)
     try:
-        problems = _audit(fig)
+        problems = audit(fig)
     finally:
         if close:
             plt.close(fig)
@@ -414,7 +445,9 @@ def save(fig, stem: str, formats=("pdf", "svg"), close: bool = True) -> list[str
     return paths
 
 
-def mean_ci(runs, confidence: float = 0.95):
+def mean_ci(
+    runs: ndarray, confidence: float = 0.95
+) -> tuple[ndarray, ndarray, ndarray]:
     """Mean and 95% t-interval across seeds. `runs` is (n_seeds, n_points).
 
     Returns `(mean, lo, hi)`. Report the interval, not the standard deviation:
@@ -433,7 +466,7 @@ def mean_ci(runs, confidence: float = 0.95):
         )
         return mean, mean, mean
     sem = runs.std(axis=0, ddof=1) / math.sqrt(n)
-    crit = _t95(n - 1)
+    crit = t95(n - 1)
     return mean, mean - crit * sem, mean + crit * sem
 
 
@@ -445,12 +478,14 @@ def family(name: str, n: int, lightest: float = 0.55) -> list[str]:
     """
     base = np.array(mpl.colors.to_rgb(PALETTE[name]))
     if n == 1:
-        return [mpl.colors.to_hex(base)]
+        return [mpl.colors.to_hex(tuple(base))]
     steps = np.linspace(lightest, 0.0, n)
-    return [mpl.colors.to_hex(base + (1.0 - base) * step) for step in steps]
+    return [mpl.colors.to_hex(tuple(base + (1.0 - base) * step)) for step in steps]
 
 
-def pareto_front(x, y, minimize_x: bool = True, maximize_y: bool = True):
+def pareto_front(
+    x: ndarray, y: ndarray, minimize_x: bool = True, maximize_y: bool = True
+) -> ndarray:
     """Indices of the non-dominated points, ordered along the frontier.
 
     A point is on the frontier when no other point is at least as good on both
@@ -469,7 +504,7 @@ def pareto_front(x, y, minimize_x: bool = True, maximize_y: bool = True):
     return np.array(front, dtype=int)
 
 
-def _t95(df: int) -> float:
+def t95(df: int) -> float:
     # Round the degrees of freedom down, never to the nearest key: a smaller df
     # gives a larger t, so the interval errs wide rather than overstating how
     # well a handful of seeds resolves the mean.
@@ -477,7 +512,9 @@ def _t95(df: int) -> float:
     return _T95[max(covered)] if covered else _T95[1]
 
 
-def diff_ci(treatment, baseline):
+def diff_ci(
+    treatment: ndarray, baseline: ndarray
+) -> tuple[np.floating, np.floating, np.floating]:
     """Mean difference (treatment - baseline) and its 95% Welch interval.
 
     An ablation claims a difference, so the figure has to show the interval of
@@ -500,11 +537,18 @@ def diff_ci(treatment, baseline):
     if sem == 0:
         return delta, delta, delta  # every seed identical: the interval is a point
     df = (var_t + var_b) ** 2 / (var_t**2 / (n_t - 1) + var_b**2 / (n_b - 1))
-    half = _t95(int(df)) * sem
+    half = t95(int(df)) * sem
     return delta, delta - half, delta + half
 
 
-def band(ax, x, runs, label=None, color=None, **kwargs):
+def band(
+    ax: Axes,
+    x: ndarray,
+    runs: ndarray,
+    label: str | None = None,
+    color: str | None = None,
+    **kwargs: Any,
+) -> Line2D:
     """Plot the seed mean as a line with its 95% interval as a matching band."""
     mean, lo, hi = mean_ci(runs)
     (line,) = ax.plot(x, mean, label=label, color=color, **kwargs)
@@ -512,7 +556,14 @@ def band(ax, x, runs, label=None, color=None, **kwargs):
     return line
 
 
-def label_ends(ax, lines, labels, pad: float = 3.0, min_gap: float = 7.0, **kwargs):
+def label_ends(
+    ax: Axes,
+    lines: Sequence[Line2D],
+    labels: Sequence[str],
+    pad: float = 3.0,
+    min_gap: float = 7.0,
+    **kwargs: Any,
+) -> None:
     """Label each line at its right end, in the line's own color.
 
     Direct labels beat a legend up to ~5 series: the reader never has to match
@@ -528,7 +579,8 @@ def label_ends(ax, lines, labels, pad: float = 3.0, min_gap: float = 7.0, **kwar
     if not labels:
         return
     size = kwargs.pop("fontsize", mpl.rcParams["legend.fontsize"])
-    widths, heights = [], []
+    widths: list[float] = []
+    heights: list[float] = []
     for text in labels:
         probe = ax.text(0, 0, text, fontsize=size)
         extent = probe.get_window_extent(renderer)
@@ -553,13 +605,14 @@ def label_ends(ax, lines, labels, pad: float = 3.0, min_gap: float = 7.0, **kwar
         ax.set_xlim(x_lo, room)
 
     ends = []
-    for line, text in zip(lines, labels):
+    for line, text in zip(lines, labels, strict=True):
         xy = (line.get_xdata()[-1], line.get_ydata()[-1])
-        ends.append([ax.transData.transform(xy)[1], xy, line, text])
+        ends.append((ax.transData.transform(xy)[1], xy, line, text))
     ends.sort(key=lambda end: end[0])
-    for i in range(1, len(ends)):
-        ends[i][0] = max(ends[i][0], ends[i - 1][0] + gap_px)
-    for y_px, xy, line, text in ends:
+    ys = [end[0] for end in ends]
+    for i in range(1, len(ys)):
+        ys[i] = max(ys[i], ys[i - 1] + gap_px)
+    for y_px, (_, xy, line, text) in zip(ys, ends, strict=True):
         offset = (y_px - ax.transData.transform(xy)[1]) * 72 / ax.figure.dpi
         ax.annotate(
             text,
@@ -574,7 +627,7 @@ def label_ends(ax, lines, labels, pad: float = 3.0, min_gap: float = 7.0, **kwar
         )
 
 
-def si_ticks(ax, which: str = "x") -> None:
+def si_ticks(ax: Axes, which: str = "x") -> None:
     """Format ticks as 1.2k / 340M / 7B instead of 1.2e3 / 3.4e8.
 
     Call it after the limits are final. On a log axis spanning less than a
@@ -582,7 +635,7 @@ def si_ticks(ax, which: str = "x") -> None:
     otherwise matplotlib prints them as `1.85 x 10^0`.
     """
 
-    def fmt(value, _pos):
+    def fmt(value: float, _pos: int | None) -> str:
         for scale, suffix in ((1e12, "T"), (1e9, "B"), (1e6, "M"), (1e3, "k")):
             if abs(value) >= scale:
                 trimmed = f"{value / scale:.1f}".rstrip("0").rstrip(".")
@@ -598,10 +651,13 @@ def si_ticks(ax, which: str = "x") -> None:
 
 
 def annotate_matrix(
-    ax, values, fmt: str = "{:.2f}", image=None, threshold: float = 0.6
+    ax: Axes,
+    values: ndarray,
+    fmt: str = "{:.2f}",
+    image: AxesImage | None = None,
+    threshold: float = 0.6,
 ) -> None:
-    """Write each cell's value on a heatmap, in whichever of black or white
-    stays legible against that cell."""
+    """Write each cell's value on a heatmap, in the more legible of black or white."""
     values = np.asarray(values, dtype=float)
     image = ax.images[-1] if image is None else image
     norm, cmap = image.norm, image.cmap

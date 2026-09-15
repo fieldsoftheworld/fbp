@@ -1,5 +1,9 @@
 # GRSL revision, 2026-09-08
 
+> Historical record. It describes the `main_grsl.tex` iteration, which has since
+> been superseded by `main_grsl_revised.tex` and removed. Recover the sources it
+> refers to from git history.
+
 ## Scope
 
 The submission source is `main_grsl.tex`. The expanded `main.tex` compiles to

@@ -20,6 +20,6 @@ W="$SLURM_CPUS_PER_TASK"
 C=$(ls experiments/out/candidates/"$RUN"/"$SPLIT"/belgium/ | grep -E "ucm|thr|swst|iterh" | sed 's/polys_v_//; s/\.parquet//' | tr '\n' ' ')
 echo "scoring: $C"
 # shellcheck disable=SC2086
-experiments/run.sh fieldvote.run_eval --run "$RUN" --split "$SPLIT" --protocol pixel --references vector \
+experiments/run.sh boundaryvote.run_eval --run "$RUN" --split "$SPLIT" --protocol pixel --references vector \
     --workers "$W" --sets variants --tag priors --variants $C
 echo done.

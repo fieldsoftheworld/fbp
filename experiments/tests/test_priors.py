@@ -1,11 +1,12 @@
 """Prior post-processing baselines run and behave monotonically in their thresholds."""
 
 import numpy as np
-from fieldvote.priors import iterh, swst, thr, ucm
-from fieldvote.variants import foreground, run_variant
+
+from boundaryvote.priors import iterh, swst, thr, ucm
+from boundaryvote.variants import foreground, run_variant
 
 
-def _scene():
+def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
     """Two fields separated by a confident boundary line, plus a faint internal line."""
     H, W = 40, 60
     prob = np.zeros((3, H, W), dtype=np.float32)
@@ -23,8 +24,8 @@ def _scene():
     return seg, prob
 
 
-def test_ucm_threshold_monotone():
-    seg, prob = _scene()
+def test_ucm_threshold_monotone() -> None:
+    seg, prob = two_field_scene()
     fg = foreground(seg, prob, "nbg")
     low = ucm(fg, seg, prob, 0.2)
     high = ucm(fg, seg, prob, 0.95)
@@ -32,14 +33,14 @@ def test_ucm_threshold_monotone():
     assert low.max() >= 2  # the strong boundary survives a low threshold
 
 
-def test_thr_components():
-    seg, prob = _scene()
+def test_thr_components() -> None:
+    _seg, prob = two_field_scene()
     lab = thr(prob, 0.5, 0.5)
     assert lab.max() == 2  # boundary column with p_bnd .9 splits the field
 
 
-def test_iterh_and_swst_run():
-    seg, prob = _scene()
+def test_iterh_and_swst_run() -> None:
+    seg, prob = two_field_scene()
     fg = foreground(seg, prob, "nbg")
     a = iterh(fg, seg, (8.0, 4.0, 2.0, 1.0), a_max=100)
     b = iterh(fg, seg, (8.0, 4.0, 2.0, 1.0), a_max=10**9)
@@ -48,8 +49,8 @@ def test_iterh_and_swst_run():
     assert s.dtype == np.int32 and s.max() >= 1
 
 
-def test_run_variant_dispatch():
-    seg, prob = _scene()
+def test_run_variant_dispatch() -> None:
+    seg, prob = two_field_scene()
     for name in (
         "nbg-ucm-k0.3",
         "nbg-swst-n20-m5-t0.5",

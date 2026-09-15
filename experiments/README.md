@@ -1,12 +1,11 @@
 # FieldVote rerun
 
-Self-contained rebuild of the experiments behind `main_grsl.tex`, addressing
-`EXPERIMENT_REVIEW.md`. The legacy `scripts/` tree is kept as a historical
-record; it depended on exports in a co-author's home directory that are gone.
+Self-contained rebuild of the experiments behind `main_grsl_revised.tex` and
+`supplementary.tex`.
 
 Everything here runs inside the sibling `~/github/ftw-planet` checkout's venv
 (`experiments/run.sh` sets `PYTHONPATH` and `cd`s there) and imports FTP's own
-inference, watershed, and matching functions (`fieldvote/ftp_compat.py`), so the
+inference, watershed, and matching functions (`boundaryvote/ftp_compat.py`), so the
 scores are directly comparable with FTP Table 1. Outputs go to
 `experiments/out/` (gitignored); tracked results are copied to `tables/`.
 
@@ -14,16 +13,16 @@ scores are directly comparable with FTP Table 1. Outputs go to
 
 | # | module | device | writes |
 |---|---|---|---|
-| 1 | `fieldvote.cache` | GPU | `out/cache/<run>/<split>/<country>/<pid>.npz` (softmax f16, argmax, GT, grid) + `manifest.json` (ckpt sha256, git SHAs, flags) |
-| 2 | `fieldvote.candidates` | CPU | `out/candidates/…/polys_<h>.parquet` per-instance polygons for 14 depths + `cc`; `manifest.csv` (markers, fallback, counts) |
-| 3 | `fieldvote.run_eval` | CPU | `out/scores/<run>/<split>/<protocol>/patches_<country>.parquet` — per (patch, reference, strategy) tallies |
-| 4 | `fieldvote.report` | CPU | `country.csv`, `macro.csv`, `ftp_gate.csv` + printed tables |
+| 1 | `boundaryvote.cache` | GPU | `out/cache/<run>/<split>/<country>/<pid>.npz` (softmax f16, argmax, GT, grid) + `manifest.json` (ckpt sha256, git SHAs, flags) |
+| 2 | `boundaryvote.candidates` | CPU | `out/candidates/…/polys_<h>.parquet` per-instance polygons for 14 depths + `cc`; `manifest.csv` (markers, fallback, counts) |
+| 3 | `boundaryvote.run_eval` | CPU | `out/scores/<run>/<split>/<protocol>/patches_<country>.parquet` — per (patch, reference, strategy) tallies |
+| 4 | `boundaryvote.report` | CPU | `country.csv`, `macro.csv`, `ftp_gate.csv` + printed tables |
 
 ```sh
 sbatch experiments/hpc/cache_preds.sbatch                       # all 4 ckpts x {test,val}
 sbatch --export=ALL,RUN=planet_b3,SPLIT=test experiments/hpc/cpu_stages.sbatch
 sbatch --export=ALL,RUN=s2_b7,SPLIT=test,PROTOCOL=gsd,GSD=10 experiments/hpc/cpu_stages.sbatch
-experiments/run.sh fieldvote.report --run planet_b3 --split test
+experiments/run.sh boundaryvote.report --run planet_b3 --split test
 ```
 
 Runs: `planet_b3` (FTP headline, `planet_efnet3_augmax_full_best.ckpt`),
@@ -69,23 +68,24 @@ Dense-10 macro PQ, true-vector reference:
 |---|---:|---:|---:|---:|
 | `ws_test` legacy baseline (per-instance polygons, test-selected depth) | 32.1 | 32.9 | 25.0 | 21.9 |
 | `vote:t0.5` FieldVote, 14 depths | 35.4 | 35.3 | 24.3 | 21.2 |
-| `rt:h2` FTP default single depth, round-tripped | 35.5 | 35.4 | 24.2 | 21.0 |
+| `rt:h2` FTP default single depth, rasterized and re-extracted | 35.5 | 35.4 | 24.2 | 21.0 |
 | `rt_val` / `rt_loco` single depth chosen on val / other countries' val | 35.8 / 35.8 | 35.7 / 35.7 | 24.9 / 24.8 | 21.9 / 20.8 |
-| `rt_test` single depth, round-tripped, test-selected | 35.9 | 35.7 | 25.0 | 21.9 |
+| `rt_test` single depth, rasterized and re-extracted, test-selected | 35.9 | 35.7 | 25.0 | 21.9 |
 | `nms` / `elbow` | 17.0 / 23.6 | 17.5 / 23.2 | 24.1 / 23.7 | 20.9 / 20.5 |
 
 Gate for s2_b3: 20.99 vs FTP 21.00.
 
-FieldVote beats the best round-tripped single depth in 0/10 countries on every
+FieldVote beats the best rasterized-and-re-extracted single depth in 0/10
+countries on every
 run. Pixel check (Belgium, Croatia, Latvia): the vote mask never differs from
 every single-depth mask and equals `rt:h2` exactly in 63–93% of patches. The
-letter's reported gain is the rasterize→polygonize conversion (discarding
-instance labels), not the vote. The legacy country-selected depth was `h=64`
+letter's reported gain comes from rasterizing the polygons and extracting them
+again, which discards instance labels, not from the vote. The legacy country-selected depth was `h=64`
 in 4/10 countries, where the connected-component fallback fires on 64% of
 patches. Under the S2 protocol `raw == rt` by construction (`_cap_pred_to_gsd`
 rasterizes).
 
-## Model-free variant ablation (2026-09-10, `results/ablation/`, `fieldvote/variants.py`)
+## Model-free variant ablation (2026-09-10, `results/ablation/`, `boundaryvote/variants.py`)
 
 Variants built from `(argmax, softmax)` only: foreground rule × split rule.
 Δ macro PQ vs `rt:h2` (FTP's default), true-vector reference, all runs on one
@@ -117,7 +117,7 @@ variant gains +3.7 on both encoders with every country improving. FTP's native-1
 variant loses because sub-10 m separations and thin parcels are rasterized
 away, and widening the kept lines to 10–25 m (`-w2..-w5`) does not recover it.
 
-## Instance models (DelineateAnything-v2), `fieldvote/cache_da.py`, `fieldvote/da_softmax.py`
+## Instance models (DelineateAnything-v2), `boundaryvote/cache_da.py`, `boundaryvote/da_softmax.py`
 
 DA-v2 (`MykolaL/DelineateAnything`, `DelineateAnythingv2.pt`, FTP's best swept
 setting `--imgsz 1024 --conf 0.05`) emits instances + confidences, no boundary
@@ -150,12 +150,13 @@ DA-v2 enters the letter as a baseline row.
 ## Revised letter (`main_grsl_revised.tex`)
 
 Written from the rebuilt results only; FieldVote does not appear. Build with
-`latexmk -pdf main_grsl_revised.tex` (4 pages incl. references). Regenerate its
+`latexmk -pdf main_grsl_revised.tex` (5 pages incl. references). Regenerate its
 inputs from `experiments/results/`:
 
 ```sh
 V=~/github/ftw-planet/.venv/bin/python
-$V experiments/figures/make_tables.py     # tables/rev_{main_rows,ablation_rows,values}.tex
+$V experiments/figures/make_tables.py      # tables/rev_{main_rows,compare_rows,ablation_rows,values}.tex
+$V experiments/figures/make_supp_tables.py # tables/supp_*_rows.tex
 $V experiments/figures/per_country.py     # figures/rev_percountry.pdf
 $V experiments/figures/gallery.py         # figures/rev_gallery.pdf: one patch per country, released vs ours, patch PQ printed
 $V experiments/figures/method_fig.py      # figures/rev_method.pdf: every intermediate image on one crop
@@ -168,10 +169,11 @@ Figure text is Nimbus Roman (Times New Roman is not installed here). Paper
 default is `nbg-sup-h2-t0.7`; "best depth" rows are `rt_test` restricted to
 `rt:h*` strategies.
 
-## Prior post-processing baselines (`fieldvote/priors.py`)
+## Prior post-processing baselines (`boundaryvote/priors.py`)
 
-Four label-free conversions re-implemented on the same cached predictions, so
-the comparison isolates the split/merge rule:
+Six label-free post-processing pipelines re-implemented on the same cached
+predictions, so the comparison isolates the split/merge rule (`owt` and `gmm`
+live in `boundaryvote/priors_recent.py`):
 
 | name | method | knobs |
 |---|---|---|
@@ -179,21 +181,41 @@ the comparison isolates the split/merge rule:
 | `swst` | stochastic watershed: `m` draws of `n` random markers, cut where the line frequency reaches `t` | `n`, `m`, `t` |
 | `iterh` | iterative marker depth: watershed at `h=8`, re-segment regions over `a` px at 4, 2, 1 | `a` |
 | `thr` | extent/boundary thresholds `p_field >= te`, `p_bnd < tb`, then components | `te`, `tb` |
+| `owt` | Zhu et al. (IJDE 2024): oriented boundary signal (mean `p_bnd` along 5-px lines at 8 orientations), watershed of its maximum seeded at `h`-minima, arcs weighted by the signal at their own orientation, greedy merge below level `l` | `l`, `h` |
+| `gmm` | Amin et al. (Sci. Remote Sens. 2025): two-component 1-D mixtures fitted per country to `1 - p_bg` and `p_bnd` (`boundaryvote.gmm_thresholds`, numpy EM, `out/gmm/<run>_<split>.json`), thresholds = weight-averaged component means, boundary mask thinned and subtracted from the extent mask, then components | none (fitted) |
 
-Each grid is swept until its optimum is interior, its setting is chosen on the
-**validation** split, and the same setting is reported on test for every run.
-`arg-ws{h}` is the released conversion expressed as a variant, so post-steps
+Each grid is extended past its first optimum (`hpc/variants_extra.sbatch` with
+`TAG=priors2` holds the second round and `TAG=priors3` the small-`h` owt
+settings), its setting is chosen on the **validation** split, and the same
+setting is reported on test for every run. `owt` alone is selected with the
+`+A900` step in place (`transfer.FAMILIES`): its over-segmentation leaves
+slivers that put the bare method under 8 PQ, so ranking the bare grid would
+rank sliver counts.
+The vote's line statistic has three alternatives for the supplement:
+`nbg-ssup-*` (mean probability share), `nbg-asup-*` (mean `p_bnd`, an absolute
+threshold) and `nbg-dsup-*` (mean margin `p_bnd - p_field`), all at `h=2`.
+`arg-ws{h}` is the FTP pipeline expressed as a variant, so post-steps
 (`+a`, `+f`, `+m`) can be applied to it on equal terms.
 
 ## Cost and transfer
 
 ```sh
 sbatch --export=ALL,RUN=planet_b3 experiments/hpc/profile.sbatch   # out/profile/<run>_<split>.csv
-experiments/run.sh fieldvote.transfer --run planet_b3              # out/transfer/<run>.csv
+experiments/run.sh boundaryvote.transfer --run planet_b3              # out/transfer/<run>.csv
 experiments/rebuild_paper.sh                                       # every table, figure, both PDFs
 ```
 
-Copies of the cost and transfer CSVs behind Table II live in `results/cost/`.
+Copies of the cost and transfer CSVs behind Table I live in `results/cost/`.
+
+The shipped configuration (`nbg-pb-h0.01-t0.3+A900`: not-background foreground,
+watershed of `p_bnd` seeded at its minima deeper than 0.01, vote at τ=0.3, 900 m²
+minimum) is defined once in `boundaryvote/shipped.py`; the earlier distance-map
+form `nbg-sup-h2-t0.7+A900` stays as `OURS_DISTANCE` for the supplement.
+
+`boundaryvote.bootstrap --run <run>` resamples each country's test patches
+1,000 times (seed 0) for 95% intervals on both pipelines' macro PQ and their
+difference; copies live in `results/bootstrap/` and feed the supplement's
+bootstrap table and the letter's `\GainCILow` macro.
 
 `profile_methods` times each method on one core (threads pinned to 1, minimum
 of three repeats) and samples peak RSS in a background thread, on patches
@@ -232,37 +254,36 @@ boundary-supported splits at h=2 with tau=0.7, and a 900 m^2 minimum parcel
 area. The threshold is in ground area, not pixels, because a pixel threshold
 means different parcel sizes on the two sensors (Planet 9.0 m^2/px, the
 upsampled S2 grid 5.5 m^2/px here). Headline gains compare against the
-released pipeline given the same minimum-size step (`arg-ws2+A900`).
+FTP pipeline given the same minimum-size step (`arg-ws2+A900`).
 
-## Global run (`fieldvote/global_*.py`, `fieldvote/cache_global.py`)
+## Analysis tools
 
-The global FTW map (arXiv:2605.11055) is a PRUE B7 U-Net run at 10 m whose
-polygons are connected components of the field argmax with a 4-px minimum, no
-watershed. Its 3-class float32 softmax is a Zarr v3 store
-(`https://data.source.coop/ftw/global-data/predictions/zarr/alpha/global.zarr`,
-`(time, band, y, x)`, EPSG:4326, 8.98e-5 deg/px, time 0 = 2024 and 1 = 2025,
-8192^2 shards with 2048^2 inner chunks). Two uses:
+Console reports over `out/scores` and `out/candidates`; none of them writes a
+paper input, so they are not part of `rebuild_paper.sh`.
 
-* **Diffs and cost at scale.** `global_tiles` lists the 270,684 inner chunks
-  with mean 2025 field probability > 0.01 from the 2048x overview (one overview
-  pixel per chunk) and tags them with Natural Earth countries;
-  `hpc/global.sbatch` runs one 300-tile shard per array task
-  (`--array=0-899%150`, plus `OFFSET=900` for the last three). Each chunk is
-  read once (1.8 s) and processed as 16 sub-tiles of 512^2, the letter's patch
-  size, so the validated settings of the prior methods mean what they meant in
-  Table II. Per (tile, method): parcel count, area, parcel-area histogram, wall
-  ms, peak RSS. Stochastic watershed runs on every 20th tile. About 8 s per
-  tile, ~600 CPU-h for one year. `global_report` aggregates to `summary.csv`,
-  `by_country.csv`, `area_hist.csv` under `out/global/`.
-* **A third model with labels.** `cache_global` reads the store window under
-  every FTW test patch (labels are EPSG:4326 too) into the standard cache
-  layout as run `global_s2`; `hpc/global_labeled.sbatch` then runs candidates,
-  scoring on the store grid, and the report, so the production model's
-  predictions get the same PQ table as the four released runs. Imagery year
-  (2025) differs from the label years, which affects every method equally.
+```sh
+experiments/run.sh boundaryvote.ablation --runs planet_b3 planet_b7 planet_b37 --protocol pixel
+experiments/run.sh boundaryvote.iou_sweep --run planet_b3 --split val \
+    --variants nbg-sup-h2-t0.7 nbg-sup-h2-t0.7+H40          # out/iou_sweep/<run>_<split>.csv
+experiments/run.sh boundaryvote.boundary_error --run planet_b3 --split test \
+    --variants arg-ws2+A900 nbg-sup-h2-t0.7+A900            # out/boundary/<run>_<split>.csv
+```
+
+`ablation` is the cross-run variant ranking behind `results/ablation/cross_*.csv`
+and the variant table above. `iou_sweep` rescores from IoU 0.2 upward, because a
+rule that adds splits can be punished by the 0.5 threshold itself rather than by
+its polygons; `boundary_error` reports FTP's symmetric chamfer and the polygon
+count delta over matched pairs. Neither number is in the letter yet.
+
+## Withdrawn: the global-scale run
+
+`results/global_s2/` and the third-model row it fed are kept for provenance but
+must not be reported. The public FTW global Zarr store is rasterized at 10 m
+while the model predicts near 5 m, so those scores are resolution-floored rather
+than a clean third-model result. The modules that produced them
+(`global_*.py`, `cache_global.py`, `hpc/global*.sbatch`) were removed; recover
+them from history if the store is ever republished at native resolution.
 
 ## TODO
 
 * Runtime breakdown per stage (review item 14).
-* Redraw the qualitative figure from `experiments/out/candidates` polygons with
-  the verified comparator (`rt:h2`) and `nbg-sup-h2-t0.8`.

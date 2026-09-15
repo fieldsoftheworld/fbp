@@ -2,13 +2,14 @@
 
 import numpy as np
 import pytest
-from fieldvote import ftp_compat as ftp
-from fieldvote.candidates import instance_polygons, watershed_with_meta
-from fieldvote.paths import H_SWEEP, cache_dir
 from scipy.ndimage import distance_transform_edt
 
+from boundaryvote import ftp_compat as ftp
+from boundaryvote.candidates import instance_polygons, watershed_with_meta
+from boundaryvote.paths import H_SWEEP, cache_dir
 
-def _synthetic_seg(rng: np.random.Generator) -> np.ndarray:
+
+def synthetic_seg(rng: np.random.Generator) -> np.ndarray:
     seg = np.zeros((96, 128), dtype=np.uint8)
     seg[10:50, 10:60] = 1
     seg[10:50, 30] = 2  # a boundary line splitting the block
@@ -22,7 +23,7 @@ def _synthetic_seg(rng: np.random.Generator) -> np.ndarray:
 @pytest.mark.parametrize("h", H_SWEEP)
 def test_matches_ftp_watershed(h: float) -> None:
     rng = np.random.default_rng(0)
-    seg = _synthetic_seg(rng)
+    seg = synthetic_seg(rng)
     dist = distance_transform_edt(seg != 2).astype(np.float32)
     inst, n_markers, fallback = watershed_with_meta(seg, dist, h)
     ref = ftp.watershed_instances(seg, dist, h_min=h, field_class=1)
@@ -40,7 +41,7 @@ def test_empty_field() -> None:
 
 def test_instance_polygons_cover_every_label() -> None:
     rng = np.random.default_rng(1)
-    seg = _synthetic_seg(rng)
+    seg = synthetic_seg(rng)
     dist = distance_transform_edt(seg != 2).astype(np.float32)
     inst, _, _ = watershed_with_meta(seg, dist, 1.0)
     polys = instance_polygons(inst)
