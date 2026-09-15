@@ -29,6 +29,7 @@ from . import references as refs
 from .candidates import pixel_area_m2
 from .gmm_thresholds import ensure
 from .paths import DENSE10, cache_dir, out_root
+from .shipped import OURS
 from .variants import foreground, run_variant
 
 # The FTP pipeline, BoundaryVote, and the prior families at the setting
@@ -36,7 +37,7 @@ from .variants import foreground, run_variant
 # pair is the ``method`` key written to the CSV, so it stays as it is.
 METHODS = [
     ("released", "arg-none-ws"),
-    ("ours", "nbg-sup-h2-t0.7+A900"),
+    ("ours", OURS.removeprefix("raw:v:")),
     ("ucm", "nbg-ucm-k0.7"),
     ("swst", "nbg-swst-n80-m30-t0.3"),
     ("iterh", "arg-iterh-a200000"),

@@ -16,9 +16,9 @@ import pandas as pd
 
 from .paths import DENSE10, out_root, scores_dir
 from .scoring import load_patches
+from .shipped import FTP_MIN as FTP
+from .shipped import OURS
 
-OURS = "raw:v:nbg-sup-h2-t0.7+A900"
-FTP = "raw:v:arg-ws2+A900"
 COLS = ["tp_50", "fp_50", "fn_50", "iou_sum_50"]
 
 

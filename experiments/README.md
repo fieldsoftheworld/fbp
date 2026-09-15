@@ -207,6 +207,11 @@ experiments/rebuild_paper.sh                                       # every table
 
 Copies of the cost and transfer CSVs behind Table I live in `results/cost/`.
 
+The shipped configuration (`nbg-pb-h0-t0.3+A900`: not-background foreground,
+watershed of `p_bnd` seeded at every regional minimum, vote at τ=0.3, 900 m²
+minimum) is defined once in `boundaryvote/shipped.py`; the earlier distance-map
+form `nbg-sup-h2-t0.7+A900` stays as `OURS_DISTANCE` for the supplement.
+
 `boundaryvote.bootstrap --run <run>` resamples each country's test patches
 1,000 times (seed 0) for 95% intervals on both pipelines' macro PQ and their
 difference; copies live in `results/bootstrap/` and feed the supplement's

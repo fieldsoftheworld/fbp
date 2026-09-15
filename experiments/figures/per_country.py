@@ -3,6 +3,7 @@
 Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/per_country.py
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,11 @@ import pandas as pd
 from figstyle import BASELINE, COLUMN, PALETTE, figure, save, use_style
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "experiments"))
+
+from boundaryvote.shipped import FTP_MIN as BASE  # noqa: E402
+from boundaryvote.shipped import OURS  # noqa: E402
+
 RES = ROOT / "experiments" / "results"
 RUNS = [
     ("planet_b3", "test", "PS B3", PALETTE["blue"], "o"),
@@ -17,8 +23,6 @@ RUNS = [
     ("s2_b7", "test/pixel", "S2 B7", PALETTE["red"], "D"),
     ("s2_b3", "test/pixel", "S2 B3", PALETTE["orange"], "^"),
 ]
-OURS = "raw:v:nbg-sup-h2-t0.7+A900"
-BASE = "raw:v:arg-ws2+A900"
 NAMES = {
     "south_africa": "South Africa",
     "belgium": "Belgium",

@@ -24,12 +24,14 @@ import pandas as pd
 
 from .paths import DENSE10, out_root, scores_dir
 from .scoring import load_patches, macro, pool_country
+from .shipped import SURFACE
 
 # Each family is the grid of that method's own parameters, before the shared
 # minimum-size step; settings carrying that step are excluded so the comparison
 # is between parameter choices and not between post-steps.
 FAMILIES = {
-    "ours": r"^raw:v:nbg-sup-h[\d.]+-t[\d.]+$",
+    # like owt, searched with the minimum-size step (see shipped.py)
+    "ours": rf"^raw:v:nbg-{SURFACE}-h[\d.]+-t[\d.]+\+A900$",
     "ucm": r"^raw:v:nbg-ucm-k[\d.]+$",
     "swst": r"^raw:v:nbg-swst-[^+]+$",
     "iterh": r"^raw:v:(nbg|arg)-iterh-[^+]+$",

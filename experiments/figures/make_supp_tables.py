@@ -13,6 +13,7 @@ Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_supp_t
 """
 
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -26,7 +27,11 @@ RUNS = [
     ("s2_b7", "test/pixel", "S2 B7"),
     ("s2_b3", "test/pixel", "S2 B3"),
 ]
-OURS, BASE = "raw:v:nbg-sup-h2-t0.7+A900", "rt:h2"
+sys.path.insert(0, str(ROOT / "experiments"))
+from boundaryvote.shipped import FTP as BASE  # noqa: E402
+from boundaryvote.shipped import FTP_MIN as COUNTRY_BASE  # noqa: E402
+from boundaryvote.shipped import OURS, OURS_DISTANCE, OURS_NOFILTER  # noqa: E402
+
 # The shipped method's row: bold label, light green fill (oursbg in the preamble).
 OURS_LABEL = r"\textbf{BoundaryVote (Ours)}"
 OURS_ROW = r"\rowcolor{oursbg}"
@@ -35,8 +40,6 @@ OURS_ROW = r"\rowcolor{oursbg}"
 # is the like-for-like comparison the letter reports; the per-country table
 # below is captioned as reproducing that figure, so it must use the same
 # baseline.
-COUNTRY_BASE = "raw:v:arg-ws2+A900"
-OURS_NOFILTER = "raw:v:nbg-sup-h2-t0.7"
 # Zhu et al. at its validation-chosen setting, scored on PS B3 and S2 B7 only.
 OWT = "raw:v:nbg-owt-l0.5-h0+A900"
 NAMES = {
@@ -72,25 +75,32 @@ def sweep_rows() -> list[str]:
     rows = []
     blocks = [
         (
-            "Support Threshold $\\tau$ ($h=2$)",
+            "Support Threshold $\\tau$ ($h=0$, With Minimum Size)",
             [
-                (f"$\\tau={t}$", f"raw:v:nbg-sup-h2-t{t}")
-                for t in ("0.3", "0.5", "0.7", "0.8", "0.9", "1")
+                (f"$\\tau={t}$", f"raw:v:nbg-pb-h0-t{t}+A900")
+                for t in ("0", "0.1", "0.2", "0.3", "0.5", "0.7", "0.9")
             ],
         ),
         (
-            "Marker Depth $h$ ($\\tau=0.7$)",
-            [(f"$h={h}$", f"raw:v:nbg-sup-h{h}-t0.7") for h in ("1", "2", "4", "8")],
+            "Seed Depth $h$ ($\\tau=0.3$, With Minimum Size)",
+            [
+                (f"$h={h}$", f"raw:v:nbg-pb-h{h}-t0.3+A900")
+                for h in ("0", "0.01", "0.02", "0.05", "0.1", "0.2")
+            ],
         ),
         (
-            "Foreground and Split Rule",
+            "Foreground, Surface, and Split Rule (With Minimum Size)",
             [
                 ("Field, Components", "cc"),
-                ("Field, Watershed Instances", "raw:h2"),
-                ("Field, Watershed Components", BASE),
-                ("Field, Supported Splits", "raw:v:arg-sup-h2-t0.7"),
-                ("Not-Background, Components", "raw:v:nbg-none"),
-                ("Not-Background, Supported Splits", OURS_NOFILTER),
+                ("Field, Watershed Components (FTP)", BASE),
+                ("FTP + Min Size", COUNTRY_BASE),
+                ("Field, Probability Watershed + Vote", "raw:v:arg-pb-h0-t0.3+A900"),
+                ("Not-Background, Components", "raw:v:nbg-none+A900"),
+                ("Not-Background, Distance Watershed + Vote", OURS_DISTANCE),
+                (
+                    "Not-Background, Probability Watershed, No Vote",
+                    "raw:v:nbg-pb-h0-t0+A900",
+                ),
                 (OURS_LABEL, OURS),
             ],
         ),
@@ -193,11 +203,19 @@ def variants_rows() -> list[str]:
     val = macro("planet_b3", "val")
     test = macro("planet_b3", "test")
     ours = OURS_NOFILTER
+    dist = OURS_DISTANCE.replace("+A900", "")
     rel = "raw:v:arg-ws2"
     blocks = [
         (
             "FTP Pipeline and BoundaryVote, No Minimum Size",
-            [("FTP Pipeline", BASE), ("BoundaryVote", ours)],
+            [
+                ("FTP Pipeline", BASE),
+                ("BoundaryVote", ours),
+                (
+                    "BoundaryVote, Distance Proposals",
+                    OURS_DISTANCE.replace("+A900", ""),
+                ),
+            ],
         ),
         (
             "Alternatives to the Argmax Foreground",
@@ -222,9 +240,9 @@ def variants_rows() -> list[str]:
             ],
         ),
         (
-            "Line Statistic for the Vote ($h=2$)",
+            "Line Statistic for the Vote (Distance Proposals, No Minimum Size)",
             [
-                ("Vote Share, $\\tau=0.7$ (BoundaryVote)", ours),
+                ("Vote Share, $\\tau=0.7$", dist),
             ]
             + [
                 (f"Mean Share, $\\tau={t}$", f"raw:v:nbg-ssup-h2-t{t}")
@@ -240,41 +258,54 @@ def variants_rows() -> list[str]:
             ],
         ),
         (
-            "Split Proposals for the Vote, With Minimum Size ($\\tau=0.7$)",
+            "Split Proposals for the Vote, With Minimum Size",
             [
-                ("Distance to Predicted Boundary, $h=2$ px (BoundaryVote)", OURS),
-                ("Boundary Probability, $h=0.1$", "raw:v:nbg-pb-h0.1-t0.7+A900"),
-                ("Boundary Probability, $h=0.2$", "raw:v:nbg-pb-h0.2-t0.7+A900"),
+                ("Boundary Probability, $h=0$, $\\tau=0.3$ (BoundaryVote)", OURS),
                 (
-                    "Oriented Boundary Signal, $h=0.05$",
+                    "Boundary Probability, $h=0.1$, $\\tau=0.7$",
+                    "raw:v:nbg-pb-h0.1-t0.7+A900",
+                ),
+                (
+                    "Distance to Predicted Boundary, $h=2$ px, $\\tau=0.7$",
+                    OURS_DISTANCE,
+                ),
+                (
+                    "Oriented Boundary Signal, $h=0.05$, $\\tau=0.7$",
                     "raw:v:nbg-osup-h0.05-t0.7+A900",
                 ),
                 (
-                    "Oriented Boundary Signal, $h=0.02$",
+                    "Oriented Boundary Signal, $h=0.02$, $\\tau=0.7$",
                     "raw:v:nbg-osup-h0.02-t0.7+A900",
                 ),
-                ("Oriented Boundary Signal, $h=0$", "raw:v:nbg-osup-h0-t0.7+A900"),
+                (
+                    "Oriented Boundary Signal, $h=0$, $\\tau=0.7$",
+                    "raw:v:nbg-osup-h0-t0.7+A900",
+                ),
             ],
         ),
         (
-            "Steps Added to BoundaryVote",
+            "Steps Added to BoundaryVote (Distance Proposals, No Minimum Size)",
             [
-                ("Kept Line at Least 3 px", f"{ours}+l3"),
-                ("Kept Line at Least 5 px", f"{ours}+l5"),
-                ("Kept Line at Least 10 px", f"{ours}+l10"),
-                ("Support Tolerance Band, 1 px", f"{ours}+b1"),
-                ("Support Tolerance Band, 2 px", f"{ours}+b2"),
-                ("Fill Holes Under 50 px", f"{ours}+f50"),
-                ("Fill Holes Under 200 px", f"{ours}+f200"),
-                ("Fill Every Hole", f"{ours}+f-1"),
-                ("Merge Slivers Under 20 px Into a Neighbor", f"{ours}+m20"),
-                ("Merge Slivers Under 50 px Into a Neighbor", f"{ours}+m50"),
-                ("Merge Slivers Under 200 px Into a Neighbor", f"{ours}+m200"),
+                ("Kept Line at Least 3 px", f"{dist}+l3"),
+                ("Kept Line at Least 5 px", f"{dist}+l5"),
+                ("Kept Line at Least 10 px", f"{dist}+l10"),
+                ("Support Tolerance Band, 1 px", f"{dist}+b1"),
+                ("Support Tolerance Band, 2 px", f"{dist}+b2"),
+                ("Fill Holes Under 50 px", f"{dist}+f50"),
+                ("Fill Holes Under 200 px", f"{dist}+f200"),
+                ("Fill Every Hole", f"{dist}+f-1"),
+                ("Merge Slivers Under 20 px Into a Neighbor", f"{dist}+m20"),
+                ("Merge Slivers Under 50 px Into a Neighbor", f"{dist}+m50"),
+                ("Merge Slivers Under 200 px Into a Neighbor", f"{dist}+m200"),
             ],
         ),
         (
             "Minimum Parcel Size",
             [(f"FTP, {a} m$^2$", f"{rel}+A{a}") for a in (450, 900, 1800, 3600)]
+            + [
+                (f"BoundaryVote, Distance Proposals, {a} m$^2$", f"{dist}+A{a}")
+                for a in (450, 900, 1800, 3600)
+            ]
             + [
                 (
                     f"{OURS_LABEL if a == 900 else 'BoundaryVote'}, {a} m$^2$",
@@ -299,8 +330,9 @@ def size_rows() -> list[str]:
     cols = ["pq_small", "pq_medium", "pq_large", "rq_small", "rq_medium", "rq_large"]
     methods = [
         ("FTP, $h{=}2$", BASE),
-        ("FTP + Min Size", "raw:v:arg-ws2+A900"),
+        ("FTP + Min Size", COUNTRY_BASE),
         ("Oriented Watershed + Min Size", OWT),
+        ("BoundaryVote, Distance Proposals", OURS_DISTANCE),
         (OURS_LABEL, OURS),
     ]
     rows = []

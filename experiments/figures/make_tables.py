@@ -5,6 +5,7 @@ Regenerate: ~/github/ftw-planet/.venv/bin/python experiments/figures/make_tables
 """
 
 import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -19,10 +20,11 @@ RUNS = [
     ("s2_b7", "test/pixel", "Sentinel-2", "B7"),
     ("s2_b3", "test/pixel", "Sentinel-2", "B3"),
 ]
-OURS = "raw:v:nbg-sup-h2-t0.7+A900"
-OURS_NOFILTER = "raw:v:nbg-sup-h2-t0.7"
-RELEASED_FILTER = "raw:v:arg-ws2+A900"
-BASE = "rt:h2"
+sys.path.insert(0, str(ROOT / "experiments"))
+from boundaryvote.shipped import FTP as BASE  # noqa: E402
+from boundaryvote.shipped import FTP_MIN as RELEASED_FILTER  # noqa: E402
+from boundaryvote.shipped import OURS, OURS_DISTANCE, OURS_NOFILTER  # noqa: E402
+
 ORACLE = "rt_test"
 # The shipped method's row: bold label, light green fill (oursbg in the preamble).
 OURS_LABEL = r"\textbf{BoundaryVote (Ours)}"
@@ -238,6 +240,7 @@ def main() -> None:
                 vals[f"{k}Merge"] = f(m.loc[s].merge_rate)
                 vals[f"{k}Split"] = f(m.loc[s].split_rate)
                 vals[f"{k}Small"] = f(m.loc[s].pq_small)
+                vals[f"{k}Large"] = f(m.loc[s].pq_large)
                 vals[f"{k}Bias"] = f"{m.loc[s].count_bias:.0f}"
                 vals[f"{k}BiasAbs"] = f"{abs(m.loc[s].count_bias):.0f}"
             vals["RawInstPQ"] = f(m.loc["raw:h2"].pq)
@@ -265,19 +268,22 @@ def main() -> None:
         return f"\\{cmd}{{${d:+.1f}$}}"
 
     abl = [
-        (r"\multicolumn{3}{@{}l}{\emph{Foreground and Split Rule}} \\", None),
-        ("Field, Components", "cc"),
-        ("Field, Watershed Instances", "raw:h2"),
-        ("Field, Watershed Components ($h{=}2$)", BASE),
-        ("Field, Supported Splits", "raw:v:arg-sup-h2-t0.7"),
-        ("Not-Background, Components", "raw:v:nbg-none"),
-        ("Not-Background, Supported Splits", OURS_NOFILTER),
-        (r"\multicolumn{3}{@{}l}{\emph{Minimum Parcel Size of 900~m$^2$}} \\", None),
-        ("FTP, With Minimum Size", RELEASED_FILTER),
-        ("BoundaryVote, Without Minimum Size", OURS_NOFILTER),
-        # with the step as well, so the block shows what it is worth to each
-        # pipeline rather than leaving our half to be inferred
-        (f"{OURS_LABEL}, With Minimum Size", OURS),
+        (
+            r"\multicolumn{3}{@{}l}{\emph{Foreground, Surface, and Split Rule "
+            r"(With Minimum Size)}} \\",
+            None,
+        ),
+        ("FTP + Min Size", RELEASED_FILTER),
+        ("Field, Probability Watershed + Vote", "raw:v:arg-pb-h0-t0.3+A900"),
+        ("Not-Background, Components", "raw:v:nbg-none+A900"),
+        ("Not-Background, Distance Watershed + Vote", OURS_DISTANCE),
+        ("Not-Background, Probability Watershed, No Vote", "raw:v:nbg-pb-h0-t0+A900"),
+        ("Same, Seed Depth $h{=}0.05$", "raw:v:nbg-pb-h0.05-t0+A900"),
+        (OURS_LABEL, OURS),
+        (r"\multicolumn{3}{@{}l}{\emph{Without the Minimum Parcel Size}} \\", None),
+        ("FTP Pipeline ($h{=}2$)", BASE),
+        ("BoundaryVote, Distance Proposals", OURS_DISTANCE.replace("+A900", "")),
+        ("BoundaryVote", OURS_NOFILTER),
     ]
     lines = []
     for name, strat in abl:
@@ -312,7 +318,8 @@ def main() -> None:
         ]
         if cands:
             best = max(cands, key=lambda k: val_b3.loc[k].pq)
-            losses.append(100 * (mb3.loc[OURS_NOFILTER].pq - mb3.loc[best].pq))
+            dist_bare = OURS_DISTANCE.replace("+A900", "")
+            losses.append(100 * (mb3.loc[dist_bare].pq - mb3.loc[best].pq))
     if losses:
         vals["LineStatLossMin"] = f"{min(losses):.1f}"
         vals["LineStatLossMax"] = f"{max(losses):.1f}"
@@ -326,6 +333,16 @@ def main() -> None:
             if owt in ms2.index:
                 vals["OwtGapSS"] = f(ms2.loc[OURS].pq - ms2.loc[owt].pq)
     vals["ArgSupGain"] = delta(mb3, "raw:v:arg-sup-h2-t0.7")
+    # the vote's two roles: accuracy at a tuned depth and rescue at h = 0
+    for key, strat in (
+        ("NoVotePQ", "raw:v:nbg-pb-h0-t0+A900"),
+        ("NoVoteTunedPQ", "raw:v:nbg-pb-h0.05-t0+A900"),
+        ("NbgNoneMinPQ", "raw:v:nbg-none+A900"),
+        ("DistancePQ", OURS_DISTANCE),
+        ("OursNoFilterPQ", OURS_NOFILTER),
+    ):
+        if strat in mb3.index:
+            vals[key] = f(mb3.loc[strat].pq)
     if RELEASED_FILTER in mb3.index:
         vals["BaseAreaGain"] = (
             f"{100 * (mb3.loc[RELEASED_FILTER].pq - mb3.loc[BASE].pq):.1f}"
@@ -333,6 +350,11 @@ def main() -> None:
     if OURS in mb3.index and OURS_NOFILTER in mb3.index:
         vals["OursAreaGain"] = (
             f"{100 * (mb3.loc[OURS].pq - mb3.loc[OURS_NOFILTER].pq):.1f}"
+        )
+    dist_bare = OURS_DISTANCE.replace("+A900", "")
+    if OURS_DISTANCE in mb3.index and dist_bare in mb3.index:
+        vals["DistanceAreaGain"] = (
+            f"{100 * (mb3.loc[OURS_DISTANCE].pq - mb3.loc[dist_bare].pq):.1f}"
         )
     vals["NbgNonePQ"] = f(mb3.loc["raw:v:nbg-none"].pq)
     vals["GainMin"] = f(min(gains.values()))

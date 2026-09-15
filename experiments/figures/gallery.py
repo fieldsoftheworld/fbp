@@ -52,11 +52,12 @@ from boundaryvote.paths import (  # noqa: E402
     ftw_planet_repo,
     scores_dir,
 )
+from boundaryvote.shipped import FTP as BASE  # noqa: E402
+from boundaryvote.shipped import OURS  # noqa: E402
 from boundaryvote.variants import run_variant  # noqa: E402
 
-TAU, H = 0.7, 2.0
-VARIANT = "nbg-sup-h2-t0.7+A900"
-OURS, BASE = "raw:v:nbg-sup-h2-t0.7+A900", "rt:h2"
+H = 2.0  # the FTP pipeline's watershed depth
+VARIANT = OURS.removeprefix("raw:v:")
 PER_ROW = 3
 NAMES = {
     "south_africa": "South Africa",

@@ -1,9 +1,9 @@
 """Worked example of the post-processing (Fig. 2): every intermediate image on three crops.
 
-Columns, left to right: image; boundary probability; foreground with the pixels
-the field class would drop; distance surface with the seed points; watershed
-regions and lines; lines colored by their support s(l); final polygons with
-reference outlines. One row per crop, all three chosen for dense field layouts
+Columns, left to right: image; boundary probability with the seed points (its
+regional minima); foreground with the pixels the field class would drop;
+watershed regions and lines; lines colored by their support s(l); final
+polygons with reference outlines. One row per crop, all three chosen for dense field layouts
 where the post-processing has something to get wrong. Recomputed from the prediction
 cache with the same code that produced the tables.
 
@@ -20,8 +20,8 @@ import rasterio
 import rasterio.features
 from matplotlib import colors as mcolors
 from matplotlib.patches import FancyArrowPatch
-from scipy.ndimage import binary_dilation, distance_transform_edt, label
-from skimage.morphology import h_maxima
+from scipy.ndimage import binary_dilation, label
+from skimage.morphology import h_maxima, local_maxima
 from skimage.segmentation import watershed
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,13 +42,13 @@ from gallery import label_colors, outlines, rgb_for  # noqa: E402
 
 from boundaryvote import references as refs  # noqa: E402
 from boundaryvote.paths import cache_dir  # noqa: E402
+from boundaryvote.shipped import SURFACE, TAU, H  # noqa: E402
 from boundaryvote.variants import (  # noqa: E402
     foreground,
     pairs_at_lines,
     supported_split,
 )
 
-TAU, H = 0.7, 2.0
 # height:width of each row; wider rows let three of them fit the page budget
 ASPECT = 0.62
 # (run, country, patch, label, crop fraction of the patch's short side).
@@ -64,13 +64,13 @@ EXAMPLES = [
 ]
 COLUMNS = [
     "(a) Image",
-    "(b) Boundary\nProbability",
+    "(b) Boundary Probability\nWhite: Seed Points",
     "(c) Foreground\nOrange: Boundary Class",
-    "(d) Distance $D$\nWhite: Seed Points",
-    "(e) Watershed Regions\nand Lines",
-    "(f) Line Support $s(\\ell)$\nKept if $s\\geq\\tau$",
-    "(g) Polygons\nBlack: Reference Outlines",
+    "(d) Watershed Regions\nand Lines",
+    "(e) Line Support $s(\\ell)$\nKept if $s\\geq\\tau$",
+    "(f) Polygons\nBlack: Reference Outlines",
 ]
+SEED_COL, SUPPORT_COL = 1, 4
 SUPPORT_CMAP = mcolors.LinearSegmentedColormap.from_list(
     "line_support", [LOSS, "white", PALETTE["blue"]]
 )
@@ -95,7 +95,7 @@ def line_support(inst: np.ndarray, lines: np.ndarray, prob: np.ndarray) -> np.nd
 def build_row(
     run: str, country: str, pid: str, crop: float
 ) -> tuple[list[tuple[np.ndarray, str | None]], tuple[np.ndarray, ...]]:
-    """The seven panel images for one crop, plus its seed-point coordinates.
+    """The six panel images for one crop, plus its seed-point coordinates.
 
     ``crop`` is the kept fraction of the patch's short side; the window is
     centered and spans the full width, giving every row the same aspect.
@@ -105,14 +105,16 @@ def build_row(
     with np.load(npz) as d:
         prob, seg = d["prob"].astype(np.float32), d["seg"].astype(np.uint8)
     fg = foreground(seg, prob, "nbg")
-    dist = distance_transform_edt(seg != 2).astype(np.float32) * fg
-    markers, _ = label(h_maxima(dist, h=H))
-    ws = watershed(-dist, markers=markers, mask=fg, watershed_line=True).astype(
+    # the shipped surface: 1 - p_bnd, seeded at its regional maxima (h = 0)
+    surf = (1.0 - prob[2]).astype(np.float32) * fg
+    peaks = h_maxima(surf, h=H) if H > 0 else local_maxima(surf) & fg
+    markers, _ = label(peaks)
+    ws = watershed(-surf, markers=markers, mask=fg, watershed_line=True).astype(
         np.int32
     )
     lines = fg & (ws == 0)
     s_map = line_support(ws, lines, prob)
-    final = supported_split(fg, seg, prob, H, TAU)
+    final = supported_split(fg, seg, prob, H, TAU, surface=SURFACE)
     gt_shapes, _ = refs.vector(grid)
     gt = np.zeros(grid.shape, dtype=np.int32)
     if gt_shapes:
@@ -129,8 +131,8 @@ def build_row(
     r0, c0 = (Hh - tall) // 2, (Ww - wide) // 2
     sl = (slice(r0, r0 + tall), slice(c0, c0 + wide))
     rgb = rgb_for(run, country, pid, grid.shape)[sl]
-    seg, fg, dist, markers, ws, lines, s_map, final, gt = (
-        a[sl] for a in (seg, fg, dist, markers, ws, lines, s_map, final, gt)
+    seg, fg, markers, ws, lines, s_map, final, gt = (
+        a[sl] for a in (seg, fg, markers, ws, lines, s_map, final, gt)
     )
     pb = prob[2][sl]
 
@@ -160,7 +162,6 @@ def build_row(
         (rgb, None),
         (pb, "gray_r"),
         (fg_img, None),
-        (np.where(fg, dist, np.nan), "viridis"),
         (ws_img, None),
         (sup_img, None),
         (final_img, None),
@@ -206,8 +207,8 @@ def main() -> None:
             for s in ax.spines.values():
                 s.set_linewidth(PANEL_LINEWIDTH)
                 s.set_color(PANEL_EDGE)
-        # seed points on the distance panel
-        axes[i][3].scatter(
+        # seed points on the boundary-probability panel
+        axes[i][SEED_COL].scatter(
             mc, mr, s=2.2, facecolor="white", edgecolor="black", linewidths=0.25
         )
         # name the crop inside its first panel, so it costs no layout width
@@ -248,15 +249,15 @@ def main() -> None:
             va="top",
             linespacing=1.15,
         )
-    # colorbar for column (f), under its titles
-    pos = axes[-1][5].get_position()
+    # colorbar for the support column, under its titles
+    pos = axes[-1][SUPPORT_COL].get_position()
     cax = fig.add_axes(
         (pos.x0 + 0.06 * pos.width, bottom * 0.30, 0.88 * pos.width, 0.02)
     )
     sm = plt.cm.ScalarMappable(cmap=SUPPORT_CMAP, norm=SUPPORT_NORM)
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cb.set_ticks([0, TAU, 1])
-    cb.set_ticklabels(["0", r"$\tau=0.7$", "1"])
+    cb.set_ticklabels(["0", rf"$\tau={TAU:g}$", "1"])
     cb.ax.tick_params(labelsize=5.5, length=1.5, pad=1)
     cb.ax.spines["outline"].set_linewidth(0.4)
     save(fig, str(ROOT / "figures" / "rev_method"), formats=("pdf",))
