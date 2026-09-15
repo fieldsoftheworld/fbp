@@ -24,8 +24,9 @@
 All results use the letter's prediction runs and released reference polygons.
 
 \section{Full Parameter Sweeps}
-PQ remains flat for support thresholds between 0.7 and 0.9 on every model and sensor pair, while $h=8$ lowers accuracy because small fields lose their seeds.
-We report every setting of $\tau$ and $h$ and each pair's foreground and split-rule comparison in Table~\ref{tab:supp_sweep}, using the letter's macro average.
+PQ stays within half a point for support thresholds between 0.1 and 0.5 and for seed depths from 0.01 to 0.05 on every model and sensor pair.
+Seeding every regional minimum ($h=0$) costs about one point on Sentinel-2 even with the vote, and without the vote ($\tau=0$) it collapses PQ on both sensors, which is the case the vote exists for.
+We report every setting of $\tau$ and $h$ and each pair's foreground, surface, and split-rule comparison in Table~\ref{tab:supp_sweep}, using the letter's macro average; every row carries the minimum-size step except the two labelled without it.
 The letter includes the PlanetScope B3 and Sentinel-2 B7 columns.
 
 \begin{table}[h]
@@ -33,7 +34,7 @@ The letter includes the PlanetScope B3 and Sentinel-2 B7 columns.
 \caption{Full sweeps over the support threshold and marker depth}
 \label{tab:supp_sweep}
 \footnotesize
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{2pt}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
 Setting (PQ $\uparrow$) & PS B3 & PS B7 & S2 B7 & S2 B3 \\
@@ -54,7 +55,8 @@ The oriented watershed is searched with the minimum-size step, because its fine 
 \centering
 \caption{Complete parameter grids for the prior methods}
 \label{tab:supp_priors}
-\footnotesize
+\scriptsize
+\renewcommand{\arraystretch}{0.92}
 \setlength{\tabcolsep}{5pt}
 \begin{tabular}{@{}lrr@{}}
 \toprule
@@ -71,12 +73,14 @@ $t_e$ is the field probability a pixel must reach and $t_b$ the boundary probabi
 $k$ merges borders whose mean boundary probability falls below it.
 $a$ re-segments regions larger than that many pixels, on either the field or the not-background foreground.
 $n$ markers are drawn $m$ times, and a line is cut where its frequency reaches $t$.
-For the oriented watershed, $h$ is the depth of the minima that seed the over-segmentation and $\lambda$ the hierarchy level below which borders merge, both in probability units.}
+For the oriented watershed, $h$ is the depth of the minima that seed the over-segmentation and $\lambda$ the hierarchy level below which borders merge, both in probability units.
+The Gaussian-mixture thresholds are fitted per country to the not-background and boundary probabilities of every test patch, so the method has no free setting.}
 \end{table}
 
 \section{Alternatives Named in the Ablation}
 We tested the foreground alternatives without splitting, replacing the assignment to the most probable class.
-For the added steps, we used BoundaryVote at $\tau=0.7$ and $h=2$ without the minimum-size step and scored only the validation split.
+The line statistics and the added steps were studied on BoundaryVote's earlier form, distance-map proposals at $\tau=0.7$ and $h=2$ without the minimum-size step, and the added steps were scored only on the validation split; none helped there, so we did not repeat them on the probability surface.
+The proposal-surface block compares the distance map, the boundary probability, and the oriented boundary signal of Zhu et al.\ under the same vote and minimum-size step.
 Table~\ref{tab:supp_variants} reports PlanetScope B3 validation PQ, and test PQ where scored, for every alternative mentioned without a number in the letter's ablation.
 Pixel counts refer to the 3~m PlanetScope grid.
 
@@ -100,17 +104,17 @@ The line statistics score each watershed line by the share of its pixels with $p
 \end{table}
 
 \section{Scores by Field Size}
-BoundaryVote gains most on small fields in every run, between 3.5 and 4.8 PQ points, and least on large fields, between 1.1 and 1.7 (Table~\ref{tab:supp_size}).
+BoundaryVote gains between 3.6 and 6.0 PQ points on small fields, 5.1 to 6.4 on medium fields, and 4.1 to 4.8 on large fields over the FTP pipeline with the same minimum-size step (Table~\ref{tab:supp_size}); relative to its starting point the small bin gains most, rising by more than a third on every run.
 We group PQ and RQ by reference field area using the Fields of the Planet evaluation code's bins, with small fields below 0.5~ha, medium fields from 0.5 to 2~ha, and large fields above 2~ha.
 On PlanetScope B3, the ten countries contain 29,406 small, 20,884 medium, and 12,173 large reference fields, making the small bin the largest.
-The oriented watershed of Zhu et al., at its validation-chosen setting and with the same minimum-size step, scores above BoundaryVote in the medium and large bins on both sensors and below it in the small bin, where the gap in PQ is 3.3 points on PlanetScope and 2.7 on Sentinel-2.
+The oriented watershed of Zhu et al., at its validation-chosen setting and with the same minimum-size step, comes within half a point of BoundaryVote in the large bin on both sensors but trails it by 5.0 points on PlanetScope and 3.7 on Sentinel-2 in the small bin, and the distance-map form of BoundaryVote sits between the two.
 
 \begin{table}[h]
 \centering
 \caption{PQ and RQ by reference field size}
 \label{tab:supp_size}
 \footnotesize
-\setlength{\tabcolsep}{3.4pt}
+\setlength{\tabcolsep}{3pt}
 \begin{tabular}{@{}lrrrrrr@{}}
 \toprule
  & \multicolumn{3}{c}{PQ $\uparrow$ (Area in ha)} & \multicolumn{3}{c}{RQ $\uparrow$ (Area in ha)} \\
