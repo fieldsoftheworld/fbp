@@ -75,37 +75,34 @@ def sweep_rows() -> list[str]:
     rows = []
     blocks = [
         (
-            "Support Threshold $\\tau$ ($h=0.01$, With Minimum Size)",
+            "Support Threshold $\\tau$ ($h=0.01$)",
             [
                 (f"$\\tau={t}$", f"raw:v:nbg-pb-h0.01-t{t}+A900")
                 for t in ("0", "0.1", "0.2", "0.3", "0.5", "0.7", "0.9")
             ],
         ),
         (
-            "Seed Depth $h$ ($\\tau=0.3$, With Minimum Size)",
+            "Seed Depth $h$ ($\\tau=0.3$)",
             [
                 (f"$h={h}$", f"raw:v:nbg-pb-h{h}-t0.3+A900")
                 for h in ("0", "0.01", "0.02", "0.05", "0.1", "0.2")
             ],
         ),
         (
-            "Foreground, Surface, and Split Rule (With Minimum Size)",
+            "Foreground, Surface, and Split Rule",
             [
-                ("Field, Components", "cc"),
-                ("Field, Watershed Components (FTP)", BASE),
+                ("Field, Components, No Min Size", "cc"),
+                ("FTP Pipeline, No Min Size", BASE),
                 ("FTP + Min Size", COUNTRY_BASE),
-                ("Field, Probability Watershed + Vote", "raw:v:arg-pb-h0.01-t0.3+A900"),
-                ("Not-Background, Components", "raw:v:nbg-none+A900"),
-                ("Not-Background, Distance Watershed + Vote", OURS_DISTANCE),
+                ("Field, Prob. Watershed + Vote", "raw:v:arg-pb-h0.01-t0.3+A900"),
+                ("Not-Bg, Components", "raw:v:nbg-none+A900"),
+                ("Not-Bg, Distance Watershed + Vote", OURS_DISTANCE),
                 (
-                    "Not-Background, Probability Watershed, No Vote",
+                    "Not-Bg, Prob. Watershed, $\\tau{=}0$",
                     "raw:v:nbg-pb-h0.01-t0+A900",
                 ),
-                ("Same, Every Minimum Seeds ($h=0$)", "raw:v:nbg-pb-h0-t0+A900"),
-                (
-                    "BoundaryVote, Every Minimum Seeds ($h=0$)",
-                    "raw:v:nbg-pb-h0-t0.3+A900",
-                ),
+                ("Same, $h=0$", "raw:v:nbg-pb-h0-t0+A900"),
+                ("BoundaryVote, $h=0$", "raw:v:nbg-pb-h0-t0.3+A900"),
                 (OURS_LABEL, OURS),
             ],
         ),
@@ -265,7 +262,7 @@ def variants_rows() -> list[str]:
         (
             "Split Proposals for the Vote, With Minimum Size",
             [
-                ("Boundary Probability, $h=0.01$, $\\tau=0.3$ (BoundaryVote)", OURS),
+                ("Boundary Probability, $h=0.01$, $\\tau=0.3$ (Ours)", OURS),
                 (
                     "Boundary Probability, $h=0.1$, $\\tau=0.7$",
                     "raw:v:nbg-pb-h0.1-t0.7+A900",

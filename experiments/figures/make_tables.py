@@ -23,7 +23,12 @@ RUNS = [
 sys.path.insert(0, str(ROOT / "experiments"))
 from boundaryvote.shipped import FTP as BASE  # noqa: E402
 from boundaryvote.shipped import FTP_MIN as RELEASED_FILTER  # noqa: E402
-from boundaryvote.shipped import OURS, OURS_DISTANCE, OURS_NOFILTER  # noqa: E402
+from boundaryvote.shipped import (  # noqa: E402
+    OURS,
+    OURS_DISTANCE,
+    OURS_NOFILTER,
+    TAU,
+)
 
 ORACLE = "rt_test"
 # The shipped method's row: bold label, light green fill (oursbg in the preamble).
@@ -172,6 +177,7 @@ def main() -> None:
     gains: dict[str, float] = {}
     merge_up: list[float] = []
     merge_vs_min: list[float] = []
+    vote_gain: list[float] = []
     for run, sub, sensor, enc in RUNS:
         m = macro_vec(run, sub)
         c = country_vec(run, sub)
@@ -234,6 +240,10 @@ def main() -> None:
         # merge rate against the raw FTP output and against its minimum-size row
         merge_up.append(100 * (m.loc[OURS].merge_rate - m.loc[BASE].merge_rate))
         merge_vs_min.append(100 * (m.loc[OURS].merge_rate - m.loc[ref].merge_rate))
+        # what the vote itself is worth at the shipped seed depth
+        no_vote = OURS.replace(f"-t{TAU:g}", "-t0")
+        if no_vote in m.index:
+            vote_gain.append(100 * (m.loc[OURS].pq - m.loc[no_vote].pq))
         if run == "planet_b3":
             for k, s in (("Base", BASE), ("Ours", OURS)):
                 vals[f"{k}Miss"] = f(m.loc[s].miss_rate)
@@ -367,6 +377,9 @@ def main() -> None:
     vals["MergeUpMin"] = f"{min(merge_up):.1f}"
     vals["MergeUpMax"] = f"{max(merge_up):.1f}"
     vals["MergeVsMinAbsMax"] = f"{max(abs(x) for x in merge_vs_min):.1f}"
+    if vote_gain:
+        vals["VoteGainMin"] = f"{min(vote_gain):+.1f}"
+        vals["VoteGainMax"] = f"{max(vote_gain):+.1f}"
     boot = pd.concat(pd.read_csv(g) for g in sorted((RES / "bootstrap").glob("*.csv")))
     gain_ci = boot[boot.quantity == "gain"]
     vals["GainCILow"] = f"{gain_ci.lo.min():.1f}"
