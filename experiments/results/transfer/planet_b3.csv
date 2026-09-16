@@ -1,9 +1,0 @@
-family,n_settings_tried,val_choice,pq_val_choice,test_choice,pq_test_choice,pq_per_country,gap_per_minus_val,n_distinct_winners,winners
-ours,51,raw:v:nbg-pb-h0.01-t0.3+A900,42.27160609916433,raw:v:nbg-pb-h0.01-t0.2+A900,42.27544766439391,42.8724228381331,0.600816738968768,7,"nbg-pb-h0-t0.5+A900, nbg-pb-h0.01-t0+A900, nbg-pb-h0.01-t0.7+A900, nbg-pb-h0.01-t0.9+A900, nbg-pb-h0.02-t0+A900, nbg-pb-h0.02-t0.7+A900, nbg-pb-h0.05-t0.5+A900"
-ucm,9,raw:v:nbg-ucm-k0.7,32.703166322172756,raw:v:nbg-ucm-k0.6,32.71482064465234,33.341123672500196,0.6379573503274394,4,"nbg-ucm-k0.4, nbg-ucm-k0.6, nbg-ucm-k0.7, nbg-ucm-k0.8"
-swst,11,raw:v:nbg-swst-n80-m30-t0.3,20.56985349853618,raw:v:nbg-swst-n80-m30-t0.3,20.56985349853618,23.3563660986847,2.786512600148519,6,"nbg-swst-n150-m30-t0.3, nbg-swst-n150-m30-t0.4, nbg-swst-n30-m30-t0.3, nbg-swst-n80-m30-t0.1, nbg-swst-n80-m30-t0.4, nbg-swst-n80-m30-t0.5"
-iterh,9,raw:v:arg-iterh-a200000,26.48454914300614,raw:v:arg-iterh-a200000,26.48454914300614,26.70425395922666,0.2197048162205173,3,"arg-iterh-a100000, nbg-iterh-a100000, nbg-iterh-a200000"
-thr,12,raw:v:arg-thr-te0.4-tb0.7,34.95160103299407,raw:v:arg-thr-te0.4-tb0.7,34.95160103299407,35.296952453844376,0.34535142085030945,5,"arg-thr-te0.4-tb0.7, arg-thr-te0.5-tb0.3, arg-thr-te0.5-tb0.5, arg-thr-te0.5-tb0.8, arg-thr-te0.7-tb0.5"
-owt,24,raw:v:nbg-owt-l0.5-h0+A900,39.05013615923302,raw:v:nbg-owt-l0.6-h0+A900,39.14006991511967,39.621465027805755,0.5713288685727402,5,"nbg-owt-l0.1-h0+A900, nbg-owt-l0.4-h0+A900, nbg-owt-l0.6-h0+A900, nbg-owt-l0.6-h0.01+A900, nbg-owt-l0.7-h0.01+A900"
-gmm,1,raw:v:nbg-gmm,8.712057861733387,raw:v:nbg-gmm,8.712057861733387,8.712057861733387,0.0,1,nbg-gmm
-depth,14,rt:h4,35.805823827987815,rt:h4,35.805823827987815,35.85026541485489,0.044441586867072225,3,"h2, h4, h8"

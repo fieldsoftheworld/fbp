@@ -1,27 +1,11 @@
-# LaTeX build artifacts
-*.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.pdf
-*.synctex.gz
-!figures/*.pdf
-
-# Figure previews (regenerated next to the tracked PDFs)
-figures/*.svg
-
 # Python
 __pycache__/
 .pytest_cache/
 .ruff_cache/
-
-# Tooling handoff artifact (regenerate with ruff/ty/pyrefly)
-.lint-findings.md
-
-# Experiment scratch (tracked copies live in experiments/results/)
-experiments/out/
+.coverage
+*.egg-info/
+build/
+dist/
+.venv/
 
 .DS_Store
