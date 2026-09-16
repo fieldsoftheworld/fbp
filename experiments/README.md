@@ -114,6 +114,12 @@ outputs and the profile CSVs into `results/`, regenerates `tables/` and
 per-country `n_patches` must match FTP's CSV exactly and PQ must agree to
 about 1e-3 before anything else is interpreted.
 
+The gallery and method figures read only `results/figure_inputs/`, which
+`fbp.paper.figures.freeze` fills from the cache: it picks the gallery patches
+from the per-patch scores and saves each patch's softmax, predicted class,
+display-stretched image, reference label raster and pixel area as one npz.
+Those files are tracked, so the two figures rebuild without the cache.
+
 ## Comparing strategies
 
 Once a run is scored, any set of strategy ids can be compared on the pooled
@@ -136,6 +142,8 @@ results/<run>/<split>/cache_manifest.json               checkpoint hash and infe
 results/transfer/planet_b3.csv                          shared vs per-country setting
 results/bootstrap/<run>.csv                             patch bootstrap, 1000 draws, seed 0
 results/profile/{planet_b3,s2_b7}_test.csv              ms and peak MB per patch and method
+results/figure_inputs/gallery.json                      the gallery rows and their full-patch PQ
+results/figure_inputs/<run>/<country>/<patch>.npz       the patches the gallery and method figure draw
 ```
 
 ## Tests and tooling

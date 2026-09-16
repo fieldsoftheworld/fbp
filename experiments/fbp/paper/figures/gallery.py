@@ -2,24 +2,18 @@
 
 Each example is a triple: image, the FTP pipeline, BoundaryVote; reference parcels
 are drawn as black outlines on both prediction panels; titles give crop field
-counts and badges give full-patch PQ. Rows cover all ten dense-label countries on
-PlanetScope B3 except Portugal (two test patches), eight countries on
-Sentinel-2 B7, and one failure case. Patch choice per (model, country): the
-largest per-patch PQ gain (BoundaryVote minus FTP pipeline) among test patches with 10-120
-reference parcels whose densest square window shows at least eight of them
-covering at least a quarter of the window;
-the full-patch PQ of each prediction panel is printed on it.
+counts and badges give full-patch PQ. Which patches are shown, and how they were
+chosen, is ``freeze.py``'s business: this script draws the rows listed in
+``results/figure_inputs/gallery.json`` from the frozen inputs next to it, so it
+needs neither the prediction cache nor the imagery.
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python -m fbp.paper.figures.gallery
 """
 
-import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import rasterio
 from matplotlib import colors as mcolors
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -27,14 +21,10 @@ from matplotlib.patches import Patch
 from numpy import ndarray
 from scipy.ndimage import binary_dilation
 
-os.environ.setdefault("FTW_PLANET_REPO", str(Path.home() / "github" / "ftw-planet"))
-
-from fbp.eval import references as refs
-from fbp.eval.candidates import pixel_area_m2
-from fbp.eval.paths import DENSE10, cache_dir, ftw_planet_repo, scores_dir
 from fbp.methods import ftp_pipeline
 from fbp.methods import run as run_method
 from fbp.paper.common import NAMES
+from fbp.paper.figures import inputs
 from fbp.paper.figures.figstyle import (
     LABEL_BBOX,
     PALETTE,
@@ -44,86 +34,12 @@ from fbp.paper.figures.figstyle import (
     save,
     use_style,
 )
-from fbp.paper.shipped import FTP as BASE
 from fbp.paper.shipped import OURS
 
 ROOT = Path(__file__).resolve().parents[4]
 H = 2.0  # the FTP pipeline's watershed depth
 VARIANT = OURS.removeprefix("raw:v:")
 PER_ROW = 3
-S2_COUNTRIES = [
-    "belgium",
-    "cambodia",
-    "croatia",
-    "germany",
-    "latvia",
-    "lithuania",
-    "slovenia",
-    "sweden",
-]
-FAILURE = ("planet_b3", "latvia", "g26_00052_7")
-
-
-def per_patch_delta(run: str, proto: str) -> pd.DataFrame:
-    fs = scores_dir(f"{run}/test/{proto}").glob("patches_*.parquet")
-    df = pd.concat([pd.read_parquet(f) for f in fs])
-    df = df[(df.reference == "vector") & df.strategy.isin([BASE, OURS])].copy()
-    tp, fp, fn = df.tp_50, df.fp_50, df.fn_50
-    p = tp / (tp + fp).clip(lower=1)
-    r = tp / (tp + fn).clip(lower=1)
-    f1 = (2 * p * r / (p + r).where((p + r) > 0, 1)).fillna(0)
-    df["pq"] = (df.iou_sum_50 / tp.clip(lower=1)) * f1
-    w = df.pivot_table(
-        index=["country", "patch_id"], columns="strategy", values=["pq", "n_gt"]
-    )
-    w.columns = ["_".join(c) for c in w.columns]
-    w["d"] = w[f"pq_{OURS}"] - w[f"pq_{BASE}"]
-    w["n_gt"] = w[f"n_gt_{BASE}"]
-    return w.reset_index()
-
-
-def patch_pq(w: pd.DataFrame, country: str, pid: str) -> tuple[float, float]:
-    r = w[(w.country == country) & (w.patch_id == pid)].iloc[0]
-    return 100 * r[f"pq_{BASE}"], 100 * r[f"pq_{OURS}"]
-
-
-def pick(w: pd.DataFrame, run: str, country: str, min_in_crop: int = 8) -> str:
-    """Largest per-patch gain whose best square window still shows >= min_in_crop parcels."""
-    c = w[(w.country == country) & (w.n_gt >= 10) & (w.n_gt <= 120)]
-    if c.empty:
-        c = w[w.country == country]
-    c = c.sort_values("d", ascending=False)
-    for pid in c.patch_id.head(25):
-        npz = cache_dir(f"{run}/test") / country / f"{pid}.npz"
-        grid = refs.load_grid(npz, country)
-        gt = refs.gt_raster(grid)
-        sl = best_window(gt)
-        crop = gt[sl]
-        if len(np.unique(crop[crop > 0])) >= min_in_crop and (crop > 0).mean() >= 0.25:
-            return pid
-    return c.iloc[0].patch_id
-
-
-def rgb_for(run: str, country: str, pid: str, shape: tuple[int, int]) -> np.ndarray:
-    repo = ftw_planet_repo()
-    if run.startswith("planet"):
-        with rasterio.open(
-            repo / "data" / "planet" / country / "window_a" / f"{pid}.tif"
-        ) as src:
-            rgb = src.read().astype(np.float32)[[2, 1, 0]]
-    else:
-        with rasterio.open(
-            repo / "data" / "ftw" / country / "s2_images" / "window_a" / f"{pid}.tif"
-        ) as src:
-            rgb = src.read().astype(np.float32)[[0, 1, 2]]
-        Hh, Ww = shape
-        ry = np.linspace(0, rgb.shape[1] - 1, Hh).round().astype(int)
-        rx = np.linspace(0, rgb.shape[2] - 1, Ww).round().astype(int)
-        rgb = rgb[:, ry][:, :, rx]
-    rgb = rgb[:, : shape[0], : shape[1]]
-    lo, hi = np.percentile(rgb, [2, 98])
-    rgb = np.clip((rgb - lo) / max(hi - lo, 1e-6), 0, 1) ** 0.8
-    return np.transpose(rgb, (1, 2, 0))
 
 
 def label_colors(inst: np.ndarray, seed: int) -> np.ndarray:
@@ -155,16 +71,11 @@ def outlines(inst: np.ndarray) -> np.ndarray:
 def example(
     run: str, country: str, pid: str
 ) -> tuple[ndarray, ndarray, ndarray, ndarray]:
-    npz = cache_dir(f"{run}/test") / country / f"{pid}.npz"
-    grid = refs.load_grid(npz, country)
-    with np.load(npz) as d:
-        prob, seg = d["prob"].astype(np.float32), d["seg"].astype(np.uint8)
-    ours = run_method(VARIANT, seg, prob, px_m2=pixel_area_m2(npz, country))
-    base = ftp_pipeline(seg, H)
-    gt = refs.gt_raster(grid)
-    sl = best_window(gt)
-    rgb = rgb_for(run, country, pid, grid.shape)[sl]
-    return rgb, base[sl], ours[sl], gt[sl]
+    p = inputs.load(run, country, pid)
+    ours = run_method(VARIANT, p.seg, p.prob, px_m2=p.px_m2)
+    base = ftp_pipeline(p.seg, H)
+    sl = best_window(p.gt)
+    return p.rgb[sl], base[sl], ours[sl], p.gt[sl]
 
 
 def best_window(gt: np.ndarray) -> tuple[slice, slice]:
@@ -206,15 +117,7 @@ def draw_pred(
 
 def main() -> None:
     use_style(family="serif")
-    wp = per_patch_delta("planet_b3", "pixel")
-    ws = per_patch_delta("s2_b7", "pixel")
-    examples = [
-        ("planet_b3", c, pick(wp, "planet_b3", c), "PS")
-        for c in DENSE10
-        if c != "portugal"
-    ]
-    examples += [("s2_b7", c, pick(ws, "s2_b7", c), "S2") for c in S2_COUNTRIES]
-    examples.append((*FAILURE, "PS, Failure"))
+    examples = inputs.picks()
     n_rows = int(np.ceil(len(examples) / PER_ROW))
     ncols = PER_ROW * 3
     panel = (WIDE * 0.985) / (ncols + 0.35 * (PER_ROW - 1))
@@ -230,10 +133,10 @@ def main() -> None:
         wspace=0.05,
         hspace=0.24,
     )
-    for k, (run, country, pid, tag) in enumerate(examples):
+    for k, ex in enumerate(examples):
         row, col = divmod(k, PER_ROW)
-        rgb, base, ours, gt = example(run, country, pid)
-        pq_b, pq_o = patch_pq(wp if run == "planet_b3" else ws, country, pid)
+        rgb, base, ours, gt = example(ex["run"], ex["country"], ex["patch_id"])
+        pq_b, pq_o = ex["pq_base"], ex["pq_ours"]
         axes = [fig.add_subplot(gs[row, col * 3 + j]) for j in range(3)]
         axes[0].imshow(rgb, interpolation="nearest")
         draw_pred(axes[1], base, gt, 1, pq_b, bold=pq_b > pq_o)
@@ -249,7 +152,7 @@ def main() -> None:
         axes[1].text(
             0.5,
             1.055,
-            f"{NAMES[country]}, {tag}, {n_gt} Fields",
+            f"{NAMES[ex['country']]}, {ex['tag']}, {n_gt} Fields",
             transform=axes[1].transAxes,
             fontsize=6,
             ha="center",
@@ -298,8 +201,8 @@ def main() -> None:
         handlelength=1.4,
     )
     save(fig, str(ROOT / "figures" / "rev_gallery"), formats=("pdf",))
-    for run, country, pid, tag in examples:
-        print(run, country, pid, tag)
+    for ex in examples:
+        print(ex["run"], ex["country"], ex["patch_id"], ex["tag"])
 
 
 if __name__ == "__main__":

@@ -39,3 +39,16 @@ writes `tables/` and `figures/`, and compiles both PDFs. It needs the
 prediction cache and scores under `experiments/out/` (gitignored), which the
 SLURM jobs in `experiments/hpc/` produce; `experiments/README.md` walks through
 that from the released checkpoints.
+
+The gallery and method figures are the exception: the patches they draw are
+frozen under `experiments/results/figure_inputs/` (predictions, image, reference
+labels), so those two scripts run from the checkout alone:
+
+```sh
+experiments/run.sh fbp.paper.figures.gallery
+experiments/run.sh fbp.paper.figures.method_fig
+```
+
+`fbp.paper.figures.freeze` re-chooses the gallery patches and refreshes the
+frozen files from the cache; `rebuild_paper.sh` runs it when the cache is
+present.

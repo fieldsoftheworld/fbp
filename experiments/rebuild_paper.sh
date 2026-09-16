@@ -3,6 +3,8 @@
 # experiments/out, copy the tracked results, then build both PDFs.
 # Assumes the cache, candidates and scores are already on disk (see README);
 # the profile CSVs come from hpc/profile.sbatch and are copied if present.
+# The gallery and method figures draw from results/figure_inputs, which is
+# refreshed from the cache when it is present and used as tracked otherwise.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 RUN=experiments/run.sh
@@ -40,6 +42,13 @@ for f in "$OUT"/profile/*_test.csv; do [ -f "$f" ] && cp "$f" "$RES/profile/"; d
 echo "== tables =="
 $RUN fbp.paper.tables > /dev/null
 $RUN fbp.paper.supp_tables > /dev/null
+
+echo "== figure inputs =="
+if [ -d "$OUT/cache/planet_b3/test" ] && [ -d "$OUT/cache/s2_b7/test" ]; then
+  $RUN fbp.paper.figures.freeze > /dev/null
+else
+  echo "cache absent; drawing from tracked $RES/figure_inputs"
+fi
 
 echo "== figures =="
 $RUN fbp.paper.figures.per_country 2>&1 | grep -E "audit|clean" || true

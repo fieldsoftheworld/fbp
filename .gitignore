@@ -12,7 +12,6 @@
 
 # Figure previews (regenerated next to the tracked PDFs)
 figures/*.svg
-experiments/figures/*.png
 
 # Python
 __pycache__/

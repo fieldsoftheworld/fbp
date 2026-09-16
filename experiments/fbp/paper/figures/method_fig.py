@@ -4,13 +4,13 @@ Columns, left to right: image; boundary probability with the seed points (its
 regional minima); foreground with the pixels the field class would drop;
 watershed regions and lines; lines colored by their support s(l); final
 polygons with reference outlines. One row per crop, all three chosen for dense field layouts
-where the post-processing has something to get wrong. Recomputed from the prediction
-cache with the same code that produced the tables.
+where the post-processing has something to get wrong. Recomputed from the frozen
+prediction cache in ``results/figure_inputs`` with the same code that produced
+the tables.
 
 Regenerate: ~/github/ftw-planet/.venv/bin/python -m fbp.paper.figures.method_fig
 """
 
-import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,14 +20,11 @@ from matplotlib.patches import FancyArrowPatch
 from scipy.ndimage import binary_dilation
 from scipy.ndimage import distance_transform_edt as edt
 
-os.environ.setdefault("FTW_PLANET_REPO", str(Path.home() / "github" / "ftw-planet"))
-
 from fbp.core.postprocess import foreground
 from fbp.core.regions import pairs_at_lines, watershed_regions
 from fbp.core.surfaces import boundary_prob
-from fbp.eval import references as refs
-from fbp.eval.paths import cache_dir
 from fbp.methods import run as run_method
+from fbp.paper.figures import inputs
 from fbp.paper.figures.figstyle import (
     LABEL_BBOX,
     LOSS,
@@ -38,7 +35,7 @@ from fbp.paper.figures.figstyle import (
     save,
     use_style,
 )
-from fbp.paper.figures.gallery import label_colors, outlines, rgb_for
+from fbp.paper.figures.gallery import label_colors, outlines
 from fbp.paper.shipped import OURS_VARIANT, TAU, H
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -93,24 +90,22 @@ def build_row(
     ``crop`` is the kept fraction of the patch's short side; the window is
     centered and spans the full width, giving every row the same aspect.
     """
-    npz = cache_dir(f"{run}/test") / country / f"{pid}.npz"
-    grid = refs.load_grid(npz, country)
-    with np.load(npz) as d:
-        prob, seg = d["prob"].astype(np.float32), d["seg"].astype(np.uint8)
+    patch = inputs.load(run, country, pid)
+    prob, seg = patch.prob, patch.seg
     fg = foreground(seg, prob, "nbg")
     # the shipped surface: 1 - p_bnd, seeded at its regional maxima (h = 0)
     regions = watershed_regions(boundary_prob(prob) * fg, fg, H)
     markers, ws, lines = regions.markers, regions.labels, regions.lines
     s_map = line_support(ws, lines, prob)
     final = run_method(OURS_VARIANT, seg, prob)
-    gt = refs.gt_raster(grid)
+    gt = patch.gt
 
-    Hh, Ww = grid.shape
+    Hh, Ww = patch.shape
     wide = min(Ww, int(round(min(Hh, Ww) * crop / ASPECT)))
     tall = int(round(wide * ASPECT))
     r0, c0 = (Hh - tall) // 2, (Ww - wide) // 2
     sl = (slice(r0, r0 + tall), slice(c0, c0 + wide))
-    rgb = rgb_for(run, country, pid, grid.shape)[sl]
+    rgb = patch.rgb[sl]
     seg, fg, markers, ws, lines, s_map, final, gt = (
         a[sl] for a in (seg, fg, markers, ws, lines, s_map, final, gt)
     )
