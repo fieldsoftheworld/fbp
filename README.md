@@ -50,6 +50,24 @@ method = parse("nbg-pb-h0.01-t0.3+A900")
 instances = method(segmentation, probabilities, px_m2=9.0)
 ```
 
+For rasters too large for one call, `run_windowed` processes `core`-sized
+windows with `halo` pixels of context. Each instance is kept by the window whose
+core holds its centroid, and copies of a field that crosses a window boundary
+are merged into one instance:
+
+```python
+from fbp import run_windowed
+
+instances = run_windowed(
+    "nbg-pb-h0.01-t0.3+A900",
+    segmentation,
+    probabilities,
+    px_m2=9.0,
+    core=8192,
+    halo=512,
+)
+```
+
 ## Layout
 
 ```text
