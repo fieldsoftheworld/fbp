@@ -81,7 +81,7 @@ The 2nd Edition field boundaries were made with
   `pf10` mask is uncovered.
 - `+q1` rounds the probabilities to the 1/255 grid the rasters store and runs
   h-maxima and the watershed on an integer backend. It needs the `fast` extra
-  (SimpleITK and numba): `pip install 'fbp[fast]'`.
+  (SimpleITK and numba): `pip install 'ftw-fbp[fast]'`.
 
 On published probability rasters this reproduces the published raw outlines:
 all 112 parcels pixel for pixel on a 10 km window of tile `15TVG_0_0` (Iowa), and

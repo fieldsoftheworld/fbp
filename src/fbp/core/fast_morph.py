@@ -26,7 +26,7 @@ try:
     import SimpleITK as sitk  # noqa: N813  (the package's own conventional alias)
     from numba import njit
 except ImportError as e:
-    raise ImportError("+q1 needs the fast backend: pip install 'fbp[fast]'") from e
+    raise ImportError("+q1 needs the fast backend: pip install 'ftw-fbp[fast]'") from e
 from skimage.morphology._util import _offsets_to_raveled_neighbors
 
 LEVELS = 255.0
