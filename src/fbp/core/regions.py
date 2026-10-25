@@ -81,15 +81,34 @@ def pairs_at_lines(
     return r, c, top2
 
 
-def watershed_regions(
+BACKENDS = ("skimage", "fast")
+
+
+def _morphology(backend: str) -> tuple:
+    """``(h_maxima, watershed)`` for the ``max`` mode under the chosen backend."""
+    if backend == "skimage":
+        return h_maxima, watershed
+    if backend == "fast":
+        from fbp.core.fast_morph import h_maxima_itk, watershed_bucket  # noqa: PLC0415  (optional [fast] extra)
+
+        return h_maxima_itk, watershed_bucket
+    raise ValueError(backend)
+
+
+def watershed_regions(  # noqa: PLR0913  (keyword-only flags)
     surface: np.ndarray,
     fg: np.ndarray,
     h: float,
     *,
     lines: bool = True,
     mode: str = "max",
+    backend: str = "skimage",
 ) -> Regions:
     """Watershed inside ``fg``, seeded at ``surface``'s own extrema.
+
+    ``backend="fast"`` (``max`` mode only) swaps in ITK reconstruction for the
+    h-maxima and an O(N) bucket-queue flood for the watershed
+    (``fbp.core.fast_morph``); the surface must be on the 1/255 grid.
 
     ``mode="max"`` (every other caller) seeds on maxima: ``h > 0`` seeds
     ``h``-maxima at least ``h`` deep, ``h == 0`` seeds every regional maximum,
@@ -113,10 +132,12 @@ def watershed_regions(
     if not fg.any():
         return Regions(z, np.zeros(fg.shape, dtype=bool), z, 0, True)
     if mode == "max":
+        hmax, ws = _morphology(backend)
         seed = surface * fg
-        peaks = (h_maxima(seed, h=h) & fg) if h > 0 else (local_maxima(seed) & fg)
+        peaks = (hmax(seed, h=h) & fg) if h > 0 else (local_maxima(seed) & fg)
         flood_surface = -surface
     elif mode == "min":
+        ws = watershed
         seed = np.where(fg, surface, surface.max() + 1.0).astype(surface.dtype)
         peaks = (h_minima(seed, h=h) & fg) if h > 0 else (local_minima(seed) & fg)
         flood_surface = surface
@@ -126,7 +147,7 @@ def watershed_regions(
     markers = markers.astype(np.int32, copy=False)
     if n == 0:
         return Regions(components(fg), np.zeros(fg.shape, dtype=bool), markers, 0, True)
-    labels = watershed(flood_surface, markers=markers, mask=fg, watershed_line=lines)
+    labels = ws(flood_surface, markers=markers, mask=fg, watershed_line=lines)
     labels = labels.astype(np.int32, copy=False)
     line_mask = (fg & (labels == 0)) if lines else np.zeros(fg.shape, dtype=bool)
     return Regions(labels, line_mask, markers, int(n), False)

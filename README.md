@@ -70,6 +70,23 @@ instances = run_windowed(
 )
 ```
 
+## FTW Global Data 2nd Edition
+
+The 2nd Edition field boundaries were made with
+`nbg-pb-h0.01-t0.5+R25+F10+G2+A900+q1` on 2.5 m probabilities (`px_m2=6.25`):
+
+- `+R25` drops parcels whose mean field probability is under 0.25.
+- `+F10` adds parcels split from the looser `pf10` foreground where the result
+  covers less than half of them, and `+G2` skips that step when under 2% of the
+  `pf10` mask is uncovered.
+- `+q1` rounds the probabilities to the 1/255 grid the rasters store and runs
+  h-maxima and the watershed on an integer backend. It needs the `fast` extra
+  (SimpleITK and numba): `pip install 'fbp[fast]'`.
+
+On published probability rasters this reproduces the published raw outlines:
+all 112 parcels pixel for pixel on a 10 km window of tile `15TVG_0_0` (Iowa), and
+647 of 648 (99.7% pixel for pixel) on tile `35MRT_0_0` (Rwanda).
+
 ## Layout
 
 ```text

@@ -27,6 +27,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The +q1 backend: integer h-maxima and bucket-queue watershed.
+fast = [
+    "numba>=0.60",
+    "SimpleITK>=2.4",
+]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",

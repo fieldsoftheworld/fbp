@@ -32,6 +32,10 @@ SPECS = (
     "nbg-swst-n80-m30-t0.3",
     "nbg-owt-l0.5-h0+A900",
     "nbg-gmm+A900",
+    "pf15-pb-h0.01-t0.3+R25+A900",
+    "nbg-pb-h0.01-t0.3+A900+q1",
+    "nbg-pbg-h0.01-t0.3+A900",
+    "pf20-none",
 )
 
 

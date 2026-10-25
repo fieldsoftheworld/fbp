@@ -7,6 +7,9 @@ merge. The surface and the line's support statistic both depend on ``kind``:
 
 * ``pb``   1 - p_boundary, seeded at its own regional maxima (BoundaryVote as
            shipped).
+* ``pbg``  as ``pb`` but the surface is 1 - max(p_boundary, |grad p_field|) and a
+           line pixel also counts as supported where the field probability has an
+           edge: cuts at rims the boundary head missed (centre pivots).
 * ``sup``  the EDT-of-boundary surface, ``h`` in pixels (the distance-map form).
 * ``osup`` 1 - the oriented boundary signal of Zhu et al. (max over orientation).
 * ``ssup``/``asup``/``dsup``  the distance form (as ``sup``) with another line
@@ -25,22 +28,30 @@ from scipy.ndimage import binary_dilation
 
 from fbp.core.merge import merge_by_lines
 from fbp.core.regions import pairs_at_lines, watershed_regions
-from fbp.core.surfaces import boundary_distance, boundary_prob, oriented_signal
+from fbp.core.surfaces import (
+    boundary_distance,
+    boundary_or_edge,
+    boundary_prob,
+    field_edge,
+    oriented_signal,
+)
 from fbp.methods.base import Method
 from fbp.methods.registry import register
 
 # kind -> the watershed surface the split proposals come from (default "edt")
-SURFACE = {"pb": "pb", "osup": "owt"}
+SURFACE = {"pb": "pb", "pbg": "pbg", "osup": "owt"}
 # kind -> how a watershed line's support is scored (default "frac")
 LINE_SCORE = {
     "sup": "frac",
     "pb": "frac",
+    "pbg": "fracg",
     "osup": "frac",
     "ssup": "soft",
     "asup": "mean",
     "dsup": "diff",
 }
-KINDS = ("pb", "sup", "osup", "ssup", "asup", "dsup")
+KINDS = ("pb", "pbg", "sup", "osup", "ssup", "asup", "dsup")
+EDGE_TAU = 0.5  # field-edge strength at which a line pixel counts as supported (pbg)
 
 
 def _surface(
@@ -52,6 +63,8 @@ def _surface(
         return boundary_distance(seg) * fg_mask
     if name == "pb":
         return boundary_prob(prob) * fg_mask
+    if name == "pbg":
+        return boundary_or_edge(prob) * fg_mask
     return (1.0 - oriented_signal(prob[2].astype(np.float32)).max(axis=0)) * fg_mask
 
 
@@ -67,6 +80,8 @@ def _line_support(
             is_bnd, structure=np.ones((2 * band + 1, 2 * band + 1), dtype=bool)
         )
     pb, pf = prob[2][r, c].astype(np.float64), prob[1][r, c].astype(np.float64)
+    if score == "fracg":
+        return (is_bnd[r, c] | (field_edge(prob)[r, c] >= EDGE_TAU)).astype(np.float64)
     if score == "frac" or (score == "soft" and band > 0):
         # the band is a spatial rule, so the soft score falls back to the hard test
         return is_bnd[r, c].astype(np.float64)
@@ -99,7 +114,9 @@ class BoundaryVoteMethod(Method):
         """Watershed at depth ``h``, then keep or merge lines by their vote."""
         del ctx
         surf = _surface(self.kind, fg_mask, seg, prob)
-        regions = watershed_regions(surf, fg_mask, self.h, lines=True)
+        regions = watershed_regions(
+            surf, fg_mask, self.h, lines=True, backend=self.backend
+        )
         if regions.fallback:
             return regions.labels
         inst, lines = regions.labels, regions.lines
