@@ -7,6 +7,8 @@ name = "fbp"
 version = "0.1.0"
 description = "Field boundary prediction post-processing algorithms"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [{ name = "Isaac Corley", email = "isaac.corley@taylorgeospatial.org" }]
 classifiers = [
