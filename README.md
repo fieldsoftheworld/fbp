@@ -9,13 +9,15 @@ several published split-and-merge strategies behind one interface.
 ## Install
 
 ```sh
-pip install fbp
+pip install ftw-fbp
 ```
+
+The package imports as `fbp`.
 
 For development:
 
 ```sh
-git clone https://github.com/taylor-geospatial/fbp.git
+git clone https://github.com/fieldsoftheworld/fbp.git
 cd fbp
 uv sync --extra dev
 ```
