@@ -7,17 +7,8 @@ between two regions is weighted by the signal at the arc's own orientation
 along the arc's pixels, and regions merge greedily below one level ``lvl``.
 Higra is not installed here, so the hierarchy cut is skimage's greedy merge.
 
-Only one watershed runs (with lines), unlike the original two-watershed form:
-the RAG's own region image is filled from the lined watershed by nearest
-label, via ``distance_transform_edt(..., return_indices=True)``, instead of a
-second lines=False watershed. This is exact wherever a line pixel has only
-one neighbouring region nearby, but at a junction of several small regions
-(dense real farmland) the nearest label can disagree with what a true
-lines=False watershed would have flooded to, which then propagates into the
-RAG's own adjacency and can change the final merged label count. Label
-counts still match the old two-watershed form on the synthetic
-``two_field_scene``; see the port report for the measured difference on real
-patches, which is larger than that synthetic case suggests.
+Two watersheds share the same seeds: the lines=False one gives the regions
+the RAG merges, the lined one gives the arcs the oriented weights are read on.
 
 Seeding on ``surf``'s minima goes through ``watershed_regions(..., mode="min")``
 rather than negating ``surf`` into a maxima search: h_maxima/h_minima scale
@@ -31,7 +22,6 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import numpy as np
-from scipy.ndimage import distance_transform_edt
 
 from fbp.core.merge import merge_hierarchy
 from fbp.core.regions import pairs_at_lines, watershed_regions
@@ -86,23 +76,6 @@ def border_weights(
     return out
 
 
-def _nearest_fill(lined: np.ndarray, fg: np.ndarray) -> np.ndarray:
-    """The over-segmentation's regions with every watershed-line pixel filled in.
-
-    Assigns each line pixel the label of its nearest labelled pixel, standing
-    in for the second, lines=False watershed of the original two-watershed form.
-    """
-    gap = fg & (lined == 0)
-    if not gap.any():
-        return lined
-    idx = distance_transform_edt(
-        lined == 0, return_distances=False, return_indices=True
-    )
-    over = lined.copy()
-    over[gap] = lined[idx[0][gap], idx[1][gap]]
-    return over
-
-
 @register("owt")
 @dataclass(frozen=True)
 class OWTMethod(Method):
@@ -125,13 +98,13 @@ class OWTMethod(Method):
             return np.zeros(fg_mask.shape, dtype=np.int32)
         sig = oriented_signal(prob[2].astype(np.float32))
         surf = sig.max(axis=0).astype(np.float32)
-        regions = watershed_regions(surf, fg_mask, self.h, lines=True, mode="min")
+        regions = watershed_regions(surf, fg_mask, self.h, lines=False, mode="min")
         if regions.fallback:
             return regions.labels
-        lined = regions.labels
-        over = _nearest_fill(lined, fg_mask)
+        over = regions.labels
         if over.max() <= 1:
             return over
+        lined = watershed_regions(surf, fg_mask, self.h, lines=True, mode="min").labels
         weights = border_weights(lined, fg_mask, sig)
         return merge_hierarchy(over, surf, fg_mask, self.lvl, weights)
 

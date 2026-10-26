@@ -63,3 +63,24 @@ def test_owt_zero_depth_seeds_every_minimum() -> None:
     seg, prob = two_field_scene()
     zero = run("nbg-owt-l0.5-h0", seg, prob)
     assert zero.max() >= 2  # every regional minimum seeds; the strong column stays
+
+
+def test_owt_regions_come_from_a_lines_free_watershed() -> None:
+    """With no merging, the output is the lines-free watershed's regions."""
+    from scipy.ndimage import gaussian_filter
+
+    from fbp.core.regions import lines_from_labels, relabel_dense, watershed_regions
+
+    rng = np.random.default_rng(0)
+    pb = gaussian_filter(rng.random((64, 64)), 1.5).astype(np.float32)
+    pb = (pb - pb.min()) / (pb.max() - pb.min())
+    prob = np.stack([np.zeros_like(pb), 1 - pb, pb])
+    seg = np.ones((64, 64), dtype=np.uint8)
+    fg = seg != 0
+    surf = oriented_signal(pb).max(axis=0).astype(np.float32)
+    over = watershed_regions(surf, fg, 0.0, lines=False, mode="min").labels
+    expected = relabel_dense(lines_from_labels(over + fg, fg))
+    got = run("nbg-owt-l0-h0", seg, prob)
+    assert np.array_equal(got > 0, expected > 0)
+    pairs = np.unique(np.stack([got[got > 0], expected[got > 0]]), axis=1)
+    assert len(np.unique(pairs[0])) == len(np.unique(pairs[1])) == pairs.shape[1]
