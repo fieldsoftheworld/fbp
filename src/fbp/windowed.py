@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from fbp.methods import run
+from fbp.methods.base import Method
 
 
 @dataclass(frozen=True)
@@ -76,21 +76,20 @@ class _Instances:
 
 
 def run_windowed(
-    strategy: str,
+    method: Method,
     segmentation: np.ndarray,
     probabilities: np.ndarray,
     *,
-    px_m2: float,
+    pixel_area_m2: float,
     core: int = 8192,
     halo: int = 512,
     merge_frac: float = 0.1,
 ) -> np.ndarray:
-    """Run ``strategy`` over overlapping windows; dense int32 labels, 0 = background.
+    """Run ``method`` over overlapping windows and return int32 labels, 0 = background.
 
-    Arguments match :func:`fbp.run`. ``core`` is the window stride, ``halo`` the
-    context added on each side, and ``merge_frac`` the overlap (fraction of the
-    smaller copy) at which two copies of a field from different windows become one
-    instance.
+    ``core`` is the window stride and ``halo`` the context added on each side. Two
+    copies of a field from different windows become one instance when they overlap
+    by at least ``merge_frac`` of the smaller copy.
     """
     h, w = segmentation.shape
     out = np.zeros((h, w), np.int64)
@@ -99,11 +98,10 @@ def run_windowed(
         for c0, c1, wc0, wc1 in _spans(w, core, halo):
             win = _Window(r0, r1, c0, c1, wr0, wr1, wc0, wc1)
             rows, cols = slice(wr0, wr1), slice(wc0, wc1)
-            lab = run(
-                strategy,
+            lab = method(
                 segmentation[rows, cols],
                 probabilities[:, rows, cols],
-                px_m2=px_m2,
+                pixel_area_m2=pixel_area_m2,
             )
             if lab.any():
                 _place(out, inst, lab, win, merge_frac)

@@ -1,23 +1,18 @@
-"""Faster drop-ins for the two scikit-image calls that dominate BoundaryVote.
+"""Integer versions of the two scikit-image calls that dominate BoundaryVote's runtime.
 
-Profiled on 5,120^2 production windows, ``h_maxima`` (53%) and ``watershed`` (38%)
-were 92% of BoundaryVote's runtime. For the ``pb`` surface (1 - p_boundary with the
-softmax stored as uint8/255, which is how the global run keeps it) both can run on
-integer levels:
+On 5,120 x 5,120 production windows, ``h_maxima`` and ``watershed`` take 92% of
+BoundaryVote's time. When the surface is on the 1/255 grid of the uint8 probability
+rasters, both can run on integer levels.
 
-``h_maxima_itk``      ITK grayscale reconstruction by dilation. Reconstruction has a
-                      unique result, so this is bit-identical to skimage (checked on 5k
-                      and 9k windows) and ~10x faster single-threaded.
-``watershed_bucket``  O(N) hierarchical-queue flooding with skimage's rules (same
-                      neighbour order, cost clamping, watershed-line test, masking). The
-                      one difference: equal-cost *marker* pixels leave the queue in scan
-                      order, where skimage's binary heap releases them in heap order.
-                      That moves lines only at exact ties: 99.99% pixel agreement,
-                      ~99.5% of parcels at IoU >= 0.9 end to end on production tiles.
+``h_maxima_itk`` uses ITK grayscale reconstruction by dilation. It gives the same
+result as scikit-image, checked on 5k and 9k windows, and runs about 10x faster on one
+thread. ``watershed_bucket`` floods with a bucket queue in O(N) under scikit-image's
+rules. Marker pixels of equal cost leave the queue in scan order rather than heap
+order, so the lines move only at exact ties (99.99% of pixels agree).
 
-Both refuse surfaces that are not on the 1/255 grid, where the integer mapping is
-invalid; ``quantize_prob`` puts a float softmax on that grid, which is exactly
-what storing it as uint8 does in production (``+q1`` in a strategy id does both).
+Both reject surfaces that are not on the 1/255 grid. ``quantize_prob`` rounds a float
+softmax onto it, which is what storing it as uint8 does. ``Method(fast=True)`` does
+both.
 """
 
 import numpy as np
@@ -26,7 +21,9 @@ try:
     import SimpleITK as sitk  # noqa: N813  (the package's own conventional alias)
     from numba import njit
 except ImportError as e:
-    raise ImportError("+q1 needs the fast backend: pip install 'ftw-fbp[fast]'") from e
+    raise ImportError(
+        "fast=True needs the fast backend: pip install 'ftw-fbp[fast]'"
+    ) from e
 from skimage.morphology._util import _offsets_to_raveled_neighbors
 
 LEVELS = 255.0
@@ -40,7 +37,9 @@ def quantize_prob(prob: np.ndarray) -> np.ndarray:
 def _to_levels(x: np.ndarray, name: str) -> np.ndarray:
     u = np.rint(x * LEVELS)
     if np.abs(x * LEVELS - u).max() > 0.25:  # fp16 error is ~0.06 levels
-        raise ValueError(f"{name} is not on the 1/255 grid; use +q1 / quantize_prob")
+        raise ValueError(
+            f"{name} is not on the 1/255 grid; quantize it with quantize_prob"
+        )
     return u.astype(np.uint8)
 
 

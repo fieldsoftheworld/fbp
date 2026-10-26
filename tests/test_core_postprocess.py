@@ -27,11 +27,14 @@ def two_blocks() -> tuple[np.ndarray, np.ndarray]:
 
 def test_foreground_modes() -> None:
     seg, prob = two_blocks()
-    seg[10:12, 22:26] = 2  # a boundary bridge, only "nbg" counts it as foreground
+    seg[10:12, 22:26] = 2  # a boundary bridge, foreground only under "not_background"
     prob[2][10:12, 22:26] = 0.9
     prob[1][10:12, 22:26] = 0.05
-    assert foreground(seg, prob, "nbg").sum() > foreground(seg, prob, "arg").sum()
-    assert foreground(seg, prob, "pf50").sum() == (prob[1] > 0.5).sum()
+    assert (
+        foreground(seg, prob, "not_background").sum()
+        > foreground(seg, prob, "argmax").sum()
+    )
+    assert foreground(seg, prob, 0.5).sum() == (prob[1] > 0.5).sum()
     otsu = foreground(seg, prob, "otsu")
     assert otsu.dtype == bool
 

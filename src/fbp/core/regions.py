@@ -81,11 +81,8 @@ def pairs_at_lines(
     return r, c, top2
 
 
-BACKENDS = ("skimage", "fast")
-
-
 def _morphology(backend: str) -> tuple:
-    """``(h_maxima, watershed)`` for the ``max`` mode under the chosen backend."""
+    """The h-maxima and watershed functions for ``backend``."""
     if backend == "skimage":
         return h_maxima, watershed
     if backend == "fast":
@@ -106,9 +103,9 @@ def watershed_regions(  # noqa: PLR0913  (keyword-only flags)
 ) -> Regions:
     """Watershed inside ``fg``, seeded at ``surface``'s own extrema.
 
-    ``backend="fast"`` (``max`` mode only) swaps in ITK reconstruction for the
-    h-maxima and an O(N) bucket-queue flood for the watershed
-    (``fbp.core.fast_morph``); the surface must be on the 1/255 grid.
+    ``backend="fast"`` runs the h-maxima and the watershed on integer levels
+    (``fbp.core.fast_morph``). It applies to ``mode="max"`` only and needs the
+    surface on the 1/255 grid.
 
     ``mode="max"`` (every other caller) seeds on maxima: ``h > 0`` seeds
     ``h``-maxima at least ``h`` deep, ``h == 0`` seeds every regional maximum,

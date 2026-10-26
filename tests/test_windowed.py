@@ -3,10 +3,12 @@
 import numpy as np
 import pytest
 
-from fbp import run
+from fbp import BoundaryVote
 from fbp.windowed import run_windowed
 
-STRATEGY = "nbg-pb-h0.01-t0.3+A900"
+METHOD = BoundaryVote(
+    foreground="not_background", seed_depth=0.01, min_line_support=0.3, min_area_m2=900
+)
 
 
 def fields(
@@ -38,8 +40,8 @@ def test_small_fields_match_whole_image() -> None:
         (r, r + 14, c, c + 14) for r in range(2, 120, 18) for c in range(2, 120, 18)
     ]
     seg, prob = fields(128, 128, boxes)
-    whole = run(STRATEGY, seg, prob, px_m2=9.0)
-    win = run_windowed(STRATEGY, seg, prob, px_m2=9.0, core=48, halo=16)
+    whole = METHOD(seg, prob, pixel_area_m2=9.0)
+    win = run_windowed(METHOD, seg, prob, pixel_area_m2=9.0, core=48, halo=16)
     assert same_partition(whole, win)
 
 
@@ -48,9 +50,9 @@ def test_field_across_seam(merge_frac: float, expected: int) -> None:
     # 80 px tall field over the core boundary at row 64; halo 16 < half the field,
     # so each window sees a truncated copy whose centroid falls in its own core
     seg, prob = fields(128, 64, [(20, 100, 10, 50)])
-    whole = run(STRATEGY, seg, prob, px_m2=9.0)
+    whole = METHOD(seg, prob, pixel_area_m2=9.0)
     win = run_windowed(
-        STRATEGY, seg, prob, px_m2=9.0, core=64, halo=16, merge_frac=merge_frac
+        METHOD, seg, prob, pixel_area_m2=9.0, core=64, halo=16, merge_frac=merge_frac
     )
     assert int(whole.max()) == 1
     assert int(win.max()) == expected
@@ -60,7 +62,7 @@ def test_field_across_seam(merge_frac: float, expected: int) -> None:
 
 def test_labels_are_dense_int32() -> None:
     seg, prob = fields(96, 96, [(4, 30, 4, 30), (40, 90, 40, 90)])
-    win = run_windowed(STRATEGY, seg, prob, px_m2=9.0, core=32, halo=8)
+    win = run_windowed(METHOD, seg, prob, pixel_area_m2=9.0, core=32, halo=8)
     assert win.dtype == np.int32
     assert np.array_equal(np.unique(win), np.arange(int(win.max()) + 1))
 
@@ -81,7 +83,7 @@ def test_whole_copy_and_truncated_copy_merge() -> None:
     prob[0] = 1.0
     prob[:, seg == 1] = np.array([0.05, 0.9, 0.05])[:, None]
     prob[:, seg == 2] = np.array([0.05, 0.15, 0.8])[:, None]
-    whole = run(STRATEGY, seg, prob, px_m2=9.0)
-    win = run_windowed(STRATEGY, seg, prob, px_m2=9.0, core=64, halo=24)
+    whole = METHOD(seg, prob, pixel_area_m2=9.0)
+    win = run_windowed(METHOD, seg, prob, pixel_area_m2=9.0, core=64, halo=24)
     assert int(whole.max()) == 1
     assert same_partition(whole, win)

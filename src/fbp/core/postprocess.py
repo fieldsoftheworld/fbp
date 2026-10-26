@@ -6,44 +6,31 @@ from scipy.ndimage import label as ndi_label
 from skimage.filters import threshold_otsu
 
 
-def foreground(seg: np.ndarray, prob: np.ndarray, mode: str) -> np.ndarray:
-    """Foreground mask for one of the ``arg``/``nbg``/``pf{NN}``/``otsu`` rules.
+def foreground(seg: np.ndarray, prob: np.ndarray, rule: str | float) -> np.ndarray:
+    """Foreground mask for a ``Method.foreground`` rule.
 
-    ``pf{NN}`` is field probability above NN/100 (``pf50`` = 0.5); a low value such
-    as ``pf15`` is meant to be paired with the ``+R`` region cut, so parcels whose
-    field probability never wins the argmax (centre pivots at 0.3-0.5) still form.
+    A number keeps pixels whose field probability is above it.
     """
-    if mode == "arg":
+    if isinstance(rule, int | float):
+        return prob[1] > rule
+    if rule == "argmax":
         return seg == 1
-    if mode == "nbg":
+    if rule == "not_background":
         return seg != 0
-    if mode.startswith("pf") and mode[2:].isdigit():
-        return prob[1] > int(mode[2:]) / 100.0
-    if mode == "otsu":
+    if rule == "otsu":
         pf = prob[1]
         if float(pf.max() - pf.min()) < 1e-3:
             return seg == 1
         return pf > threshold_otsu(pf)
-    raise ValueError(mode)
+    raise ValueError(f"unknown foreground rule {rule!r}")
 
 
 def drop_low_field(inst: np.ndarray, pf: np.ndarray, min_mean: float) -> np.ndarray:
-    """Drop parcels whose mean field probability is below ``min_mean`` (the ``+R`` cut).
-
-    A region-level decision: a whole parcel is kept or dropped on its average, so a
-    loose pixel foreground (``pf15``) can grow parcels that the argmax would break up,
-    and the ones that are mostly not field are removed afterwards.
-    """
-    if min_mean <= 0 or inst.max() == 0:
-        return inst
-    n = int(inst.max()) + 1
-    cnt = np.bincount(inst.ravel(), minlength=n)
-    tot = np.bincount(inst.ravel(), weights=pf.ravel().astype(np.float64), minlength=n)
-    keep = np.zeros(n, dtype=bool)
-    keep[1:] = tot[1:] / np.maximum(cnt[1:], 1) >= min_mean
-    if keep[1:].all():
-        return inst
-    return np.where(keep[inst], inst, 0).astype(np.int32, copy=False)
+    """Drop parcels whose mean field probability is under ``min_mean``."""
+    labels = inst.ravel()
+    total = np.bincount(labels, weights=pf.ravel().astype(np.float64))
+    mean = total / np.maximum(np.bincount(labels), 1)
+    return np.where(mean[inst] >= min_mean, inst, 0).astype(np.int32, copy=False)
 
 
 def drop_small(inst: np.ndarray, min_area: int) -> np.ndarray:

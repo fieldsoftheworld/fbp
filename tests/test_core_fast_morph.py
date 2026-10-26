@@ -1,4 +1,4 @@
-"""``fbp.core.fast_morph``: the production backend against scikit-image."""
+"""The integer backend (``fast=True``) against scikit-image."""
 
 import numpy as np
 import pytest
@@ -9,10 +9,9 @@ pytest.importorskip("numba")
 from skimage.morphology import h_maxima
 from skimage.segmentation import watershed
 
+from fbp import BoundaryVote
 from fbp.core.fast_morph import h_maxima_itk, quantize_prob, watershed_bucket
-from fbp.core.postprocess import foreground
 from fbp.core.regions import watershed_regions
-from fbp.methods import parse
 
 
 def _surface(
@@ -61,17 +60,20 @@ def test_refuses_unquantized_surface() -> None:
         h_maxima_itk(surf + 0.001, h=0.01)
 
 
-def test_q1_id_runs_the_fast_backend_end_to_end() -> None:
+def test_fast_runs_the_integer_backend_end_to_end() -> None:
     surf, _fg = _surface(1)
     pb = 1 - surf
     prob = np.stack([np.zeros_like(pb), 1 - pb, pb]).astype(np.float32)
     seg = prob.argmax(0).astype(np.uint8)
-    m = parse("nbg-pb-h0.01-t0.3+q1")
-    assert m.backend == "fast" and m.id == "nbg-pb-h0.01-t0.3+q1"
+    m = BoundaryVote(
+        foreground="not_background", seed_depth=0.01, min_line_support=0.3, fast=True
+    )
+    assert m.backend == "fast"
     fast = m(seg, prob)
-    slow = parse("nbg-pb-h0.01-t0.3")(seg, prob)
+    slow = BoundaryVote(
+        foreground="not_background", seed_depth=0.01, min_line_support=0.3
+    )(seg, prob)
     assert fast.shape == slow.shape
     # the two floods differ only at exact-tie line pixels; on this noisy synthetic
     # surface that still moves a few vote outcomes, so compare coverage, not counts
     assert ((fast > 0) == (slow > 0)).mean() > 0.9
-    assert foreground(seg, prob, "pf15").sum() >= foreground(seg, prob, "pf50").sum()
