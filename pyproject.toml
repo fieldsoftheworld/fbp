@@ -56,7 +56,7 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D100", "D101", "D102", "D103", "D107", "ARG001", "ARG002", "ARG005"]
 "src/fbp/methods/boundaryvote.py" = ["PLR0912", "PLR0913", "PLR0915"]
-"src/fbp/core/merge.py" = ["PLR0913"]
+"src/fbp/core/merge.py" = ["PLR0913", "PLR0917"]
 "src/fbp/windowed.py" = ["PLR0913"]  # run_windowed mirrors run() plus window options
 
 [tool.ruff.lint.isort]
