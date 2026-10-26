@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The +q1 backend: integer h-maxima and bucket-queue watershed.
+# For fast=True: integer h-maxima and a bucket-queue watershed.
 fast = [
     "numba>=0.60",
     "SimpleITK>=2.4",
