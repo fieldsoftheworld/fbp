@@ -1,4 +1,4 @@
-"""``gmm``: Gaussian-mixture extent/boundary thresholds (Amin et al. 2025).
+"""Gaussian-mixture extent and boundary thresholds (Amin et al. 2025).
 
 The extent and boundary probabilities are thresholded at values fitted per
 region (``fbp.eval.gmm_fit``, agent B's port of the old ``gmm_thresholds``),
@@ -8,14 +8,13 @@ eval-time concern; this method only consumes the two already-fitted numbers.
 """
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import override
 
 import numpy as np
 from scipy.ndimage import label as ndi_label
 from skimage.morphology import thin
 
 from fbp.methods.base import Method
-from fbp.methods.registry import register
 
 
 def gmm_split(prob: np.ndarray, te: float, tb: float) -> np.ndarray:
@@ -26,39 +25,25 @@ def gmm_split(prob: np.ndarray, te: float, tb: float) -> np.ndarray:
     return out.astype(np.int32, copy=False)
 
 
-@register("gmm")
-@dataclass(frozen=True)
-class GMMMethod(Method):
-    """Extent/boundary split at the region's fitted (te, tb)."""
+@dataclass(frozen=True, kw_only=True)
+class GaussianMixture(Method):
+    """Extent minus the thinned boundary, at thresholds fitted per region.
 
-    rule: ClassVar[str] = "gmm"
-    needs_ctx: ClassVar[str | None] = "gmm"
+    Pass the fitted thresholds as ``context={"gmm": (extent, boundary)}``.
+    """
 
+    @override
     def split(
         self,
         fg_mask: np.ndarray,
         seg: np.ndarray,
         prob: np.ndarray,
-        ctx: dict | None = None,
+        context: dict | None,
     ) -> np.ndarray:
-        """Extent minus thinned boundary, at the fitted (te, tb) in ``ctx``."""
         del fg_mask, seg
-        if not ctx or "gmm" not in ctx:
-            raise ValueError(f"{self.id!r} needs the region's fitted (te, tb)")
-        te, tb = ctx["gmm"]
+        if not context or "gmm" not in context:
+            raise ValueError(
+                "GaussianMixture needs context={'gmm': (extent, boundary)}"
+            )
+        te, tb = context["gmm"]
         return gmm_split(prob, te, tb)
-
-    def _rule_id(self) -> str:
-        return "gmm"
-
-    @classmethod
-    def from_parts(
-        cls,
-        fg: str,
-        rule: str,
-        params: list,
-        mods: dict[str, int],
-    ) -> "GMMMethod":
-        """Build from a parsed ``<fg>-gmm`` id; no rule params."""
-        del rule, params
-        return cls(**cls._common_kwargs(fg, mods))

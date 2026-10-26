@@ -1,8 +1,8 @@
-"""``thr-te{te}-tb{tb}``: extent/boundary thresholding, as in DECODE."""
+"""ExtentBoundaryThreshold: extent and boundary thresholds, as in DECODE."""
 
 import numpy as np
 
-from fbp.methods import run
+from fbp import ExtentBoundaryThreshold
 
 
 def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
@@ -25,11 +25,15 @@ def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
 
 def test_thr_splits_on_the_strong_boundary() -> None:
     seg, prob = two_field_scene()
-    out = run("arg-thr-te0.5-tb0.5", seg, prob)
+    out = ExtentBoundaryThreshold(
+        min_field_probability=0.5, max_boundary_probability=0.5
+    )(seg, prob)
     assert out.max() == 2  # boundary column with p_bnd .9 splits the field
 
 
 def test_thr_shape_and_dtype() -> None:
     seg, prob = two_field_scene()
-    out = run("arg-thr-te0.5-tb0.5", seg, prob)
+    out = ExtentBoundaryThreshold(
+        min_field_probability=0.5, max_boundary_probability=0.5
+    )(seg, prob)
     assert out.dtype == np.int32 and out.shape == seg.shape

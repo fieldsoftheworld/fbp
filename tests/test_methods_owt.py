@@ -1,10 +1,12 @@
-"""``owt-l{l}-h{h}``: oriented watershed and hierarchical merging."""
+"""OrientedWatershed: oriented watershed and hierarchical merging."""
 
 import numpy as np
+from scipy.ndimage import gaussian_filter
 
+from fbp import OrientedWatershed
 from fbp.core.postprocess import foreground
+from fbp.core.regions import lines_from_labels, relabel_dense, watershed_regions
 from fbp.core.surfaces import N_ORIENT, oriented_signal
-from fbp.methods import run
 from fbp.methods.owt import border_weights, orientation_bin
 
 
@@ -36,7 +38,7 @@ def test_orientation_bin_axes() -> None:
 
 def test_border_weights_follow_boundary_probability() -> None:
     seg, prob = two_field_scene()
-    fg = foreground(seg, prob, "nbg")
+    fg = foreground(seg, prob, "not_background")
     col = np.arange(fg.shape[1])[None, :]
     row = np.arange(fg.shape[0])[:, None]
     lab = np.zeros(fg.shape, dtype=np.int32)
@@ -51,26 +53,30 @@ def test_border_weights_follow_boundary_probability() -> None:
 
 def test_owt_level_monotone_and_dispatch() -> None:
     seg, prob = two_field_scene()
-    low = run("nbg-owt-l0.1-h0.05", seg, prob)
-    high = run("nbg-owt-l0.95-h0.05", seg, prob)
+    low = OrientedWatershed(
+        foreground="not_background", merge_level=0.1, seed_depth=0.05
+    )(seg, prob)
+    high = OrientedWatershed(
+        foreground="not_background", merge_level=0.95, seed_depth=0.05
+    )(seg, prob)
     assert low.max() >= high.max() >= 1
     assert low.max() >= 2  # the strong boundary survives a low level
-    out = run("nbg-owt-l0.5-h0.2+A9", seg, prob, px_m2=1.0)
+    out = OrientedWatershed(
+        foreground="not_background", merge_level=0.5, seed_depth=0.2, min_area_m2=9
+    )(seg, prob, pixel_area_m2=1.0)
     assert out.dtype == np.int32 and out.max() >= 1
 
 
 def test_owt_zero_depth_seeds_every_minimum() -> None:
     seg, prob = two_field_scene()
-    zero = run("nbg-owt-l0.5-h0", seg, prob)
+    zero = OrientedWatershed(
+        foreground="not_background", merge_level=0.5, seed_depth=0
+    )(seg, prob)
     assert zero.max() >= 2  # every regional minimum seeds; the strong column stays
 
 
 def test_owt_regions_come_from_a_lines_free_watershed() -> None:
     """With no merging, the output is the lines-free watershed's regions."""
-    from scipy.ndimage import gaussian_filter
-
-    from fbp.core.regions import lines_from_labels, relabel_dense, watershed_regions
-
     rng = np.random.default_rng(0)
     pb = gaussian_filter(rng.random((64, 64)), 1.5).astype(np.float32)
     pb = (pb - pb.min()) / (pb.max() - pb.min())
@@ -80,7 +86,9 @@ def test_owt_regions_come_from_a_lines_free_watershed() -> None:
     surf = oriented_signal(pb).max(axis=0).astype(np.float32)
     over = watershed_regions(surf, fg, 0.0, lines=False, mode="min").labels
     expected = relabel_dense(lines_from_labels(over + fg, fg))
-    got = run("nbg-owt-l0-h0", seg, prob)
+    got = OrientedWatershed(foreground="not_background", merge_level=0, seed_depth=0)(
+        seg, prob
+    )
     assert np.array_equal(got > 0, expected > 0)
     pairs = np.unique(np.stack([got[got > 0], expected[got > 0]]), axis=1)
     assert len(np.unique(pairs[0])) == len(np.unique(pairs[1])) == pairs.shape[1]

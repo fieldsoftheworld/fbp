@@ -1,14 +1,15 @@
-"""``pb|sup|osup|ssup|asup|dsup``: watershed, then keep or merge lines by vote."""
+"""BoundaryVote: watershed proposals kept or merged by a boundary vote."""
 
 import itertools
 from pathlib import Path
+from typing import get_args
 
 import numpy as np
 import pytest
 
+from fbp import BoundaryVote
 from fbp.core.postprocess import foreground
-from fbp.methods import run
-from fbp.methods.boundaryvote import KINDS
+from fbp.methods.boundaryvote import LineScore, Surface
 
 CACHE = Path(__file__).resolve().parents[1] / "out" / "cache" / "planet_b3" / "test"
 DENSE10 = (
@@ -59,21 +60,38 @@ def touching_pairs(inst: np.ndarray) -> int:
 
 def test_unsupported_neck_is_merged() -> None:
     seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
-    inst = run("arg-sup-h1-t0.5", seg, prob)
+    inst = BoundaryVote(
+        surface="boundary_distance", seed_depth=1, min_line_support=0.5
+    )(seg, prob)
     assert inst.max() == 1  # the geometric neck split is not supported -> one field
 
 
 def test_supported_gap_is_kept() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    inst = run("nbg-sup-h1-t0.5", seg, prob)
+    inst = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=1,
+        min_line_support=0.5,
+    )(seg, prob)
     assert inst.max() == 2
     assert (inst[10:14, 22:26] == 0).any()
 
 
-@pytest.mark.parametrize("kind", KINDS)
-def test_every_kind_runs(kind: str) -> None:
+@pytest.mark.parametrize("surface", get_args(Surface))
+@pytest.mark.parametrize("line_score", get_args(LineScore))
+def test_every_surface_and_line_score_runs(
+    surface: Surface, line_score: LineScore
+) -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    out = run(f"nbg-{kind}-h2-t0.5", seg, prob)
+    method = BoundaryVote(
+        foreground="not_background",
+        surface=surface,
+        seed_depth=2,
+        line_score=line_score,
+        min_line_support=0.5,
+    )
+    out = method(seg, prob)
     assert out.dtype == np.int32 and out.shape == seg.shape and out.min() >= 0
 
 
@@ -86,37 +104,78 @@ def test_kept_splits_never_touch_on_real_patches() -> None:
         for npz in itertools.islice(sorted(src.glob("*.npz")), 4):
             with np.load(npz) as d:
                 seg, prob = d["seg"].astype(np.uint8), d["prob"].astype(np.float32)
-            for spec in ("nbg-sup-h2-t0.7", "nbg-sup-h2-t0.9"):
-                inst = run(spec, seg, prob)
-                assert touching_pairs(inst) == 0, f"{country}/{npz.stem} {spec}"
+            for support in (0.7, 0.9):
+                method = BoundaryVote(
+                    foreground="not_background",
+                    surface="boundary_distance",
+                    seed_depth=2,
+                    min_line_support=support,
+                )
+                inst = method(seg, prob)
+                assert touching_pairs(inst) == 0, f"{country}/{npz.stem} {method}"
             checked += 1
     assert checked >= 20
 
 
 def test_min_line_and_min_area_and_band() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    base = run("nbg-sup-h1-t0.5", seg, prob)
+    base = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=1,
+        min_line_support=0.5,
+    )(seg, prob)
     assert base.max() == 2
     # a minimum line length longer than the seam merges the two fields
-    long_line = run("nbg-sup-h1-t0.5+l50", seg, prob)
+    long_line = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=1,
+        min_line_support=0.5,
+        min_line_length=50,
+    )(seg, prob)
     assert long_line.max() == 1
     # the tolerance band can only raise support, never lower it
-    banded = run("nbg-sup-h1-t0.5+b1", seg, prob)
+    banded = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=1,
+        min_line_support=0.5,
+        support_radius=1,
+    )(seg, prob)
     assert banded.max() >= base.max()
 
 
-def test_soft_score_falls_back_to_hard_test_under_band() -> None:
-    """With `band>0` the soft score is documented to fall back to the hard rule."""
+def test_probability_share_falls_back_to_fraction_with_a_support_radius() -> None:
+    """With a support radius, the probability-share vote is the fraction vote."""
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    soft = run("nbg-ssup-h1-t0.5+b1", seg, prob)
-    frac = run("nbg-sup-h1-t0.5+b1", seg, prob)
+    soft = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=1,
+        line_score="probability_share",
+        min_line_support=0.5,
+        support_radius=1,
+    )(seg, prob)
+    frac = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=1,
+        min_line_support=0.5,
+        support_radius=1,
+    )(seg, prob)
     np.testing.assert_array_equal(soft, frac)
 
 
 def test_supported_split_falls_back_when_no_markers_found() -> None:
-    """`h` bigger than the EDT surface leaves no h-maxima -> one component."""
+    """A seed depth deeper than the distance surface leaves no seeds."""
     seg, prob = two_fields(gap_boundary=False, boundary_pb=0.0)
-    inst = run("nbg-sup-h100-t0.5", seg, prob)
+    inst = BoundaryVote(
+        foreground="not_background",
+        surface="boundary_distance",
+        seed_depth=100,
+        min_line_support=0.5,
+    )(seg, prob)
     assert inst.max() == 1
 
 
@@ -124,8 +183,11 @@ def test_empty_patch() -> None:
     seg = np.zeros((8, 8), dtype=np.uint8)
     prob = np.zeros((3, 8, 8), dtype=np.float32)
     prob[0] = 1.0
-    for spec in ("nbg-sup-h2-t0.7", "nbg-pb-h0.01-t0.3"):
-        assert run(spec, seg, prob).max() == 0
+    for method in (
+        BoundaryVote(surface="boundary_distance", seed_depth=2, min_line_support=0.7),
+        BoundaryVote(seed_depth=0.01, min_line_support=0.3),
+    ):
+        assert method(seg, prob).max() == 0
 
 
 def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
@@ -149,11 +211,33 @@ def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
 def test_oriented_surface_proposals() -> None:
     """The vote on oriented-signal proposals keeps the strong boundary, h=0 included."""
     seg, prob = two_field_scene()
-    for spec in ("nbg-osup-h0.05-t0.7", "nbg-osup-h0-t0.7", "nbg-pb-h0.1-t0.7+A9"):
-        out = run(spec, seg, prob, px_m2=1.0)
+    for method in (
+        BoundaryVote(
+            foreground="not_background",
+            surface="oriented_boundary",
+            seed_depth=0.05,
+            min_line_support=0.7,
+        ),
+        BoundaryVote(
+            foreground="not_background",
+            surface="oriented_boundary",
+            seed_depth=0,
+            min_line_support=0.7,
+        ),
+        BoundaryVote(
+            foreground="not_background",
+            seed_depth=0.1,
+            min_line_support=0.7,
+            min_area_m2=9,
+        ),
+    ):
+        out = method(seg, prob, pixel_area_m2=1.0)
         assert out.dtype == np.int32 and out.max() >= 2
 
 
-def test_foreground_arg_vs_nbg_via_gap() -> None:
+def test_not_background_includes_the_boundary_gap() -> None:
     seg, prob = two_fields(gap_boundary=True, boundary_pb=0.8)
-    assert foreground(seg, prob, "nbg").sum() > foreground(seg, prob, "arg").sum()
+    assert (
+        foreground(seg, prob, "not_background").sum()
+        > foreground(seg, prob, "argmax").sum()
+    )

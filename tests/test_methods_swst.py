@@ -1,8 +1,8 @@
-"""``swst-n{n}-m{m}-t{t}``: stochastic watershed line frequency."""
+"""StochasticWatershed: cuts at frequent random-marker watershed lines."""
 
 import numpy as np
 
-from fbp.methods import run
+from fbp import StochasticWatershed
 
 
 def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
@@ -25,12 +25,27 @@ def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
 
 def test_swst_runs_and_dispatches() -> None:
     seg, prob = two_field_scene()
-    out = run("nbg-swst-n20-m5-t0.5", seg, prob)
+    out = StochasticWatershed(
+        foreground="not_background",
+        markers_per_draw=20,
+        draws=5,
+        min_line_frequency=0.5,
+    )(seg, prob)
     assert out.dtype == np.int32 and out.max() >= 1
 
 
 def test_swst_is_deterministic_given_its_seed() -> None:
     seg, prob = two_field_scene()
-    a = run("nbg-swst-n20-m5-t0.5", seg, prob)
-    b = run("nbg-swst-n20-m5-t0.5", seg, prob)
+    a = StochasticWatershed(
+        foreground="not_background",
+        markers_per_draw=20,
+        draws=5,
+        min_line_frequency=0.5,
+    )(seg, prob)
+    b = StochasticWatershed(
+        foreground="not_background",
+        markers_per_draw=20,
+        draws=5,
+        min_line_frequency=0.5,
+    )(seg, prob)
     np.testing.assert_array_equal(a, b)

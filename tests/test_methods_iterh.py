@@ -1,8 +1,8 @@
-"""``iterh-a{a}``: iterative marker depth, re-segmenting large regions."""
+"""IterativeWatershed: re-split regions above ``max_region_px``."""
 
 import numpy as np
 
-from fbp.methods import run
+from fbp import IterativeWatershed
 
 
 def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
@@ -25,12 +25,16 @@ def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
 
 def test_iterh_resegments_large_regions_more_than_small_area_cap() -> None:
     seg, prob = two_field_scene()
-    coarse = run("nbg-iterh-a100000", seg, prob)  # a_max huge: never re-segments
-    fine = run("nbg-iterh-a100", seg, prob)  # a_max tiny: re-segments everything
+    coarse = IterativeWatershed(foreground="not_background", max_region_px=100000)(
+        seg, prob
+    )  # a_max huge: never re-segments
+    fine = IterativeWatershed(foreground="not_background", max_region_px=100)(
+        seg, prob
+    )  # a_max tiny: re-segments everything
     assert fine.max() >= coarse.max() >= 1
 
 
 def test_iterh_dispatch_shape_and_dtype() -> None:
     seg, prob = two_field_scene()
-    out = run("arg-iterh-a100", seg, prob)
+    out = IterativeWatershed(max_region_px=100)(seg, prob)
     assert out.dtype == np.int32 and out.shape == seg.shape

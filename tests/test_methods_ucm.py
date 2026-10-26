@@ -1,8 +1,8 @@
-"""``ucm-k{k}``: over-segment then merge below k."""
+"""UltrametricContours: over-segment, then merge weak borders."""
 
 import numpy as np
 
-from fbp.methods import run
+from fbp import UltrametricContours
 
 
 def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
@@ -25,13 +25,19 @@ def two_field_scene() -> tuple[np.ndarray, np.ndarray]:
 
 def test_ucm_threshold_monotone() -> None:
     seg, prob = two_field_scene()
-    low = run("nbg-ucm-k0.2", seg, prob)
-    high = run("nbg-ucm-k0.95", seg, prob)
+    low = UltrametricContours(foreground="not_background", merge_threshold=0.2)(
+        seg, prob
+    )
+    high = UltrametricContours(foreground="not_background", merge_threshold=0.95)(
+        seg, prob
+    )
     assert low.max() >= high.max() >= 1
     assert low.max() >= 2  # the strong boundary survives a low threshold
 
 
 def test_ucm_dispatch_shape_and_dtype() -> None:
     seg, prob = two_field_scene()
-    out = run("nbg-ucm-k0.3", seg, prob)
+    out = UltrametricContours(foreground="not_background", merge_threshold=0.3)(
+        seg, prob
+    )
     assert out.shape == seg.shape and out.max() >= 1
