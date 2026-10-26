@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fbp"
+name = "ftw-fbp"
 version = "0.1.0"
 description = "Field boundary prediction post-processing algorithms"
 readme = "README.md"
@@ -34,7 +34,7 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/taylor-geospatial/fbp"
+Repository = "https://github.com/fieldsoftheworld/fbp"
 
 [tool.setuptools.packages.find]
 where = ["src"]
