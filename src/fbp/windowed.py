@@ -8,14 +8,32 @@ each copy's centroid can land in its own core. Such copies are merged into one
 instance when they overlap by at least ``merge_frac`` of the smaller copy and at
 least one of them touches its window edge. Instances from one window never overlap;
 remaining conflicts between windows go to the window whose core holds the pixel.
+
+Only one window of the inputs is in memory at a time, and the labels are int32 and
+relabelled in row strips, so a 40,032 x 40,032 raster needs the 6.4 GB label array
+plus one window's working memory.
 """
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from typing import Protocol
 
 import numpy as np
 
 from fbp.methods.base import Method
+
+
+class Sliceable(Protocol):
+    """An object with a shape whose numpy-style slices are arrays."""
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Array shape."""
+        ...
+
+    def __getitem__(self, key: tuple[slice, ...]) -> np.ndarray:
+        """A numpy array of the sliced part."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -77,22 +95,35 @@ class _Instances:
 
 def run_windowed(
     method: Method,
-    segmentation: np.ndarray,
-    probabilities: np.ndarray,
+    segmentation: np.ndarray | Sliceable,
+    probabilities: np.ndarray | Sliceable,
     *,
     pixel_area_m2: float,
     core: int = 8192,
     halo: int = 512,
     merge_frac: float = 0.1,
+    out: np.ndarray | None = None,
 ) -> np.ndarray:
     """Run ``method`` over overlapping windows and return int32 labels, 0 = background.
 
     ``core`` is the window stride and ``halo`` the context added on each side. Two
     copies of a field from different windows become one instance when they overlap
     by at least ``merge_frac`` of the smaller copy.
+
+    ``segmentation`` (H, W) and ``probabilities`` (3, H, W) can be arrays or any objects
+    with ``.shape`` whose numpy-style slices are arrays, such as a reader of raster
+    windows, so the whole raster never has to be in memory. ``out`` is an optional
+    (H, W) int32 array or memmap that receives the labels and is returned.
     """
     h, w = segmentation.shape
-    out = np.zeros((h, w), np.int64)
+    if out is None:
+        out = np.zeros((h, w), np.int32)
+    elif out.shape != (h, w) or out.dtype != np.int32:
+        raise ValueError(
+            f"out must be int32 of shape {(h, w)}, got {out.dtype} {out.shape}"
+        )
+    else:
+        out[...] = 0
     inst = _Instances()
     for r0, r1, wr0, wr1 in _spans(h, core, halo):
         for c0, c1, wc0, wc1 in _spans(w, core, halo):
@@ -105,8 +136,19 @@ def run_windowed(
             )
             if lab.any():
                 _place(out, inst, lab, win, merge_frac)
-    _, dense = np.unique(inst.roots(out), return_inverse=True)
-    return dense.reshape(h, w).astype(np.int32)
+    _relabel(out, inst)
+    return out
+
+
+def _relabel(out: np.ndarray, inst: _Instances, rows: int = 1024) -> None:
+    """Replace each id in ``out`` by the rank of its root among the roots present."""
+    strips = range(0, out.shape[0], rows)
+    ids = np.unique(np.concatenate([np.unique(out[r : r + rows]) for r in strips]))
+    roots = np.array([inst.find(int(i)) for i in ids], np.int64)
+    lut = np.zeros(len(inst.parent), np.int32)
+    lut[ids] = np.searchsorted(np.unique(roots), roots)
+    for r in strips:
+        out[r : r + rows] = lut[out[r : r + rows]]
 
 
 def _owned(
