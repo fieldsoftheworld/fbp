@@ -1,10 +1,10 @@
-"""``ws{h}``: FTP's own watershed, and its ``arg-ws{h}`` degenerate wrapper."""
+"""FTPWatershed and ``ftp_pipeline`` against FTP's own pipeline."""
 
 import numpy as np
 from scipy.ndimage import distance_transform_edt, label
 
+from fbp import FTPWatershed, ftp_pipeline
 from fbp.core.regions import watershed_regions
-from fbp.methods import ftp_pipeline, run
 
 
 def two_fields() -> tuple[np.ndarray, np.ndarray]:
@@ -22,7 +22,7 @@ def two_fields() -> tuple[np.ndarray, np.ndarray]:
 
 def test_ws_rule_matches_the_ftp_pipelines_union_of_instances() -> None:
     seg, prob = two_fields()
-    got = run("arg-ws2", seg, prob)
+    got = FTPWatershed(seed_depth=2)(seg, prob)
     dist = distance_transform_edt(seg != 2).astype(np.float32)
     regions = watershed_regions(dist, seg == 1, 2.0, lines=False)
     want, _ = label(regions.labels > 0)
@@ -32,16 +32,21 @@ def test_ws_rule_matches_the_ftp_pipelines_union_of_instances() -> None:
 def test_ws_rule_is_indifferent_to_the_foreground_mode() -> None:
     """FTP always splits the field class, regardless of the ``<fg>`` prefix."""
     seg, prob = two_fields()
-    np.testing.assert_array_equal(run("arg-ws2", seg, prob), run("nbg-ws2", seg, prob))
+    np.testing.assert_array_equal(
+        FTPWatershed(seed_depth=2)(seg, prob),
+        FTPWatershed(foreground="not_background", seed_depth=2)(seg, prob),
+    )
 
 
 def test_ftp_pipeline_convenience_matches_run() -> None:
     seg, prob = two_fields()
-    np.testing.assert_array_equal(ftp_pipeline(seg, h=2.0), run("arg-ws2", seg, prob))
+    np.testing.assert_array_equal(
+        ftp_pipeline(seg, seed_depth=2.0), FTPWatershed(seed_depth=2)(seg, prob)
+    )
 
 
 def test_empty_field_mask_returns_zeros() -> None:
     seg = np.zeros((8, 8), dtype=np.uint8)
     prob = np.zeros((3, 8, 8), dtype=np.float32)
     prob[0] = 1.0
-    assert run("arg-ws2", seg, prob).max() == 0
+    assert FTPWatershed(seed_depth=2)(seg, prob).max() == 0

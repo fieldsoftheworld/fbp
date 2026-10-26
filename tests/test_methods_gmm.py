@@ -1,9 +1,9 @@
-"""``gmm``: extent/boundary split at a ctx-supplied fitted (te, tb)."""
+"""GaussianMixture: extent minus thinned boundary at thresholds from ``context``."""
 
 import numpy as np
 import pytest
 
-from fbp.methods import run
+from fbp import GaussianMixture
 from fbp.methods.gmm import gmm_split
 
 
@@ -31,13 +31,15 @@ def test_gmm_split_separates_on_the_strong_boundary() -> None:
     assert out.max() == 2
 
 
-def test_gmm_dispatch_uses_ctx() -> None:
+def test_gaussian_mixture_reads_thresholds_from_context() -> None:
     seg, prob = two_field_scene()
-    out = run("nbg-gmm+A9", seg, prob, px_m2=1.0, ctx={"gmm": (0.5, 0.5)})
+    out = GaussianMixture(foreground="not_background", min_area_m2=9)(
+        seg, prob, pixel_area_m2=1.0, context={"gmm": (0.5, 0.5)}
+    )
     assert out.max() == 2
 
 
-def test_gmm_without_ctx_raises() -> None:
+def test_gaussian_mixture_without_context_raises() -> None:
     seg, prob = two_field_scene()
-    with pytest.raises(ValueError, match="fitted"):
-        run("nbg-gmm", seg, prob)
+    with pytest.raises(ValueError, match="context"):
+        GaussianMixture(foreground="not_background")(seg, prob)

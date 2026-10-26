@@ -2,9 +2,9 @@
 
 Field boundary prediction post-processing in Python.
 
-`fbp` turns semantic field/background/boundary predictions into field instances.
-It provides BoundaryVote, watershed and connected-component baselines, and
-several published split-and-merge strategies behind one interface.
+`fbp` turns background, field, and boundary predictions into field instances. It
+includes BoundaryVote, the method behind the FTW Global Data 2nd Edition, along with
+watershed, connected-component, and published split-and-merge baselines.
 
 ## Install
 
@@ -24,63 +24,84 @@ uv sync --extra dev
 
 ## Use
 
-Inputs are a `(H, W)` semantic prediction and a `(3, H, W)` probability array
-whose channels are background, field, and boundary. The result is a dense
-`int32` instance-label array; zero is background.
+A method takes a `(H, W)` class map and a `(3, H, W)` array of background, field,
+and boundary probabilities, and returns `int32` instance labels with 0 as background.
+Each method is a frozen dataclass, so its settings can be written out and loaded
+again as plain data.
 
 ```python
-from fbp import run
+from fbp import BoundaryVote
 
-instances = run(
-    "nbg-pb-h0.01-t0.3+A900",
-    segmentation,
-    probabilities,
-    px_m2=9.0,
+method = BoundaryVote(
+    foreground="not_background",
+    seed_depth=0.01,
+    min_line_support=0.3,
+    min_area_m2=900,
 )
+instances = method(segmentation, probabilities, pixel_area_m2=9.0)
 ```
 
-The strategy string above uses non-background pixels as foreground, watersheds
-the boundary-probability surface at depth `0.01`, retains proposed splits with
-at least `0.3` boundary support, and removes fields smaller than 900 m².
+This method takes every pixel where field or boundary wins as foreground and floods
+1 - p(boundary) from seeds at least 0.01 deep. It keeps a proposed split when at
+least 30% of the pixels on the dividing line favor boundary, and drops fields under
+900 m². The class docstrings describe every option.
 
-Parse a strategy when you want to inspect or reuse its configuration:
-
-```python
-from fbp import parse
-
-method = parse("nbg-pb-h0.01-t0.3+A900")
-instances = method(segmentation, probabilities, px_m2=9.0)
-```
-
-For rasters too large for one call, `run_windowed` processes `core`-sized
-windows with `halo` pixels of context. Each instance is kept by the window whose
-core holds its centroid, and copies of a field that crosses a window boundary
-are merged into one instance:
+For rasters too large for one call, `run_windowed` processes `core`-sized windows
+with `halo` pixels of context on each side. The window whose core holds a field's
+centroid keeps that field, and copies of a field that crosses a window boundary are
+merged into one instance.
 
 ```python
 from fbp import run_windowed
 
 instances = run_windowed(
-    "nbg-pb-h0.01-t0.3+A900",
+    method,
     segmentation,
     probabilities,
-    px_m2=9.0,
+    pixel_area_m2=9.0,
     core=8192,
     halo=512,
 )
 ```
 
+## FTW Global Data 2nd Edition
+
+`fbp.FTW_2E` is the setting used for the 2nd Edition field boundaries, run on 2.5 m
+probabilities:
+
+```python
+from fbp import FTW_2E
+
+instances = FTW_2E(segmentation, probabilities, pixel_area_m2=6.25)
+```
+
+Besides the BoundaryVote settings above (with `min_line_support=0.5`), it drops
+fields whose mean field probability is under 0.25. It then splits the looser
+foreground of pixels with field probability above 0.10 and adds each resulting field
+that the first pass covers less than half of, which recovers fields whose field
+probability rarely wins the argmax. That second pass is skipped when less than 2% of
+the looser foreground is uncovered. With `fast=True`, the probabilities are rounded
+to the 1/255 grid of the published uint8 rasters, and the watershed runs on integer
+levels. This needs the `fast` extra (SimpleITK and numba):
+
+```sh
+pip install 'ftw-fbp[fast]'
+```
+
+On the published probability rasters, `FTW_2E` reproduces the published raw outlines.
+It matches all 112 fields pixel for pixel on a 10 km window of tile `15TVG_0_0`
+(Iowa), and 647 of 648 fields (99.7% pixel for pixel) on tile `35MRT_0_0` (Rwanda).
+
 ## Layout
 
 ```text
-src/fbp/core/      shared geometry and post-processing primitives
-src/fbp/methods/   algorithms and the strategy registry
+src/fbp/core/      geometry and post-processing building blocks
+src/fbp/methods/   the methods, one module each
 tests/             package tests
 ```
 
-New algorithms subclass `fbp.Method` and register one or more strategy keywords
-with `fbp.methods.registry.register`. Keep paper-specific evaluation, results,
-figures, and LaTeX outside this package.
+A new method subclasses `fbp.Method` and implements `split`. Keep paper-specific
+evaluation, results, figures, and LaTeX outside this package.
 
 ## Development
 

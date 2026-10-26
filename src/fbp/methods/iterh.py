@@ -1,13 +1,13 @@
-"""``iterh-a{a}``: iterative marker depth, re-segmenting regions above ``a`` pixels.
+"""Iterative watershed: re-split regions that stay too large at shrinking depths.
 
 Koyuncu et al. (2016): watershed at the largest depth in ``HS``; any region
-larger than ``a_max`` pixels is re-segmented with the next smaller depth,
+larger than ``max_region_px`` pixels is re-segmented with the next smaller depth,
 recursively. The re-segmentation only ever needs the region's own pixels, so
 it runs on that region's padded bounding box rather than the full image.
 """
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import override
 
 import numpy as np
 from scipy.ndimage import find_objects
@@ -15,7 +15,6 @@ from scipy.ndimage import find_objects
 from fbp.core.regions import relabel_dense, watershed_regions
 from fbp.core.surfaces import boundary_distance
 from fbp.methods.base import Method
-from fbp.methods.registry import register
 
 HS = (8.0, 4.0, 2.0, 1.0)
 
@@ -36,23 +35,27 @@ def _resegment(dist: np.ndarray, region: np.ndarray, h: float) -> np.ndarray:
     return full
 
 
-@register("iterh")
-@dataclass(frozen=True)
-class IterHMethod(Method):
-    """Recursive re-segmentation of over-large regions at shrinking depths."""
+@dataclass(frozen=True, kw_only=True)
+class IterativeWatershed(Method):
+    """Watershed at depth 8, then re-split regions larger than ``max_region_px``.
 
-    a_max: int = 0
-    rule: ClassVar[str] = "iterh"
+    Each re-split uses the next smaller depth in ``HS`` (4, 2, then 1 pixel).
 
+    Attributes:
+        max_region_px: Regions larger than this many pixels are re-split.
+    """
+
+    max_region_px: int
+
+    @override
     def split(
         self,
         fg_mask: np.ndarray,
         seg: np.ndarray,
         prob: np.ndarray,
-        ctx: dict | None = None,
+        context: dict | None,
     ) -> np.ndarray:
-        """Watershed at ``HS[0]``, then recursively re-split over-large regions."""
-        del prob, ctx
+        del prob, context
         dist = boundary_distance(seg) * fg_mask
         lab = _watershed(dist, fg_mask, HS[0])
         for h in HS[1:]:
@@ -60,7 +63,7 @@ class IterHMethod(Method):
             nxt = lab.copy()
             cur = int(lab.max())
             for label_id, area in zip(ids, counts, strict=True):
-                if area <= self.a_max:
+                if area <= self.max_region_px:
                     continue
                 part = _resegment(dist, lab == label_id, h)
                 if part.max() <= 1:
@@ -70,19 +73,3 @@ class IterHMethod(Method):
                 cur += int(part.max())
             lab = nxt
         return relabel_dense(lab)
-
-    def _rule_id(self) -> str:
-        return f"iterh-a{self.a_max}"
-
-    @classmethod
-    def from_parts(
-        cls,
-        fg: str,
-        rule: str,
-        params: list,
-        mods: dict[str, int],
-    ) -> "IterHMethod":
-        """Build from a parsed ``<fg>-iterh-a{a}`` id."""
-        del rule
-        kv = dict(params)
-        return cls(**cls._common_kwargs(fg, mods), a_max=int(kv["a"]))
