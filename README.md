@@ -64,6 +64,13 @@ instances = run_windowed(
 )
 ```
 
+Only one window of the inputs is read at a time. `segmentation` and `probabilities`
+can be any objects with a `.shape` whose numpy-style slices are arrays, such as a
+reader of raster windows, so the whole raster never has to be in memory. The labels
+are int32 and are relabelled in row strips; pass `out=` to write them into a
+preallocated int32 array or memmap. A 40,032 x 40,032 raster then needs the 6.4 GB
+label array plus one window's working memory.
+
 ## FTW Global Data 2nd Edition
 
 `fbp.FTW_2E` is the setting used for the 2nd Edition field boundaries, run on 2.5 m
